@@ -102,7 +102,10 @@
   --inset: #ffffff; /* panels nested inside a sticker        */
   --lip: #e0d9ff; /* the solid edge under every sticker    */
   --muted: #f1eeff;
-  --muted-foreground: #7c7396;
+  /* One muted-text colour, not two. This drives the shadcn components while
+     --ink-soft drives the app's own, and they were drifting apart: this one
+     still held the value that measured 4.42:1 and failed WCAG AA. */
+  --muted-foreground: var(--ink-soft);
 
   --primary: var(--violet);
   --primary-foreground: #ffffff;
@@ -157,7 +160,7 @@
   --inset: #2a2440;
   --lip: #100e1b;
   --muted: #262137;
-  --muted-foreground: #a79fc4;
+  --muted-foreground: var(--ink-soft);
 
   --primary: var(--violet);
   --primary-foreground: #1b1430;
