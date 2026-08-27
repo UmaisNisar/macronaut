@@ -3,6 +3,8 @@ import Link from "next/link";
 import { CoachPanel } from "@/components/today/coach-panel";
 import { FoodComposer } from "@/components/today/food-composer";
 import { MealTimeline } from "@/components/today/meal-timeline";
+import { OfflineOutbox } from "@/components/today/offline-outbox";
+import { QuickRepeat } from "@/components/today/quick-repeat";
 import { WeighInBar } from "@/components/weight/weigh-in-bar";
 import { EnergyBubble } from "@/components/viz/energy-bubble";
 import { MacroMeters } from "@/components/viz/macro-meters";
@@ -32,11 +34,12 @@ export default async function TodayPage() {
   const { store, profile } = await requireProfile();
   const today = await userToday();
 
-  const [goals, entries, recent, weights] = await Promise.all([
+  const [goals, entries, recent, weights, frequent] = await Promise.all([
     store.listGoalSnapshots(profile.id),
     store.listFoodEntries(profile.id, today, today),
     store.listDailyLogs(profile.id, addDays(today, -60), today),
     store.listWeightLogs(profile.id),
+    store.listFrequentFoods(profile.id, 8),
   ]);
 
   const targets = targetsForDate(goals, profile, today);
@@ -159,11 +162,15 @@ export default async function TodayPage() {
         </div>
       </Sticker>
 
-      <FoodComposer
-        date={today}
-        isToday
-        isFirstEver={streaks.totalDaysLogged === 0}
-      />
+      <div>
+        <OfflineOutbox />
+        <QuickRepeat foods={frequent} date={today} />
+        <FoodComposer
+          date={today}
+          isToday
+          isFirstEver={streaks.totalDaysLogged === 0}
+        />
+      </div>
 
       <CoachPanel
         date={today}
@@ -187,7 +194,7 @@ export default async function TodayPage() {
             </span>
           }
         />
-        <MealTimeline entries={entries} date={today} />
+        <MealTimeline entries={entries} date={today} today={today} />
       </Sticker>
 
       <div className="grid gap-4 sm:gap-5 lg:grid-cols-2">

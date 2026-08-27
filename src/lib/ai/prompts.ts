@@ -227,3 +227,23 @@ export const REPORT_SCHEMA: GeminiSchema = {
     "grade",
   ],
 };
+
+/**
+ * Photo logging. Same output contract as FOOD_SYSTEM, but a camera gives you
+ * different information than a sentence: you can see the food and roughly how
+ * much of it there is, and you cannot see how it was cooked or what is under
+ * the sauce. Say so in the assumptions rather than inventing certainty.
+ */
+export const FOOD_PHOTO_SYSTEM = `${FOOD_SYSTEM}
+
+READING A PHOTO
+- Identify every distinct food you can see, including drinks and sides.
+- Judge portions against whatever is in frame for scale: the plate, cutlery, a
+  mug, a hand. A standard dinner plate is about 27cm across.
+- Cooking method and hidden fats (butter, oil, dressing) are usually invisible.
+  Assume ordinary home preparation and say so in the assumptions.
+- If the person added a note, believe it over your own reading of the image.
+- Lower your confidence when the shot is blurry, dark, partly out of frame, or
+  the food is obscured. A confident wrong number is worse than an honest guess.
+- If there is no food in the picture at all, return a single item named
+  "nothing recognised".`;

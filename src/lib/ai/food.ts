@@ -2,7 +2,11 @@ import "server-only";
 
 import { AiFoodAnalysis } from "@/lib/schemas";
 import { generateJson } from "@/lib/ai/gemini";
-import { FOOD_SCHEMA, FOOD_SYSTEM } from "@/lib/ai/prompts";
+import {
+  FOOD_PHOTO_SYSTEM,
+  FOOD_SCHEMA,
+  FOOD_SYSTEM,
+} from "@/lib/ai/prompts";
 import { estimateFromText } from "@/lib/ai/estimator";
 import { isGeminiConfigured } from "@/lib/env";
 
@@ -34,6 +38,63 @@ function reconcile(analysis: AiFoodAnalysis): {
     return food;
   });
   return { analysis: { ...analysis, foods }, corrected };
+}
+
+/**
+ * Read a meal off a photograph.
+ *
+ * Unlike the text path there is no offline fallback worth having: an estimator
+ * cannot guess at pixels, so with no key or a failed call this reports the
+ * failure and the caller asks the person to describe the meal instead. Better
+ * an honest "type it out" than a fabricated plate of food.
+ */
+export async function analyseFoodPhoto(
+  image: { data: string; mimeType: string },
+  note?: string,
+): Promise<
+  { ok: true; analysis: AiFoodAnalysis } | { ok: false; reason: string }
+> {
+  if (!isGeminiConfigured) {
+    return { ok: false, reason: "Photo logging needs the AI to be configured." };
+  }
+
+  const result = await generateJson({
+    system: FOOD_PHOTO_SYSTEM,
+    prompt: note?.trim()
+      ? `Identify everything edible in this photo. The person adds: "${note.trim()}"`
+      : "Identify everything edible in this photo and estimate the portions.",
+    image,
+    schema: FOOD_SCHEMA,
+    validator: AiFoodAnalysis,
+    temperature: 0.25,
+    maxOutputTokens: 3072,
+    // Reading a plate genuinely benefits from a moment's thought, unlike
+    // parsing a sentence, so this one is not pinned to zero.
+    thinkingBudget: 512,
+    timeoutMs: 45_000,
+  });
+
+  if (!result.ok) {
+    console.warn(
+      `[macronaut] photo analysis failed (${result.reason}): ${result.detail}`,
+    );
+    return {
+      ok: false,
+      reason:
+        result.reason === "unconfigured"
+          ? "Photo logging needs the AI to be configured."
+          : "That photo could not be read. Try again, or type what you ate.",
+    };
+  }
+
+  const { analysis, corrected } = reconcile(result.data);
+  if (corrected > 0) {
+    analysis.assumptions = [
+      ...analysis.assumptions,
+      `Calorie figures for ${corrected} item${corrected > 1 ? "s" : ""} were rebalanced against their macros.`,
+    ];
+  }
+  return { ok: true, analysis };
 }
 
 export async function analyseFood(text: string): Promise<FoodAnalysisResult> {

@@ -164,6 +164,25 @@ export const FoodEntry = z.object({
 });
 export type FoodEntry = z.infer<typeof FoodEntry>;
 
+/**
+ * A photo submitted for analysis. The 6MB ceiling is a backstop: the client
+ * downscales before sending, so anything near this is a client that skipped it.
+ */
+export const LogFoodPhotoInput = z.object({
+  imageBase64: z.string().min(32).max(6_000_000),
+  mimeType: z.enum(["image/jpeg", "image/png", "image/webp", "image/heic"]),
+  date: IsoDate,
+  note: z.string().trim().max(240).optional(),
+});
+export type LogFoodPhotoInput = z.infer<typeof LogFoodPhotoInput>;
+
+export const RepeatFoodInput = z.object({
+  sourceId: z.string().min(1),
+  date: IsoDate,
+  meal: MealSlot.optional(),
+});
+export type RepeatFoodInput = z.infer<typeof RepeatFoodInput>;
+
 export const LogFoodInput = z.object({
   text: z.string().trim().min(2, "Tell me what you ate.").max(2000),
   date: IsoDate,

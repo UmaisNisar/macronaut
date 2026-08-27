@@ -12,6 +12,19 @@ import type {
 import type { Iso } from "@/lib/date";
 
 export type NewFoodEntry = Omit<FoodEntry, "id" | "createdAt">;
+
+/** A food worth offering as a one-tap repeat. */
+export type FrequentFood = {
+  /** Latest entry with this name; the row that gets copied. */
+  entryId: string;
+  name: string;
+  emoji: string;
+  quantity: string;
+  calories: number;
+  /** How many times it has been logged in the window we looked at. */
+  count: number;
+  lastLoggedOn: Iso;
+};
 export type NewGoalSnapshot = Omit<GoalSnapshot, "id" | "createdAt">;
 export type ProfileSeed = Omit<Profile, "createdAt">;
 
@@ -49,6 +62,12 @@ export interface DataStore {
     patch: Partial<Omit<FoodEntry, "id" | "userId" | "createdAt">>,
   ): Promise<FoodEntry | null>;
   deleteFoodEntry(userId: string, id: string): Promise<void>;
+  /**
+   * The foods this user logs most often, most-used first, each carrying the id
+   * of its latest occurrence so it can be copied without re-running the model.
+   */
+  listFrequentFoods(userId: string, limit: number): Promise<FrequentFood[]>;
+  getFoodEntry(userId: string, id: string): Promise<FoodEntry | null>;
 
   /* daily rollups -------------------------------------------------- */
   getDailyLog(userId: string, dateIso: Iso): Promise<DailyLog | null>;
@@ -103,4 +122,44 @@ export interface DataStore {
 
   /* danger zone ------------------------------------------------------ */
   wipeUser(userId: string): Promise<void>;
+}
+
+/**
+ * Rank logged foods into repeat suggestions. Shared so both drivers agree on
+ * what "frequent" means: how often you have eaten it, with recency breaking
+ * ties, keyed on the name so "Scrambled Eggs" logged ten times is one chip.
+ */
+export function rankFrequentFoods(
+  entries: FoodEntry[],
+  limit: number,
+): FrequentFood[] {
+  const byName = new Map<string, { latest: FoodEntry; count: number }>();
+
+  for (const entry of entries) {
+    const key = entry.name.trim().toLowerCase();
+    const seen = byName.get(key);
+    if (!seen) {
+      byName.set(key, { latest: entry, count: 1 });
+      continue;
+    }
+    seen.count += 1;
+    if (entry.createdAt > seen.latest.createdAt) seen.latest = entry;
+  }
+
+  return [...byName.values()]
+    .sort(
+      (a, b) =>
+        b.count - a.count ||
+        b.latest.createdAt.localeCompare(a.latest.createdAt),
+    )
+    .slice(0, limit)
+    .map(({ latest, count }) => ({
+      entryId: latest.id,
+      name: latest.name,
+      emoji: latest.emoji,
+      quantity: latest.quantity,
+      calories: latest.calories,
+      count,
+      lastLoggedOn: latest.logDate,
+    }));
 }

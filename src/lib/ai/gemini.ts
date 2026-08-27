@@ -27,6 +27,8 @@ export type GenerateOptions<T> = {
   maxOutputTokens?: number;
   /** Reasoning tokens. 0 keeps latency low for the mechanical extraction jobs. */
   thinkingBudget?: number;
+  /** Base64 image sent alongside the prompt, for reading a meal off a photo. */
+  image?: { data: string; mimeType: string };
   timeoutMs?: number;
 };
 
@@ -73,6 +75,7 @@ export async function generateJson<T>(
     maxOutputTokens = 2048,
     thinkingBudget = 0,
     timeoutMs = 30_000,
+    image,
   } = options;
 
   const generationConfig: Record<string, unknown> = {
@@ -96,7 +99,19 @@ export async function generateJson<T>(
 
   const body = JSON.stringify({
     systemInstruction: { parts: [{ text: system }] },
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    contents: [
+      {
+        role: "user",
+        // Image first: Gemini attends better to a prompt that follows the
+        // thing it is being asked about.
+        parts: image
+          ? [
+              { inlineData: { mimeType: image.mimeType, data: image.data } },
+              { text: prompt },
+            ]
+          : [{ text: prompt }],
+      },
+    ],
     generationConfig,
   });
 

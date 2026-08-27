@@ -4,7 +4,14 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
-import { ChevronDown, Loader2, Pencil, Trash2 } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Loader2,
+  Pencil,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 
 import {
   Dialog,
@@ -18,7 +25,11 @@ import { Label } from "@/components/ui/label";
 import { EmptyNest } from "@/components/kit";
 import { MEAL_SLOTS, type FoodEntry, type MealSlot } from "@/lib/schemas";
 import type { Iso } from "@/lib/date";
-import { deleteFoodAction, updateFoodAction } from "@/server/actions";
+import {
+  deleteFoodAction,
+  repeatFoodAction,
+  updateFoodAction,
+} from "@/server/actions";
 import { SPRING } from "@/lib/motion";
 import { useIsTouch } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
@@ -68,10 +79,13 @@ const CONFIDENCE = {
 export function MealTimeline({
   entries,
   date,
+  today,
   editable = true,
 }: {
   entries: FoodEntry[];
   date: Iso;
+  /** Repeats always land on today, even while browsing an older day. */
+  today: Iso;
   editable?: boolean;
 }) {
   const [editing, setEditing] = useState<FoodEntry | null>(null);
@@ -125,6 +139,7 @@ export function MealTimeline({
                       entry={entry}
                       date={date}
                       editable={editable}
+                      today={today}
                       index={groupIndex * 3 + i}
                       onEdit={() => setEditing(entry)}
                     />
@@ -144,20 +159,34 @@ export function MealTimeline({
 function FoodSticker({
   entry,
   date,
+  today,
   editable,
   index,
   onEdit,
 }: {
   entry: FoodEntry;
   date: Iso;
+  today: Iso;
   editable: boolean;
   index: number;
   onEdit: () => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [repeating, startRepeat] = useTransition();
+  const [repeated, setRepeated] = useState(false);
   const [open, setOpen] = useState(false);
   const isTouch = useIsTouch();
+
+  function logAgain() {
+    startRepeat(async () => {
+      const result = await repeatFoodAction({ sourceId: entry.id, date: today });
+      if (!result.ok) return;
+      setRepeated(true);
+      setTimeout(() => setRepeated(false), 1600);
+      router.refresh();
+    });
+  }
   const meta = MEAL_META[entry.meal];
   const confidence = CONFIDENCE[entry.confidence];
 
@@ -223,6 +252,22 @@ function FoodSticker({
           </span>
           {editable ? (
             <>
+              <button
+                type="button"
+                onClick={logAgain}
+                disabled={repeating}
+                className="grid size-10 place-items-center rounded-full text-[var(--ink-soft)] transition-all hover:bg-[var(--muted)] hover:text-[var(--mint)] active:scale-90 sm:size-8"
+                aria-label={`Log ${entry.name} again today`}
+                title={date === today ? "Log again" : "Log this again today"}
+              >
+                {repeating ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : repeated ? (
+                  <Check className="size-3.5 text-[var(--mint)]" />
+                ) : (
+                  <RotateCcw className="size-3.5" />
+                )}
+              </button>
               <button
                 type="button"
                 onClick={onEdit}

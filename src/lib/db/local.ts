@@ -21,6 +21,7 @@ import type {
   NewGoalSnapshot,
   ProfileSeed,
 } from "@/lib/db/store";
+import { rankFrequentFoods } from "@/lib/db/store";
 
 type Shape = {
   version: 1;
@@ -190,6 +191,26 @@ export function createLocalStore(): DataStore {
             (e) => e.userId === userId && inRange(e.logDate, startIso, endIso),
           )
           .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+      );
+    },
+
+    async getFoodEntry(userId: string, id: string) {
+      return query(
+        (db) =>
+          db.foodEntries.find((e) => e.userId === userId && e.id === id) ??
+          null,
+      );
+    },
+
+    async listFrequentFoods(userId: string, limit: number) {
+      return query((db) =>
+        rankFrequentFoods(
+          db.foodEntries
+            .filter((e) => e.userId === userId)
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+            .slice(0, 300),
+          limit,
+        ),
       );
     },
 

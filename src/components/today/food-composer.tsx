@@ -4,13 +4,14 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
-import { Search, Sparkles } from "lucide-react";
+import { Camera, Search, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Haptic } from "@/components/ui/haptic";
 import { Momo } from "@/components/mascot/momo";
 import { AnimatedNumber } from "@/components/viz/animated-number";
-import { logFoodAction } from "@/server/actions";
+import { logFoodAction, logFoodPhotoAction } from "@/server/actions";
+import { isOffline, queueLog } from "@/lib/offline-queue";
 import { useCelebration } from "@/components/celebrate/celebration";
 import type { FoodEntry } from "@/lib/schemas";
 import type { Iso } from "@/lib/date";
@@ -63,6 +64,7 @@ export function FoodComposer({
   const [placeholder, setPlaceholder] = useState(EXAMPLES[0]);
   const [reveal, setReveal] = useState<FoodEntry[] | null>(null);
   const area = useRef<HTMLTextAreaElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (pending || text) return;
@@ -96,40 +98,122 @@ export function FoodComposer({
     setReveal(null);
 
     startTransition(async () => {
-      const result = await logFoodAction({ text: value, date });
-      if (!result.ok) {
-        toast.error(result.error);
+      // No signal: keep the meal on the device rather than losing it to a
+      // failed request. The outbox sends it the moment we are back.
+      if (isOffline()) {
+        const queued = await queueLog({ kind: "text", text: value, date });
+        if (queued) {
+          setText("");
+          requestAnimationFrame(grow);
+          window.dispatchEvent(new Event("macronaut:queued"));
+          toast("Saved offline 📥", {
+            description: "It will send itself when you have signal.",
+          });
+          return;
+        }
+      }
+      applyResult(await logFoodAction({ text: value, date }));
+    });
+  }
+
+  /** Shared by both inputs: typing a meal and photographing one land here. */
+  function applyResult(result: Awaited<ReturnType<typeof logFoodAction>>) {
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+
+    setText("");
+    requestAnimationFrame(grow);
+    setReveal(result.added);
+    router.refresh();
+
+    if (result.source === "estimator") {
+      toast("Guessed this one offline", {
+        description: "Tap any item to fix the numbers.",
+      });
+    }
+
+    for (const badge of result.unlocked) {
+      celebrate({
+        title: badge.name,
+        detail: "Achievement unlocked!",
+        emoji: badge.emoji,
+        intensity: "big",
+      });
+    }
+
+    if (isFirstEver && !result.unlocked.length) {
+      celebrate({
+        title: "First meal logged!",
+        detail: "This is where it starts 🎉",
+        emoji: "🎉",
+        intensity: "big",
+      });
+    }
+  }
+
+  /**
+   * Shrink before sending. A modern phone camera produces a multi-megabyte
+   * file, that whole payload would cross the wire on a mobile connection, and
+   * a plate of food is perfectly legible at 1024px. Whatever the camera hands
+   * us — HEIC included — comes out the other side as JPEG.
+   */
+  async function downscale(file: File): Promise<{ data: string; mime: string }> {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 1024 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas
+      .getContext("2d")
+      ?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const url = canvas.toDataURL("image/jpeg", 0.72);
+    return { data: url.slice(url.indexOf(",") + 1), mime: "image/jpeg" };
+  }
+
+  function submitPhoto(file: File) {
+    setStep(0);
+    setReveal(null);
+    startTransition(async () => {
+      let shot: { data: string; mime: string };
+      try {
+        shot = await downscale(file);
+      } catch {
+        toast.error("That image could not be opened.");
         return;
       }
+      // Anything already typed rides along as a hint — "the sauce is
+      // mayo" is exactly what a photo cannot tell the model.
+      const note = text.trim() || undefined;
 
-      setText("");
-      requestAnimationFrame(grow);
-      setReveal(result.added);
-      router.refresh();
-
-      if (result.source === "estimator") {
-        toast("Guessed this one offline", {
-          description: "Tap any item to fix the numbers.",
+      if (isOffline()) {
+        const queued = await queueLog({
+          kind: "photo",
+          imageBase64: shot.data,
+          mimeType: shot.mime,
+          date,
+          note,
         });
+        if (queued) {
+          setText("");
+          window.dispatchEvent(new Event("macronaut:queued"));
+          toast("Photo saved offline 📥", {
+            description: "Momo will read it once you are back online.",
+          });
+          return;
+        }
       }
 
-      for (const badge of result.unlocked) {
-        celebrate({
-          title: badge.name,
-          detail: "Achievement unlocked!",
-          emoji: badge.emoji,
-          intensity: "big",
-        });
-      }
-
-      if (isFirstEver && !result.unlocked.length) {
-        celebrate({
-          title: "First meal logged!",
-          detail: "This is where it starts 🎉",
-          emoji: "🎉",
-          intensity: "big",
-        });
-      }
+      applyResult(
+        await logFoodPhotoAction({
+          imageBase64: shot.data,
+          mimeType: shot.mime,
+          date,
+          note,
+        }),
+      );
     });
   }
 
@@ -236,6 +320,37 @@ export function FoodComposer({
               )}
             </AnimatePresence>
           </div>
+
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/*"
+            // On a phone this opens the camera straight away rather than the
+            // photo library, which is what you want mid-meal.
+            capture="environment"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              // Reset first, or picking the same photo twice fires nothing.
+              event.target.value = "";
+              if (file) submitPhoto(file);
+            }}
+          />
+
+          <Haptic className="shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              disabled={pending}
+              onClick={() => fileInput.current?.click()}
+              aria-label="Log a meal from a photo"
+              title="Snap your plate"
+            >
+              <Camera className="size-4" />
+              <span className="sm:hidden">Photo</span>
+            </Button>
+          </Haptic>
 
           <Haptic className="w-full shrink-0 sm:w-auto">
             <Button

@@ -7,6 +7,8 @@ import { redirect } from "next/navigation";
 import {
   CredentialsInput,
   EditFoodInput,
+  RepeatFoodInput,
+  LogFoodPhotoInput,
   LogFoodInput,
   LogWeightInput,
   OnboardingInput,
@@ -31,7 +33,7 @@ import {
 import { userToday } from "@/lib/server-date";
 import { computeJourney, computeTargets, round } from "@/lib/nutrition";
 import { computeStreaks, periodPair, weightStats } from "@/lib/insights";
-import { analyseFood } from "@/lib/ai/food";
+import { analyseFood, analyseFoodPhoto } from "@/lib/ai/food";
 import {
   writeDailyNote,
   writePeriodReport,
@@ -310,6 +312,151 @@ export async function logFoodAction(
       return def ? [{ key, name: def.name, emoji: def.emoji }] : [];
     }),
   };
+}
+
+/**
+ * Log something you have eaten before, by copying an entry you already own.
+ *
+ * Deliberately no model call: the numbers were already estimated once, so
+ * repeating breakfast should be instant and free rather than another three
+ * second round trip to Gemini for the same answer. The source row is re-read
+ * server-side rather than trusted from the client, so this cannot be used to
+ * invent arbitrary macros.
+ */
+/**
+ * Log a meal from a photograph.
+ *
+ * The image never touches our storage: it goes to the model, produces numbers,
+ * and is dropped. Nothing about tracking your lunch requires us to keep a
+ * picture of it.
+ */
+export async function logFoodPhotoAction(
+  raw: unknown,
+): Promise<ActionResult<LogFoodPayload>> {
+  const ctx = await withProfile();
+  if (!ctx.ok) return fail(ctx.error);
+
+  const parsed = LogFoodPhotoInput.safeParse(raw);
+  if (!parsed.success) {
+    return fail(
+      parsed.error.issues[0]?.message ?? "That photo could not be read.",
+    );
+  }
+
+  const { profile, store } = ctx;
+  const { imageBase64, mimeType, date, note } = parsed.data;
+
+  const read = await analyseFoodPhoto({ data: imageBase64, mimeType }, note);
+  if (!read.ok) return fail(read.reason);
+
+  const usable = read.analysis.foods.filter(
+    (f) => !/^nothing/i.test(f.name.trim()),
+  );
+  if (!usable.length) {
+    return fail(
+      "No food could be picked out of that photo. Try a clearer shot, or type it instead.",
+    );
+  }
+
+  const added = await store.insertFoodEntries(
+    usable.map((f) => ({
+      userId: profile.id,
+      logDate: date,
+      meal: f.meal,
+      name: f.name,
+      quantity: f.estimatedQuantity,
+      emoji: f.emoji || "🍽️",
+      calories: round(f.calories),
+      protein: round(f.protein, 1),
+      carbs: round(f.carbs, 1),
+      fat: round(f.fat, 1),
+      fiber: round(f.fiber, 1),
+      sugar: round(f.sugar, 1),
+      confidence: f.confidence,
+      assumptions: read.analysis.assumptions,
+      rawInput: note?.trim() ? "photo: " + note.trim() : "photo",
+      source: "ai",
+    })),
+  );
+
+  const goals = await store.listGoalSnapshots(profile.id);
+  const day = await recomputeDay(
+    store,
+    profile.id,
+    date,
+    targetsForDate(goals, profile, date),
+  );
+  const entries = await store.listFoodEntries(profile.id, date, date);
+  const unlockedKeys = await refreshAchievements(
+    store,
+    profile,
+    await userToday(),
+  );
+
+  revalidateApp();
+
+  return {
+    ok: true,
+    day,
+    entries,
+    added,
+    assumptions: read.analysis.assumptions,
+    source: "ai",
+    unlocked: unlockedKeys.flatMap((key) => {
+      const def = ACHIEVEMENT_BY_KEY.get(key);
+      return def ? [{ key, name: def.name, emoji: def.emoji }] : [];
+    }),
+  };
+}
+
+export async function repeatFoodAction(
+  raw: unknown,
+): Promise<ActionResult<{ day: DailyLog; entries: FoodEntry[] }>> {
+  const ctx = await withProfile();
+  if (!ctx.ok) return fail(ctx.error);
+
+  const parsed = RepeatFoodInput.safeParse(raw);
+  if (!parsed.success) return fail("That entry could not be read.");
+
+  const { profile, store } = ctx;
+  const { sourceId, date } = parsed.data;
+
+  const source = await store.getFoodEntry(profile.id, sourceId);
+  if (!source) return fail("That food is no longer in your log.");
+
+  await store.insertFoodEntries([
+    {
+      userId: profile.id,
+      logDate: date,
+      meal: parsed.data.meal ?? source.meal,
+      name: source.name,
+      quantity: source.quantity,
+      emoji: source.emoji,
+      calories: source.calories,
+      protein: source.protein,
+      carbs: source.carbs,
+      fat: source.fat,
+      fiber: source.fiber,
+      sugar: source.sugar,
+      confidence: source.confidence,
+      assumptions: source.assumptions,
+      rawInput: source.rawInput,
+      source: source.source,
+    },
+  ]);
+
+  const goals = await store.listGoalSnapshots(profile.id);
+  const day = await recomputeDay(
+    store,
+    profile.id,
+    date,
+    targetsForDate(goals, profile, date),
+  );
+  const entries = await store.listFoodEntries(profile.id, date, date);
+  await refreshAchievements(store, profile, await userToday());
+
+  revalidateApp();
+  return { ok: true, day, entries };
 }
 
 export async function updateFoodAction(

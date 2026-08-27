@@ -222,7 +222,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
                 </span>
               }
             />
-            <MealTimeline entries={entries} date={selected} />
+            <MealTimeline entries={entries} date={selected} today={today} />
           </Sticker>
 
           {/* Today already has this composer; here it would only be a repeat.

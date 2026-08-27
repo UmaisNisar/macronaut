@@ -23,6 +23,10 @@ const nextConfig: NextConfig = {
     // Safe to cache briefly here because every mutation calls revalidatePath
     // on the affected routes, so a new log can never be hidden behind it.
     staleTimes: { dynamic: 30, static: 180 },
+    // Photo logging posts a downscaled JPEG as base64 through a Server Action.
+    // 1024px at quality 0.72 lands well under this; the headroom is for the
+    // occasional very busy photo that compresses badly.
+    serverActions: { bodySizeLimit: "4mb" },
   },
 };
 

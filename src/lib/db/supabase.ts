@@ -23,6 +23,7 @@ import type {
   NewGoalSnapshot,
   ProfileSeed,
 } from "@/lib/db/store";
+import { rankFrequentFoods } from "@/lib/db/store";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Row = Record<string, any>;
@@ -342,6 +343,30 @@ export function createSupabaseStore(sb: SupabaseClient): DataStore {
         .order("created_at", { ascending: true });
       if (error) fail("load food", error);
       return (data ?? []).map(toFood);
+    },
+
+    async getFoodEntry(userId, id) {
+      const { data, error } = await sb
+        .from("food_entries")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("id", id)
+        .maybeSingle();
+      if (error) fail("load food entry", error);
+      return data ? toFood(data) : null;
+    },
+
+    async listFrequentFoods(userId, limit) {
+      // A recent window rather than all history: what you ate six months ago
+      // is not what you want offered as a one-tap repeat today.
+      const { data, error } = await sb
+        .from("food_entries")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(300);
+      if (error) fail("load frequent foods", error);
+      return rankFrequentFoods((data ?? []).map(toFood), limit);
     },
 
     async insertFoodEntries(entries) {
