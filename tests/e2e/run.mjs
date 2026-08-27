@@ -339,25 +339,38 @@ try {
   await page.evaluate(() => {
     for (let i = 0; i < 4; i++) window.dispatchEvent(new Event("online"));
   });
-  await page
-    .waitForFunction(() => !/waiting to send/.test(document.body.innerText), null, {
-      timeout: 90000,
-    })
-    .catch(() => {});
-  await page.waitForTimeout(2500);
+  /*
+   * Wait on the outbox itself, not on the banner text.
+   *
+   * Waiting for the banner to disappear made this intermittently fail: the
+   * queue would be empty while the banner had not yet re-rendered, and the
+   * check ran in the gap. The queue is the thing under test and the only
+   * source of truth, so poll that.
+   */
+  const queueCount = () =>
+    page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          const req = indexedDB.open("macronaut-outbox", 1);
+          req.onsuccess = () => {
+            const db = req.result;
+            const c = db
+              .transaction("pending", "readonly")
+              .objectStore("pending")
+              .count();
+            c.onsuccess = () => resolve(c.result);
+          };
+          req.onerror = () => resolve(-1);
+        }),
+    );
 
-  const queueLeft = await page.evaluate(
-    () =>
-      new Promise((resolve) => {
-        const req = indexedDB.open("macronaut-outbox", 1);
-        req.onsuccess = () => {
-          const db = req.result;
-          const c = db.transaction("pending", "readonly").objectStore("pending").count();
-          c.onsuccess = () => resolve(c.result);
-        };
-        req.onerror = () => resolve(-1);
-      }),
-  );
+  let queueLeft = await queueCount();
+  for (let i = 0; i < 120 && queueLeft > 0; i++) {
+    await page.waitForTimeout(1000);
+    queueLeft = await queueCount();
+  }
+  // Let the resulting write settle before the file is read below.
+  await page.waitForTimeout(1500);
   check("outbox drains on reconnect", queueLeft === 0, `${queueLeft} left`);
 
   // Counted in the store, not the DOM: a logged food legitimately appears
