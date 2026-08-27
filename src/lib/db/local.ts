@@ -22,7 +22,7 @@ import type {
   ProfileSeed,
 } from "@/lib/db/store";
 import { rankFrequentFoods } from "@/lib/db/store";
-import type { ErrorReport } from "@/lib/db/store";
+import type { ErrorReport, FoodCorrection } from "@/lib/db/store";
 
 type Shape = {
   version: 1;
@@ -35,6 +35,7 @@ type Shape = {
   reports: StoredReport[];
   /** Optional so files written before AI budgeting still load. */
   aiUsage?: AiUsageRow[];
+  corrections?: (FoodCorrection & { userId: string })[];
 };
 
 type AiUsageRow = {
@@ -216,6 +217,31 @@ export function createLocalStore(): DataStore {
         }
         rows.push({ userId, usageDate: dateIso, kind, count: 1 });
         return 1;
+      });
+    },
+
+    async listFoodCorrections(userId: string) {
+      return query((db) =>
+        (db.corrections ?? []).filter((c) => c.userId === userId),
+      );
+    },
+
+    async saveFoodCorrection(
+      userId: string,
+      c: Omit<FoodCorrection, "times" | "updatedAt">,
+    ) {
+      await mutate((db) => {
+        const rows = (db.corrections ??= []);
+        const existing = rows.find(
+          (r) => r.userId === userId && r.nameKey === c.nameKey,
+        );
+        const now = new Date().toISOString();
+        if (existing) {
+          Object.assign(existing, c, { times: existing.times + 1, updatedAt: now });
+        } else {
+          rows.push({ ...c, userId, times: 1, updatedAt: now });
+        }
+        return null;
       });
     },
 

@@ -2,7 +2,12 @@ import "server-only";
 
 import type { ZodType } from "zod";
 
-import { geminiApiKey, geminiModel, isGeminiConfigured } from "@/lib/env";
+import {
+  geminiApiKey,
+  geminiFallbackModel,
+  geminiModel,
+  isGeminiConfigured,
+} from "@/lib/env";
 
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
@@ -87,89 +92,116 @@ export async function generateJson<T>(
   // `thinkingConfig` only exists on the 2.5+ family, and only Flash accepts a
   // budget of zero — Pro rejects anything below 128. Where we cannot be sure,
   // leave the model's default alone rather than 400 on every request.
-  if (/2\.5|3\./.test(geminiModel)) {
-    if (/flash/i.test(geminiModel)) {
-      generationConfig.thinkingConfig = { thinkingBudget };
-    } else if (thinkingBudget > 0) {
-      generationConfig.thinkingConfig = {
-        thinkingBudget: Math.max(128, thinkingBudget),
-      };
-    }
-  }
+  const thinkingFor = (model: string): Record<string, unknown> | null => {
+    if (!/2\.5|3\./.test(model)) return null;
+    if (/flash/i.test(model)) return { thinkingBudget };
+    return thinkingBudget > 0
+      ? { thinkingBudget: Math.max(128, thinkingBudget) }
+      : null;
+  };
 
-  const body = JSON.stringify({
-    systemInstruction: { parts: [{ text: system }] },
-    contents: [
-      {
-        role: "user",
-        // Image first: Gemini attends better to a prompt that follows the
-        // thing it is being asked about.
-        parts: image
-          ? [
-              { inlineData: { mimeType: image.mimeType, data: image.data } },
-              { text: prompt },
-            ]
-          : [{ text: prompt }],
-      },
-    ],
-    generationConfig,
-  });
+  const bodyFor = (model: string) => {
+    const thinking = thinkingFor(model);
+    return JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [
+        {
+          role: "user",
+          // Image first: Gemini attends better to a prompt that follows the
+          // thing it is being asked about.
+          parts: image
+            ? [
+                { inlineData: { mimeType: image.mimeType, data: image.data } },
+                { text: prompt },
+              ]
+            : [{ text: prompt }],
+        },
+      ],
+      generationConfig: thinking
+        ? { ...generationConfig, thinkingConfig: thinking }
+        : generationConfig,
+    });
+  };
+
+  // The backup only exists to survive one model having a bad ten minutes.
+  // Dropping straight to the keyword estimator loses far more quality than
+  // answering from an older model does.
+  const models =
+    geminiFallbackModel && geminiFallbackModel !== geminiModel
+      ? [geminiModel, geminiFallbackModel]
+      : [geminiModel];
 
   let lastDetail = "";
+  /** Set when the primary refused in a way a different model cannot fix. */
+  let hardFailure: GenerateResult<T> | null = null;
 
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const response = await fetch(
-        `${ENDPOINT}/${encodeURIComponent(geminiModel)}:generateContent`,
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "x-goog-api-key": geminiApiKey,
-          },
-          body,
-          signal: AbortSignal.timeout(timeoutMs),
-          cache: "no-store",
-        },
-      );
+  for (const model of models) {
+    const body = bodyFor(model);
 
-      if (!response.ok) {
-        lastDetail = `${response.status} ${(await response.text()).slice(0, 400)}`;
-        // 4xx other than rate limiting will not fix itself on retry.
-        if (response.status < 500 && response.status !== 429) {
-          return { ok: false, reason: "api", detail: lastDetail };
-        }
-        continue;
-      }
-
-      const text = extractText(await response.json());
-      if (!text) {
-        lastDetail = "Empty completion";
-        continue;
-      }
-
-      let parsed: unknown;
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        parsed = JSON.parse(stripFence(text));
-      } catch {
-        lastDetail = `Unparseable JSON: ${text.slice(0, 200)}`;
-        continue;
-      }
+        const response = await fetch(
+          `${ENDPOINT}/${encodeURIComponent(model)}:generateContent`,
+          {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-goog-api-key": geminiApiKey,
+            },
+            body,
+            signal: AbortSignal.timeout(timeoutMs),
+            cache: "no-store",
+          },
+        );
 
-      const result = validator.safeParse(parsed);
-      if (!result.success) {
-        lastDetail = result.error.issues
-          .slice(0, 4)
-          .map((i) => `${i.path.join(".")}: ${i.message}`)
-          .join("; ");
-        continue;
-      }
+        if (!response.ok) {
+          lastDetail = `${model}: ${response.status} ${(await response.text()).slice(0, 400)}`;
+          // 4xx other than rate limiting will not fix itself on retry. An
+          // unknown model or a rejected config might still work elsewhere, so
+          // remember the failure and let the next model have a go.
+          if (response.status < 500 && response.status !== 429) {
+            hardFailure = { ok: false, reason: "api", detail: lastDetail };
+            break;
+          }
+          continue;
+        }
 
-      return { ok: true, data: result.data };
-    } catch (error) {
-      lastDetail = error instanceof Error ? error.message : String(error);
+        const text = extractText(await response.json());
+        if (!text) {
+          lastDetail = `${model}: empty completion`;
+          continue;
+        }
+
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(stripFence(text));
+        } catch {
+          lastDetail = `Unparseable JSON: ${text.slice(0, 200)}`;
+          continue;
+        }
+
+        const result = validator.safeParse(parsed);
+        if (!result.success) {
+          lastDetail = result.error.issues
+            .slice(0, 4)
+            .map((i) => `${i.path.join(".")}: ${i.message}`)
+            .join("; ");
+          continue;
+        }
+
+        if (model !== geminiModel) {
+          console.warn(
+            `[macronaut] answered with the fallback model ${model}; ${geminiModel} failed`,
+          );
+        }
+        return { ok: true, data: result.data };
+      } catch (error) {
+        lastDetail = `${model}: ${error instanceof Error ? error.message : String(error)}`;
+      }
     }
   }
+
+  if (hardFailure && models.length === 1) return hardFailure;
 
   return {
     ok: false,

@@ -20,6 +20,14 @@ export const geminiApiKey =
 export const geminiModel =
   process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
 
+/**
+ * Tried when the primary model fails outright. One model having a bad ten
+ * minutes should degrade the answer, not drop the whole feature to the
+ * keyword estimator. Set to the same value as GEMINI_MODEL to disable.
+ */
+export const geminiFallbackModel =
+  process.env.GEMINI_FALLBACK_MODEL?.trim() || "gemini-3.5-flash";
+
 export const isGeminiConfigured = Boolean(geminiApiKey);
 
 /** Stable id for the single pilot in solo mode. */

@@ -15,6 +15,27 @@ export type NewFoodEntry = Omit<FoodEntry, "id" | "createdAt">;
 
 export type AiKind = "food" | "photo" | "coach" | "report";
 
+/** What this person's version of a food actually is. */
+export type FoodCorrection = {
+  /** Normalised name, the key a future log is matched against. */
+  nameKey: string;
+  name: string;
+  quantity: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+  sugar: number;
+  times: number;
+  updatedAt: string;
+};
+
+/** One place decides what counts as "the same food". */
+export function foodKey(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 export type ErrorReport = {
   source: "client" | "server";
   kind: string;
@@ -90,6 +111,13 @@ export interface DataStore {
   /* diagnostics ---------------------------------------------------- */
   /** Best-effort. Reporting a failure must never itself throw. */
   recordError(userId: string, report: ErrorReport): Promise<void>;
+
+  /* learned corrections -------------------------------------------- */
+  listFoodCorrections(userId: string): Promise<FoodCorrection[]>;
+  saveFoodCorrection(
+    userId: string,
+    correction: Omit<FoodCorrection, "times" | "updatedAt">,
+  ): Promise<void>;
 
   /* daily rollups -------------------------------------------------- */
   getDailyLog(userId: string, dateIso: Iso): Promise<DailyLog | null>;

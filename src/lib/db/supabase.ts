@@ -355,6 +355,47 @@ export function createSupabaseStore(sb: SupabaseClient): DataStore {
       return typeof data === "number" ? data : 0;
     },
 
+    async listFoodCorrections(userId) {
+      const { data, error } = await sb
+        .from("food_corrections")
+        .select("*")
+        .eq("user_id", userId);
+      if (error) fail("load corrections", error);
+      return (data ?? []).map((row) => ({
+        nameKey: row.name_key as string,
+        name: row.name as string,
+        quantity: row.quantity as string,
+        calories: Number(row.calories),
+        protein: Number(row.protein),
+        carbs: Number(row.carbs),
+        fat: Number(row.fat),
+        fiber: Number(row.fiber),
+        sugar: Number(row.sugar),
+        times: Number(row.times),
+        updatedAt: row.updated_at as string,
+      }));
+    },
+
+    async saveFoodCorrection(userId, c) {
+      const { error } = await sb.from("food_corrections").upsert(
+        {
+          user_id: userId,
+          name_key: c.nameKey,
+          name: c.name,
+          quantity: c.quantity,
+          calories: c.calories,
+          protein: c.protein,
+          carbs: c.carbs,
+          fat: c.fat,
+          fiber: c.fiber,
+          sugar: c.sugar,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,name_key" },
+      );
+      if (error) fail("save correction", error);
+    },
+
     async recordError(_userId, report) {
       const { error } = await sb.rpc("record_error", {
         p_source: report.source,

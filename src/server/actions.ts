@@ -35,6 +35,9 @@ import { computeJourney, computeTargets, round } from "@/lib/nutrition";
 import { computeStreaks, periodPair, weightStats } from "@/lib/insights";
 import { analyseFood, analyseFoodPhoto } from "@/lib/ai/food";
 import { consumeAiBudget } from "@/lib/ai/budget";
+import { foodKey } from "@/lib/db/store";
+import type { DataStore } from "@/lib/db/store";
+import type { AiFoodItem } from "@/lib/schemas";
 import { isGeminiConfigured } from "@/lib/env";
 import {
   writeDailyNote,
@@ -239,6 +242,49 @@ export type LogFoodPayload = {
   unlocked: { key: string; name: string; emoji: string }[];
 };
 
+/**
+ * Replace the model's guess with what this person has already told us.
+ *
+ * Only fires on an exact name match, which is conservative on purpose: it is
+ * better to leave an estimate alone than to apply someone's homemade-porridge
+ * numbers to a cafe one just because both contain the word.
+ */
+async function applyCorrections(
+  store: DataStore,
+  userId: string,
+  foods: AiFoodItem[],
+): Promise<{ foods: AiFoodItem[]; notes: string[] }> {
+  let corrections;
+  try {
+    corrections = await store.listFoodCorrections(userId);
+  } catch (error) {
+    console.warn("[macronaut] could not load corrections:", error);
+    return { foods, notes: [] };
+  }
+  if (!corrections.length) return { foods, notes: [] };
+
+  const byKey = new Map(corrections.map((c) => [c.nameKey, c]));
+  const notes: string[] = [];
+
+  const applied = foods.map((food) => {
+    const match = byKey.get(foodKey(food.name));
+    if (!match) return food;
+    notes.push(`Used your saved numbers for ${match.name}.`);
+    return {
+      ...food,
+      calories: match.calories,
+      protein: match.protein,
+      carbs: match.carbs,
+      fat: match.fat,
+      fiber: match.fiber,
+      sugar: match.sugar,
+      confidence: "high" as const,
+    };
+  });
+
+  return { foods: applied, notes };
+}
+
 export async function logFoodAction(
   raw: unknown,
 ): Promise<ActionResult<LogFoodPayload>> {
@@ -290,8 +336,10 @@ export async function logFoodAction(
     );
   }
 
+  const learned = await applyCorrections(store, profile.id, usable);
+
   const added = await store.insertFoodEntries(
-    usable.map((f) => ({
+    learned.foods.map((f) => ({
       userId: profile.id,
       logDate: date,
       meal: f.meal,
@@ -305,7 +353,7 @@ export async function logFoodAction(
       fiber: round(f.fiber, 1),
       sugar: round(f.sugar, 1),
       confidence: f.confidence,
-      assumptions: analysis.assumptions,
+      assumptions: [...analysis.assumptions, ...learned.notes],
       rawInput: text,
       source: source === "ai" ? "ai" : "estimator",
     })),
@@ -518,6 +566,25 @@ export async function updateFoodAction(
     confidence: "high",
   });
   if (!updated) return fail("That entry no longer exists.");
+
+  // Remember it, so the same food is right next time rather than being
+  // re-guessed and re-corrected forever.
+  try {
+    await store.saveFoodCorrection(profile.id, {
+      nameKey: foodKey(updated.name),
+      name: updated.name,
+      quantity: updated.quantity,
+      calories: updated.calories,
+      protein: updated.protein,
+      carbs: updated.carbs,
+      fat: updated.fat,
+      fiber: updated.fiber,
+      sugar: updated.sugar,
+    });
+  } catch (error) {
+    // Learning is a bonus; failing to learn must not fail the edit.
+    console.warn("[macronaut] could not save correction:", error);
+  }
 
   const goals = await store.listGoalSnapshots(profile.id);
   const day = await recomputeDay(
