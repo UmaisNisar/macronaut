@@ -507,6 +507,17 @@
   .animate-float {
     animation: none !important;
   }
+
+  /*
+   * Phones also get a cheaper card shadow. A 30px blur under every sticker is
+   * a large soft-shadow pass per card on every scroll frame, and on a page of
+   * eight cards that is the most expensive paint work left. The solid lip
+   * underneath is what actually makes a sticker read as a cut-out; the blur is
+   * atmosphere, and half of it is indistinguishable at arm's length.
+   */
+  :root {
+    --shadow-soft: 0 6px 14px -10px rgb(123 97 255 / 0.3);
+  }
 }
 
 @keyframes drift-x {
