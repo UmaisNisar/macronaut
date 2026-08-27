@@ -25,6 +25,14 @@ jobs:
 
       - run: npm ci
 
+      # Build first, and not just for speed. Next generates PageProps and
+      # LayoutProps into .next/types during a build, and those are globals the
+      # app's own files reference — so a fresh clone cannot typecheck until it
+      # has built once. Running with no secrets also proves the app still
+      # builds without Supabase or Gemini configured.
+      - name: Build
+        run: npm run build
+
       - name: Typecheck
         run: npx tsc --noEmit
 
@@ -33,11 +41,6 @@ jobs:
 
       - name: Unit tests
         run: npm test
-
-      # No secrets: the app is designed to build and run without Supabase or
-      # Gemini configured, so a build here proves that path still works.
-      - name: Build
-        run: npm run build
 
   e2e:
     name: End-to-end
