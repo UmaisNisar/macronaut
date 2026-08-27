@@ -17,7 +17,7 @@ export default async function OnboardingPage() {
   const profile = await store.getProfile(session.userId);
 
   return (
-    <div className="relative min-h-dvh">
+    <div className="relative min-h-svh">
       <CandyBackground />
       {/* A landmark so screen readers can jump past the decorative backdrop. */}
       <main>

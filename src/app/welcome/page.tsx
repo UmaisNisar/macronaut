@@ -51,7 +51,7 @@ export default async function WelcomePage(props: PageProps<"/welcome">) {
   }
 
   return (
-    <div className="relative min-h-dvh overflow-hidden">
+    <div className="relative min-h-svh overflow-hidden">
       <CandyBackground />
 
       <div className="mx-auto w-full max-w-6xl px-5 py-10 lg:py-16">

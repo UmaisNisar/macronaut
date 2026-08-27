@@ -13,6 +13,20 @@ const NUMBER_WORDS: Record<string, number> = {
   half: 0.5, couple: 2, few: 3, several: 3, some: 1,
 };
 
+/**
+ * Rough multipliers for the words people actually use. Deliberately blunt: the
+ * estimator only runs when the model is unavailable, and a sensible ratio beats
+ * treating "large" as identical to "small".
+ */
+const SIZE_WORDS: { re: RegExp; factor: number; label: string }[] = [
+  { re: /\b(extra large|xl|jumbo)\b/, factor: 2, label: "extra large" },
+  { re: /\b(double)\b/, factor: 2, label: "double" },
+  { re: /\b(large|big)\b/, factor: 1.5, label: "large" },
+  { re: /\b(regular|medium|standard)\b/, factor: 1, label: "regular" },
+  { re: /\bhalf\b/, factor: 0.5, label: "half a" },
+  { re: /\b(small|mini|kiddie|kids?)\b/, factor: 0.65, label: "small" },
+];
+
 const MEAL_CUES: { cue: RegExp; meal: MealSlot }[] = [
   { cue: /\bbreakfast|morning|sehri|suhoor\b/, meal: "breakfast" },
   { cue: /\blunch|midday|noon\b/, meal: "lunch" },
@@ -75,6 +89,19 @@ function parseQuantity(clause: string, food: FoodDef): {
         fromGrams: false,
       };
     }
+  }
+
+  // Size words, which people use far more often than numbers when ordering.
+  // Without these, "tahini chicken large" and "a small chicken" estimate the
+  // same, which is the kind of obviously-wrong answer that makes the whole
+  // number untrustworthy.
+  const size = SIZE_WORDS.find(({ re }) => re.test(clause));
+  if (size) {
+    return {
+      multiplier: size.factor,
+      label: `${size.label} ${food.unit.replace(/^\d+(\.\d+)?\s*/, "").trim() || "serving"}`,
+      fromGrams: false,
+    };
   }
 
   return { multiplier: 1, label: food.unit, fromGrams: false };

@@ -350,25 +350,37 @@ export function FoodComposer({
 
           {/* The parent stacks on mobile, so the two actions get their own row
               or the camera drops beneath the primary button as a stray. */}
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            {isToday ? <BarcodeScanner date={date} /> : null}
+          {/*
+            Three labelled buttons do not fit one phone row. They used to try:
+            the two outline buttons held their width, the primary took what was
+            left — 72px — and since buttons never wrap their text, "Let Momo
+            look" spilled straight out of its own pill.
 
-            <Haptic className="shrink-0">
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                disabled={pending}
-                onClick={() => fileInput.current?.click()}
-                aria-label="Log a meal from a photo"
-                title="Snap your plate"
-              >
-                <Camera className="size-4" />
-                <span className="sm:hidden">Photo</span>
-              </Button>
-            </Haptic>
+            So on a phone the secondary actions get their own row and the
+            primary gets a full-width one beneath. Everything keeps its label,
+            nothing is squashed. From `sm` up there is room for a single row.
+          */}
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <div className="flex items-center gap-2 sm:contents">
+              {isToday ? <BarcodeScanner date={date} /> : null}
 
-            <Haptic className="min-w-0 flex-1 sm:flex-none">
+              <Haptic className="min-w-0 flex-1 sm:flex-none">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  disabled={pending}
+                  onClick={() => fileInput.current?.click()}
+                  aria-label="Log a meal from a photo"
+                  title="Snap your plate"
+                >
+                  <Camera className="size-4" />
+                  <span className="sm:hidden">Photo</span>
+                </Button>
+              </Haptic>
+            </div>
+
+            <Haptic className="w-full sm:w-auto">
               <Button
                 onClick={submit}
                 disabled={pending}

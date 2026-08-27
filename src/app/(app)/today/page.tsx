@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CoachPanel } from "@/components/today/coach-panel";
 import { FoodComposer } from "@/components/today/food-composer";
 import { MealTimeline } from "@/components/today/meal-timeline";
+import { EstimateNotice } from "@/components/today/estimate-notice";
 import { OfflineBanner } from "@/components/shell/offline-banner";
 import { OfflineOutbox } from "@/components/today/offline-outbox";
 import { QuickRepeat } from "@/components/today/quick-repeat";
@@ -165,6 +166,7 @@ export default async function TodayPage() {
 
       <div>
         <OfflineBanner />
+        <EstimateNotice entries={entries} />
         <OfflineOutbox />
         <QuickRepeat foods={frequent} date={today} />
         <FoodComposer

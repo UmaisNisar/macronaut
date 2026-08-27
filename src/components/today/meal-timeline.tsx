@@ -234,6 +234,19 @@ function FoodSticker({
               title={confidence.copy}
               aria-label={confidence.copy}
             />
+            {/*
+              An estimator entry is a keyword guess, not a model reading. It
+              used to look identical to a real one, which is why an unusually
+              wrong number was baffling rather than explicable.
+            */}
+            {entry.source === "estimator" ? (
+              <span
+                className="rounded-full bg-[var(--sun-soft)] px-1.5 py-0.5 text-[0.55rem] font-bold text-[#8a6100]"
+                title="Momo's AI was unavailable, so this is a rough offline guess. Tap to correct it."
+              >
+                GUESS
+              </span>
+            ) : null}
           </div>
 
           <div className="mt-1 flex flex-wrap gap-1">

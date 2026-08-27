@@ -253,8 +253,35 @@ try {
       hintLines: hint ? Math.round(hint.getBoundingClientRect().height / 20) : 0,
     };
   });
-  check("photo and submit share one row", mobileLayout?.sameRow === true);
   check("neither overflows the screen", mobileLayout?.fitsViewport === true);
+
+  /*
+   * Geometry alone missed a real break: three labelled buttons shared a row,
+   * the primary was squeezed to 72px, and because buttons never wrap their
+   * text the label spilled out of its own pill. Nothing overflowed the
+   * viewport, so every existing check passed while the UI was visibly broken.
+   * A control narrower than its own content is the thing to assert.
+   */
+  const squashed = await page.evaluate(() =>
+    [...document.querySelectorAll("button, a")]
+      // Visually-hidden controls (the skip link) are deliberately clipped to a
+      // pixel, so "content wider than box" is their normal state, not a fault.
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 4 && r.height > 4;
+      })
+      .filter((el) => el.scrollWidth > el.clientWidth + 1)
+      .map((el) => ({
+        label: (el.innerText || el.getAttribute("aria-label") || "").trim().slice(0, 24),
+        box: Math.round(el.clientWidth),
+        content: Math.round(el.scrollWidth),
+      })),
+  );
+  check(
+    "no control is narrower than its own label",
+    squashed.length === 0,
+    JSON.stringify(squashed),
+  );
   check(
     "hint text is not squeezed into a column",
     (mobileLayout?.hintLines ?? 9) <= 2,

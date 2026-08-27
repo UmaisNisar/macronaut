@@ -6,7 +6,7 @@ import { CandyBackground } from "@/components/shell/candy-background";
 
 export default function NotFound() {
   return (
-    <div className="relative flex min-h-dvh items-center justify-center px-5">
+    <div className="relative flex min-h-svh items-center justify-center px-5">
       <CandyBackground />
       <div className="sticker tint-violet max-w-md p-8 text-center">
         <Momo mood="curious" size={110} className="mx-auto" />

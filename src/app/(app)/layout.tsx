@@ -17,8 +17,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const profile = await getCurrentProfile();
   if (!profile?.onboardedAt) redirect("/onboarding");
 
+  // svh, not dvh. `dvh` is defined to track the viewport as Safari's toolbar
+  // collapses and expands, so a full-height container using it reflows the
+  // page in the middle of a scroll — which reads as the app moving on its own.
+  // `svh` is the stable smallest height and never changes mid-gesture.
   return (
-    <div className="relative min-h-dvh">
+    <div className="relative min-h-svh">
       <CandyBackground />
       <TimezoneSync />
       <ErrorReporter />

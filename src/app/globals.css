@@ -203,11 +203,30 @@
 
   html {
     -webkit-tap-highlight-color: transparent;
-    scroll-behavior: smooth;
+    /*
+     * No global smooth scrolling. It applies to every programmatic scroll,
+     * not just anchor links — including the scroll restoration this app does
+     * on navigation and after each of its sixteen router.refresh() calls. The
+     * result on a phone is a page that appears to drift up and down on its
+     * own, and it fights iOS momentum scrolling the whole way.
+     */
+    scroll-behavior: auto;
+    /*
+     * Content is inserted above the viewport all the time here — the outbox
+     * banner, the offline banner, the analysis reveal. Scroll anchoring reacts
+     * to that by moving the page under the reader's thumb; better that new
+     * content pushes down predictably than that the view jumps to compensate.
+     */
+    overflow-anchor: none;
   }
+
+
 
   body {
     @apply bg-background text-foreground;
+    /* Stops a scroll past the end turning into a pull-to-refresh or a
+       rubber-band bounce that reads as the app moving by itself. */
+    overscroll-behavior-y: contain;
     font-family: var(--font-sans), ui-rounded, system-ui, sans-serif;
     font-weight: 500;
     /* A soft candy sky, tinted by whichever theme is on. */
