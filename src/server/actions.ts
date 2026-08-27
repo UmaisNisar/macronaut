@@ -35,6 +35,7 @@ import { computeJourney, computeTargets, round } from "@/lib/nutrition";
 import { computeStreaks, periodPair, weightStats } from "@/lib/insights";
 import { analyseFood, analyseFoodPhoto } from "@/lib/ai/food";
 import { consumeAiBudget } from "@/lib/ai/budget";
+import { isGeminiConfigured } from "@/lib/env";
 import {
   writeDailyNote,
   writePeriodReport,
@@ -262,7 +263,20 @@ export async function logFoodAction(
   );
   if (!budget.ok) return fail(budget.message);
 
-  const { analysis, source } = await analyseFood(text);
+  const { analysis, source, fallbackReason } = await analyseFood(text);
+
+  // Falling back is by design, but when a key IS configured it means the model
+  // call actually failed — the exact silent degradation that used to be
+  // invisible outside a development console.
+  if (source === "estimator" && isGeminiConfigured) {
+    void store.recordError(profile.id, {
+      source: "server",
+      kind: "ai-fallback",
+      message: "Food analysis fell back to the offline estimator",
+      detail: fallbackReason ?? null,
+      path: "/today",
+    });
+  }
 
   // Keep genuinely zero-calorie items — a logged Coke Zero or black coffee is
   // still information the user typed and expects to see. Only the model's
@@ -364,7 +378,15 @@ export async function logFoodPhotoAction(
   if (!budget.ok) return fail(budget.message);
 
   const read = await analyseFoodPhoto({ data: imageBase64, mimeType }, note);
-  if (!read.ok) return fail(read.reason);
+  if (!read.ok) {
+    void store.recordError(profile.id, {
+      source: "server",
+      kind: "ai-photo-failed",
+      message: read.reason,
+      path: "/today",
+    });
+    return fail(read.reason);
+  }
 
   const usable = read.analysis.foods.filter(
     (f) => !/^nothing/i.test(f.name.trim()),

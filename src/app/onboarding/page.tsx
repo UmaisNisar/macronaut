@@ -19,14 +19,17 @@ export default async function OnboardingPage() {
   return (
     <div className="relative min-h-dvh">
       <CandyBackground />
-      <OnboardingFlow
-        initialName={
-          profile?.displayName ??
-          session.name ??
-          session.email?.split("@")[0] ??
-          null
-        }
-      />
+      {/* A landmark so screen readers can jump past the decorative backdrop. */}
+      <main>
+        <OnboardingFlow
+          initialName={
+            profile?.displayName ??
+            session.name ??
+            session.email?.split("@")[0] ??
+            null
+          }
+        />
+      </main>
     </div>
   );
 }

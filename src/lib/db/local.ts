@@ -22,6 +22,7 @@ import type {
   ProfileSeed,
 } from "@/lib/db/store";
 import { rankFrequentFoods } from "@/lib/db/store";
+import type { ErrorReport } from "@/lib/db/store";
 
 type Shape = {
   version: 1;
@@ -216,6 +217,14 @@ export function createLocalStore(): DataStore {
         rows.push({ userId, usageDate: dateIso, kind, count: 1 });
         return 1;
       });
+    },
+
+    async recordError(userId: string, report: ErrorReport) {
+      // Solo mode has no dashboard to read these in, so the console is the
+      // honest destination rather than growing the JSON file forever.
+      console.warn(
+        `[macronaut] ${report.source} error for ${userId}: ${report.kind} — ${report.message}`,
+      );
     },
 
     async getFoodEntry(userId: string, id: string) {

@@ -15,6 +15,14 @@ export type NewFoodEntry = Omit<FoodEntry, "id" | "createdAt">;
 
 export type AiKind = "food" | "photo" | "coach" | "report";
 
+export type ErrorReport = {
+  source: "client" | "server";
+  kind: string;
+  message: string;
+  detail?: string | null;
+  path?: string | null;
+};
+
 /** A food worth offering as a one-tap repeat. */
 export type FrequentFood = {
   /** Latest entry with this name; the row that gets copied. */
@@ -78,6 +86,10 @@ export interface DataStore {
    * the same count and walk straight past the limit.
    */
   bumpAiUsage(userId: string, dateIso: Iso, kind: AiKind): Promise<number>;
+
+  /* diagnostics ---------------------------------------------------- */
+  /** Best-effort. Reporting a failure must never itself throw. */
+  recordError(userId: string, report: ErrorReport): Promise<void>;
 
   /* daily rollups -------------------------------------------------- */
   getDailyLog(userId: string, dateIso: Iso): Promise<DailyLog | null>;

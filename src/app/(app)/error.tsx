@@ -5,6 +5,7 @@ import { RotateCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Momo } from "@/components/mascot/momo";
+import { reportBoundaryError } from "@/components/shell/error-reporter";
 
 export default function AppError({
   error,
@@ -15,6 +16,8 @@ export default function AppError({
 }) {
   useEffect(() => {
     console.error("Macronaut route error:", error);
+    // Without this a render crash exists only in a console nobody opens.
+    reportBoundaryError(error, error.digest);
   }, [error]);
 
   return (

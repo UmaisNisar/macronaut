@@ -355,6 +355,19 @@ export function createSupabaseStore(sb: SupabaseClient): DataStore {
       return typeof data === "number" ? data : 0;
     },
 
+    async recordError(_userId, report) {
+      const { error } = await sb.rpc("record_error", {
+        p_source: report.source,
+        p_kind: report.kind,
+        p_message: report.message,
+        p_detail: report.detail ?? null,
+        p_path: report.path ?? null,
+      });
+      // Swallowed on purpose: a failure to report a failure is not worth
+      // turning into a second failure in front of the user.
+      if (error) console.warn("[macronaut] could not record error:", error.message);
+    },
+
     async getFoodEntry(userId, id) {
       const { data, error } = await sb
         .from("food_entries")

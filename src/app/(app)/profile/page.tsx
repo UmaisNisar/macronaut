@@ -1,6 +1,7 @@
 import { Check, LogOut, Minus } from "lucide-react";
 
 import { DangerZone } from "@/components/profile/danger-zone";
+import { ExportData } from "@/components/profile/export-data";
 import { GoalEditor } from "@/components/profile/goal-editor";
 import { MomoGreeter } from "@/components/mascot/momo-greeter";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
@@ -115,6 +116,8 @@ export default async function ProfilePage() {
               offText="Offline estimator and template coaching"
             />
           </ul>
+
+          <ExportData />
 
           <Squiggle />
 
