@@ -1,6 +1,7 @@
 import { Check, Minus } from "lucide-react";
 
 import { DangerZone } from "@/components/profile/danger-zone";
+import { ErrorLog } from "@/components/profile/error-log";
 import { ExportData } from "@/components/profile/export-data";
 import { ReminderSettings } from "@/components/profile/reminder-settings";
 import { SignOutButton } from "@/components/profile/sign-out-button";
@@ -8,7 +9,6 @@ import { GoalEditor } from "@/components/profile/goal-editor";
 import { MomoGreeter } from "@/components/mascot/momo-greeter";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { Sticker, StickerHeading, Squiggle } from "@/components/kit";
-import { Button } from "@/components/ui/button";
 import { requireProfile } from "@/lib/session";
 import { userToday } from "@/lib/server-date";
 import {
@@ -27,6 +27,7 @@ export const dynamic = "force-dynamic";
 export default async function ProfilePage() {
   const { store, profile } = await requireProfile();
   const today = await userToday();
+  const errors = await store.listErrors(profile.id, 10);
   const goals = await store.listGoalSnapshots(profile.id);
   const history = [...goals].reverse().slice(0, 6);
 
@@ -130,6 +131,8 @@ export default async function ProfilePage() {
               initialHour={profile.reminderHour}
             />
           ) : null}
+
+          <ErrorLog errors={errors} today={today} />
 
           <ExportData />
 

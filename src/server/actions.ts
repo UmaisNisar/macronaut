@@ -1,6 +1,5 @@
 "use server";
 
-import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -35,7 +34,7 @@ import {
 } from "@/lib/date";
 import { userToday } from "@/lib/server-date";
 import { computeJourney, computeTargets, round } from "@/lib/nutrition";
-import { computeStreaks, periodPair, weightStats } from "@/lib/insights";
+import { computeStreaks, weightStats } from "@/lib/insights";
 import { analyseFood, analyseFoodPhoto } from "@/lib/ai/food";
 import { consumeAiBudget } from "@/lib/ai/budget";
 import { foodKey } from "@/lib/db/store";
@@ -45,7 +44,6 @@ import type { AiFoodItem } from "@/lib/schemas";
 import { isGeminiConfigured } from "@/lib/env";
 import {
   writeDailyNote,
-  writePeriodReport,
   writeWeightNote,
 } from "@/lib/ai/coach";
 import {
@@ -54,6 +52,7 @@ import {
   recomputeDay,
   refreshAchievements,
   targetsForDate,
+  buildPeriodReport,
 } from "@/server/core";
 import { ACHIEVEMENT_BY_KEY } from "@/lib/achievements";
 
@@ -619,6 +618,20 @@ export async function saveReminderSettingsAction(
   return { ok: true, done: true };
 }
 
+/** Search your own food history by name. */
+export async function searchFoodAction(
+  query: unknown,
+): Promise<ActionResult<{ entries: FoodEntry[] }>> {
+  const ctx = await withProfile();
+  if (!ctx.ok) return fail(ctx.error);
+
+  const term = typeof query === "string" ? query.trim().slice(0, 60) : "";
+  if (term.length < 2) return fail("Type at least two characters.");
+
+  const entries = await ctx.store.searchFoodEntries(ctx.profile.id, term, 25);
+  return { ok: true, entries };
+}
+
 export async function repeatFoodAction(
   raw: unknown,
 ): Promise<ActionResult<{ day: DailyLog; entries: FoodEntry[] }>> {
@@ -969,8 +982,6 @@ export async function deleteWeightAction(
 /* Reports                                                             */
 /* ================================================================== */
 
-const PERIOD_LENGTH: Record<string, number> = { "7d": 7, "14d": 14, "30d": 30 };
-
 export async function generateReportAction(
   periodRaw: unknown,
   force = false,
@@ -980,86 +991,23 @@ export async function generateReportAction(
 
   const parsedPeriod = ReportPeriod.safeParse(periodRaw);
   if (!parsedPeriod.success) return fail("Unknown report period.");
-  const period = parsedPeriod.data;
-  const length = PERIOD_LENGTH[period];
 
-  const { profile, store } = ctx;
-  const today = await userToday();
-  const start = addDays(today, -(length - 1));
-
-  const days = await store.listDailyLogs(
-    profile.id,
-    addDays(start, -length),
-    today,
-  );
-  const { current, previous } = periodPair(days, today, length);
-
-  if (current.daysLogged === 0) {
-    return fail("Log a few days first and this report will have something to say.");
-  }
-
-  const signature = createHash("sha1")
-    .update(
-      [
-        period,
-        today,
-        current.daysLogged,
-        current.avgCalories,
-        current.avgProtein,
-        current.onTargetDays,
-        previous.avgCalories,
-      ].join("|"),
-    )
-    .digest("hex")
-    .slice(0, 16);
-
-  if (!force) {
-    const cached = await store.getReport(profile.id, period, signature);
-    if (cached) {
-      return {
-        ok: true,
-        report: cached.report,
-        periodStart: cached.periodStart,
-        periodEnd: cached.periodEnd,
-      };
-    }
-  }
-
-  const weights = await store.listWeightLogs(profile.id);
-  const inWindow = weights.filter(
-    (w) => w.loggedOn >= start && w.loggedOn <= today,
-  );
-
-  const budget = await consumeAiBudget(
-    store,
-    profile.id,
-    await userToday(),
-    "report",
-  );
-  if (!budget.ok) return fail(budget.message);
-
-  const { report } = await writePeriodReport({
-    period,
-    current,
-    previous,
-    days: days.filter((d) => d.logDate >= start),
-    weightStart: inWindow[0] ? round(inWindow[0].weightKg, 1) : null,
-    weightEnd: inWindow.at(-1) ? round(inWindow.at(-1)!.weightKg, 1) : null,
-    targetWeightKg: round(profile.targetWeightKg, 1),
-    weeklyLossKg: profile.weeklyLossKg,
+  const result = await buildPeriodReport({
+    store: ctx.store,
+    profile: ctx.profile,
+    today: await userToday(),
+    period: parsedPeriod.data,
+    force,
   });
-
-  await store.saveReport({
-    userId: profile.id,
-    period,
-    periodStart: start,
-    periodEnd: today,
-    signature,
-    report,
-  });
+  if (!result.ok) return fail(result.error);
 
   revalidatePath("/insights");
-  return { ok: true, report, periodStart: start, periodEnd: today };
+  return {
+    ok: true,
+    report: result.report,
+    periodStart: result.periodStart,
+    periodEnd: result.periodEnd,
+  };
 }
 
 /* ================================================================== */

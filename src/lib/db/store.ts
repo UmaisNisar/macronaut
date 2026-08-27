@@ -13,7 +13,17 @@ import type { Iso } from "@/lib/date";
 
 export type NewFoodEntry = Omit<FoodEntry, "id" | "createdAt">;
 
-export type AiKind = "food" | "photo" | "coach" | "report";
+/**
+ * What the daily meter counts. Started as model calls; now also covers the two
+ * endpoints expensive enough to be worth bounding per account.
+ */
+export type AiKind =
+  | "food"
+  | "photo"
+  | "coach"
+  | "report"
+  | "export"
+  | "error";
 
 /** What this person's version of a food actually is. */
 export type FoodCorrection = {
@@ -45,6 +55,16 @@ export type ReminderCandidate = {
   reminderHour: number;
   timeZone: string;
   subscriptions: PushSub[];
+};
+
+export type LoggedError = {
+  id: string;
+  source: "client" | "server";
+  kind: string;
+  message: string;
+  detail: string | null;
+  path: string | null;
+  createdAt: string;
 };
 
 export type ErrorReport = {
@@ -122,6 +142,15 @@ export interface DataStore {
   /* diagnostics ---------------------------------------------------- */
   /** Best-effort. Reporting a failure must never itself throw. */
   recordError(userId: string, report: ErrorReport): Promise<void>;
+  /** Most recent first, so a problem can actually be looked at. */
+  listErrors(userId: string, limit: number): Promise<LoggedError[]>;
+
+  /** Find past meals by name, newest first. */
+  searchFoodEntries(
+    userId: string,
+    query: string,
+    limit: number,
+  ): Promise<FoodEntry[]>;
 
   /* learned corrections -------------------------------------------- */
   listFoodCorrections(userId: string): Promise<FoodCorrection[]>;

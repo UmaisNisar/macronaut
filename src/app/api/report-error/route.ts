@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { getSession, getStore } from "@/lib/session";
+import { userToday } from "@/lib/server-date";
+import { consumeAiBudget } from "@/lib/ai/budget";
 
 /**
  * Where the browser sends crashes.
@@ -35,6 +37,11 @@ export async function POST(request: Request) {
   if (!message) return NextResponse.json({ ok: false }, { status: 400 });
 
   const store = await getStore();
+
+  // A crash loop on one device should not be able to write all night.
+  const budget = await consumeAiBudget(store, session.userId, await userToday(), "error");
+  if (!budget.ok) return NextResponse.json({ ok: false }, { status: 429 });
+
   await store.recordError(session.userId, {
     source: "client",
     kind: trim(raw.kind, LIMITS.kind) || "error",

@@ -44,3 +44,21 @@ export function isReminderDue(
 ): boolean {
   return localHour(timeZone, now) === reminderHour;
 }
+
+/**
+ * Is it Monday, in this person's own week?
+ *
+ * A weekly report generated on the server's Monday would arrive on Sunday
+ * evening for anyone west of UTC, describing a week that has not finished.
+ */
+export function isLocalMonday(timeZone: string, now: Date): boolean {
+  try {
+    return (
+      new Intl.DateTimeFormat("en-GB", { timeZone, weekday: "short" }).format(
+        now,
+      ) === "Mon"
+    );
+  } catch {
+    return false;
+  }
+}

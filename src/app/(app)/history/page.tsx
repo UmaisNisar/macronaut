@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { FoodSearch } from "@/components/history/food-search";
 import { CalendarGrid } from "@/components/history/calendar-grid";
 import { FoodComposer } from "@/components/today/food-composer";
 import { CoachPanel } from "@/components/today/coach-panel";
@@ -81,6 +82,8 @@ export default async function HistoryPage(props: PageProps<"/history">) {
       <div className="grid gap-4 sm:gap-5 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
         <div className="space-y-4 lg:sticky lg:top-6">
           <Sticker>
+            <FoodSearch today={today} />
+
             <CalendarGrid
               monthIso={monthAnchor}
               selectedIso={selected}

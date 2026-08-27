@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getSession, getStore } from "@/lib/session";
 import { userToday } from "@/lib/server-date";
 import { addDays } from "@/lib/date";
+import { consumeAiBudget } from "@/lib/ai/budget";
 
 /**
  * Take your data with you.
@@ -50,6 +51,12 @@ export async function GET(request: Request) {
   }
 
   const today = await userToday();
+
+  // Bounded per account: this rebuilds an entire history on every call.
+  const budget = await consumeAiBudget(store, profile.id, today, "export");
+  if (!budget.ok) {
+    return NextResponse.json({ error: budget.message }, { status: 429 });
+  }
   // Far enough back to cover any history the app could have.
   const from = addDays(today, -3650);
 

@@ -70,7 +70,13 @@
   --background: #f7f5ff;
   --foreground: #2e2545;
   --ink: #2e2545;
-  --ink-soft: #7c7396;
+  /*
+   * 4.5:1 on white is the WCAG AA floor for normal text, and the previous
+   * value (#7c7396) measured 4.42 on white and 4.10 on the tinted cards — so
+   * every hint and caption in the app was just under. This measures 5.33 and
+   * 4.94, and is barely distinguishable by eye. Dark mode was already fine.
+   */
+  --ink-soft: #6f6689;
 
   --card: #ffffff;
   --card-foreground: #2e2545;

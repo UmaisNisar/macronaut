@@ -408,6 +408,40 @@ export function createSupabaseStore(sb: SupabaseClient): DataStore {
         .filter((c) => c.subscriptions.length > 0);
     },
 
+    async listErrors(userId, limit) {
+      const { data, error } = await sb
+        .from("error_log")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) fail("load errors", error);
+      return (data ?? []).map((r) => ({
+        id: r.id as string,
+        source: r.source as "client" | "server",
+        kind: r.kind as string,
+        message: r.message as string,
+        detail: (r.detail as string | null) ?? null,
+        path: (r.path as string | null) ?? null,
+        createdAt: r.created_at as string,
+      }));
+    },
+
+    async searchFoodEntries(userId, query, limit) {
+      // Escape the LIKE wildcards so searching for "100%" is a search, not a
+      // pattern that matches everything.
+      const safe = query.replace(/[%_\\]/g, (c) => `\\${c}`);
+      const { data, error } = await sb
+        .from("food_entries")
+        .select("*")
+        .eq("user_id", userId)
+        .ilike("name", `%${safe}%`)
+        .order("log_date", { ascending: false })
+        .limit(limit);
+      if (error) fail("search food", error);
+      return (data ?? []).map(toFood);
+    },
+
     async listFoodCorrections(userId) {
       const { data, error } = await sb
         .from("food_corrections")

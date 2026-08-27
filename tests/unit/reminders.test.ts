@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { isReminderDue, localDate, localHour } from "@/lib/reminders";
+import {
+  isLocalMonday,
+  isReminderDue,
+  localDate,
+  localHour,
+} from "@/lib/reminders";
 
 /**
  * "Send at 8pm" looks trivial and quietly breaks across a time zone, a date
@@ -81,5 +86,34 @@ describe("isReminderDue", () => {
       isReminderDue("Not/AZone", 20, at(`2026-08-27T${String(h).padStart(2, "0")}:00:00Z`)),
     );
     expect(hours.filter(Boolean)).toHaveLength(0);
+  });
+});
+
+describe("isLocalMonday", () => {
+  it("is true on Monday in that zone", () => {
+    // 2026-08-31 is a Monday.
+    expect(isLocalMonday("UTC", new Date("2026-08-31T12:00:00Z"))).toBe(true);
+    expect(isLocalMonday("UTC", new Date("2026-09-01T12:00:00Z"))).toBe(false);
+  });
+
+  /**
+   * The point of asking per zone: a report generated on the server's Monday
+   * would land on Sunday evening for anyone west of UTC, describing a week
+   * that has not finished yet.
+   */
+  it("is still Sunday west of UTC just after midnight", () => {
+    const justPastMidnightUtc = new Date("2026-08-31T01:00:00Z");
+    expect(isLocalMonday("UTC", justPastMidnightUtc)).toBe(true);
+    expect(isLocalMonday("America/Toronto", justPastMidnightUtc)).toBe(false);
+  });
+
+  it("is already Monday east of UTC before the server agrees", () => {
+    const lateSundayUtc = new Date("2026-08-30T20:00:00Z");
+    expect(isLocalMonday("UTC", lateSundayUtc)).toBe(false);
+    expect(isLocalMonday("Asia/Karachi", lateSundayUtc)).toBe(true);
+  });
+
+  it("is never true for a broken zone", () => {
+    expect(isLocalMonday("Not/AZone", new Date("2026-08-31T12:00:00Z"))).toBe(false);
   });
 });

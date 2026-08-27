@@ -129,7 +129,7 @@ function mutate<T>(fn: (db: Shape) => T | Promise<T>): Promise<T> {
   });
 }
 
-function query<T>(fn: (db: Shape) => T): Promise<T> {
+function query_<T>(fn: (db: Shape) => T): Promise<T> {
   return withLock(async () => fn(await read()));
 }
 
@@ -140,7 +140,7 @@ export function createLocalStore(): DataStore {
     kind: "local",
 
     async getProfile(userId) {
-      return query((db) => db.profiles.find((p) => p.id === userId) ?? null);
+      return query_((db) => db.profiles.find((p) => p.id === userId) ?? null);
     },
 
     async saveProfile(profile: ProfileSeed) {
@@ -169,7 +169,7 @@ export function createLocalStore(): DataStore {
     },
 
     async listGoalSnapshots(userId) {
-      return query((db) =>
+      return query_((db) =>
         db.goals
           .filter((g) => g.userId === userId)
           .sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom)),
@@ -196,7 +196,7 @@ export function createLocalStore(): DataStore {
     },
 
     async listFoodEntries(userId, startIso, endIso) {
-      return query((db) =>
+      return query_((db) =>
         db.foodEntries
           .filter(
             (e) => e.userId === userId && inRange(e.logDate, startIso, endIso),
@@ -228,8 +228,29 @@ export function createLocalStore(): DataStore {
       return [];
     },
 
+    // Solo mode logs to the console rather than a table, so there is nothing
+    // to list back.
+    async listErrors() {
+      return [];
+    },
+
+    async searchFoodEntries(userId: string, query: string, limit: number) {
+      const needle = query.trim().toLowerCase();
+      if (!needle) return [];
+      return query_(
+        (db) =>
+          db.foodEntries
+            .filter(
+              (e) =>
+                e.userId === userId && e.name.toLowerCase().includes(needle),
+            )
+            .sort((a, b) => b.logDate.localeCompare(a.logDate))
+            .slice(0, limit),
+      );
+    },
+
     async listFoodCorrections(userId: string) {
-      return query((db) =>
+      return query_((db) =>
         (db.corrections ?? []).filter((c) => c.userId === userId),
       );
     },
@@ -262,7 +283,7 @@ export function createLocalStore(): DataStore {
     },
 
     async getFoodEntry(userId: string, id: string) {
-      return query(
+      return query_(
         (db) =>
           db.foodEntries.find((e) => e.userId === userId && e.id === id) ??
           null,
@@ -270,7 +291,7 @@ export function createLocalStore(): DataStore {
     },
 
     async listFrequentFoods(userId: string, limit: number) {
-      return query((db) =>
+      return query_((db) =>
         rankFrequentFoods(
           db.foodEntries
             .filter((e) => e.userId === userId)
@@ -314,7 +335,7 @@ export function createLocalStore(): DataStore {
     },
 
     async getDailyLog(userId, dateIso) {
-      return query(
+      return query_(
         (db) =>
           db.dailyLogs.find(
             (d) => d.userId === userId && d.logDate === dateIso,
@@ -323,7 +344,7 @@ export function createLocalStore(): DataStore {
     },
 
     async listDailyLogs(userId, startIso, endIso) {
-      return query((db) =>
+      return query_((db) =>
         db.dailyLogs
           .filter(
             (d) => d.userId === userId && inRange(d.logDate, startIso, endIso),
@@ -353,7 +374,7 @@ export function createLocalStore(): DataStore {
     },
 
     async listWeightLogs(userId) {
-      return query((db) =>
+      return query_((db) =>
         db.weightLogs
           .filter((w) => w.userId === userId)
           .sort((a, b) => a.loggedOn.localeCompare(b.loggedOn)),
@@ -403,7 +424,7 @@ export function createLocalStore(): DataStore {
     },
 
     async listAchievements(userId) {
-      return query((db) =>
+      return query_((db) =>
         db.achievements
           .filter((a) => a.userId === userId)
           .map(({ key, unlockedOn }) => ({ key, unlockedOn })),
@@ -426,7 +447,7 @@ export function createLocalStore(): DataStore {
     },
 
     async getReport(userId, period: ReportPeriod, signature) {
-      return query(
+      return query_(
         (db) =>
           db.reports.find(
             (r) =>

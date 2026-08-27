@@ -19,7 +19,22 @@ import {
   round,
   scoreDay,
 } from "@/lib/nutrition";
-import { computeStreaks, summarisePeriod, weightStats } from "@/lib/insights";
+import {
+  computeStreaks,
+  periodPair,
+  summarisePeriod,
+  weightStats,
+} from "@/lib/insights";
+import { writePeriodReport } from "@/lib/ai/coach";
+import { consumeAiBudget } from "@/lib/ai/budget";
+import type { AiPeriodReport, ReportPeriod } from "@/lib/schemas";
+
+/** Days in each reporting window. */
+export const PERIOD_LENGTH: Record<ReportPeriod, number> = {
+  "7d": 7,
+  "14d": 14,
+  "30d": 30,
+};
 import { earnedKeys } from "@/lib/achievements";
 
 /* ------------------------------------------------------------------ */
@@ -208,4 +223,104 @@ export async function refreshAchievements(
 
   const fresh = await store.unlockAchievements(profile.id, keys, today);
   return fresh.map((a) => a.key);
+}
+
+/* ================================================================== */
+/* Period reports                                                      */
+/* ================================================================== */
+
+/**
+ * Build (or reuse) a report for a period.
+ *
+ * Lives here rather than in the action because two callers need it: the
+ * Insights screen, where someone pressed a button, and the weekly cron, which
+ * has no session at all. The signature makes it idempotent — a report for an
+ * unchanged period is fetched, not regenerated, so the cron re-running costs
+ * nothing.
+ */
+export async function buildPeriodReport(input: {
+  store: DataStore;
+  profile: Profile;
+  today: Iso;
+  period: ReportPeriod;
+  force?: boolean;
+}): Promise<
+  | { ok: true; report: AiPeriodReport; periodStart: Iso; periodEnd: Iso; cached: boolean }
+  | { ok: false; error: string }
+> {
+  const { store, profile, today, period, force = false } = input;
+  const length = PERIOD_LENGTH[period];
+  const start = addDays(today, -(length - 1));
+
+  const days = await store.listDailyLogs(
+    profile.id,
+    addDays(start, -length),
+    today,
+  );
+  const { current, previous } = periodPair(days, today, length);
+
+  if (current.daysLogged === 0) {
+    return {
+      ok: false,
+      error: "Log a few days first and this report will have something to say.",
+    };
+  }
+
+  const signature = createHash("sha1")
+    .update(
+      [
+        period,
+        today,
+        current.daysLogged,
+        current.avgCalories,
+        current.avgProtein,
+        current.onTargetDays,
+        previous.avgCalories,
+      ].join("|"),
+    )
+    .digest("hex")
+    .slice(0, 16);
+
+  if (!force) {
+    const cached = await store.getReport(profile.id, period, signature);
+    if (cached) {
+      return {
+        ok: true,
+        report: cached.report,
+        periodStart: cached.periodStart,
+        periodEnd: cached.periodEnd,
+        cached: true,
+      };
+    }
+  }
+
+  const budget = await consumeAiBudget(store, profile.id, today, "report");
+  if (!budget.ok) return { ok: false, error: budget.message };
+
+  const weights = await store.listWeightLogs(profile.id);
+  const inWindow = weights.filter(
+    (w) => w.loggedOn >= start && w.loggedOn <= today,
+  );
+
+  const { report } = await writePeriodReport({
+    period,
+    current,
+    previous,
+    days: days.filter((d) => d.logDate >= start),
+    weightStart: inWindow[0] ? round(inWindow[0].weightKg, 1) : null,
+    weightEnd: inWindow.at(-1) ? round(inWindow.at(-1)!.weightKg, 1) : null,
+    targetWeightKg: round(profile.targetWeightKg, 1),
+    weeklyLossKg: profile.weeklyLossKg,
+  });
+
+  await store.saveReport({
+    userId: profile.id,
+    period,
+    periodStart: start,
+    periodEnd: today,
+    signature,
+    report,
+  });
+
+  return { ok: true, report, periodStart: start, periodEnd: today, cached: false };
 }

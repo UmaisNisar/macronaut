@@ -4,7 +4,8 @@ import webpush from "web-push";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseStore } from "@/lib/db/supabase";
 import { vapid } from "@/lib/env";
-import { localDate, localHour } from "@/lib/reminders";
+import { isLocalMonday, localDate, localHour } from "@/lib/reminders";
+import { buildPeriodReport } from "@/server/core";
 
 /**
  * The evening nudge.
@@ -49,11 +50,34 @@ export async function GET(request: Request) {
   let sent = 0;
   let skipped = 0;
   let dropped = 0;
+  let reports = 0;
 
   for (const person of candidates) {
     if (localHour(person.timeZone, now) !== person.reminderHour) {
       skipped++;
       continue;
+    }
+
+    // Monday, in their week: have the weekly report already written by the
+    // time they look. Idempotent — an unchanged period is fetched from cache
+    // rather than regenerated, so re-running this costs nothing.
+    if (isLocalMonday(person.timeZone, now)) {
+      try {
+        const profile = await store.getProfile(person.userId);
+        const day = localDate(person.timeZone, now);
+        if (profile && day) {
+          const built = await buildPeriodReport({
+            store,
+            profile,
+            today: day,
+            period: "7d",
+          });
+          if (built.ok && !built.cached) reports++;
+        }
+      } catch (error) {
+        // A failed report must not stop the nudge going out.
+        console.warn("[macronaut] weekly report failed:", error);
+      }
     }
 
     const today = localDate(person.timeZone, now);
@@ -100,5 +124,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, sent, skipped, dropped });
+  return NextResponse.json({ ok: true, sent, skipped, dropped, reports });
 }

@@ -21,6 +21,12 @@ export const AI_DAILY_LIMITS: Record<AiKind, number> = {
   photo: 25,
   coach: 40,
   report: 10,
+  // Rebuilding a whole history is the most expensive thing an account can ask
+  // for. A dozen a day is far more than anyone backing up their data needs.
+  export: 12,
+  // Generous, because a genuine crash loop should still be recorded — just not
+  // ten thousand times.
+  error: 100,
 };
 
 const FRIENDLY: Record<AiKind, string> = {
@@ -28,6 +34,8 @@ const FRIENDLY: Record<AiKind, string> = {
   photo: "photo logs",
   coach: "coaching notes",
   report: "reports",
+  export: "exports",
+  error: "error reports",
 };
 
 export type BudgetResult =
