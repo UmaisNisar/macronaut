@@ -376,6 +376,87 @@ try {
   await ctx.close();
 
   /* ---------------------------------------------------------------- */
+  section("Scrolling must not press things (it logged food once)");
+  /*
+   * Only reachable with an iPhone user agent, because the haptic overlay — a
+   * real WebKit switch laid over the control — exists only there. A native
+   * switch toggles on a *drag* as well as a tap, so a vertical scroll starting
+   * on a repeat chip silently logged that food again. A plain button would
+   * never have done it, which is exactly why this needs guarding by hand.
+   */
+  const iosCtx = await browser.newContext({
+    ...phone,
+    userAgent:
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 26_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Mobile/15E148 Safari/604.1",
+  });
+  const iosPage = await iosCtx.newPage();
+  const iosCdp = await iosCtx.newCDPSession(iosPage);
+  await iosPage.goto(`${SITE}/today`, { waitUntil: "networkidle" });
+  await iosPage.waitForTimeout(2000);
+
+  check(
+    "the haptic overlay is present on iOS",
+    (await iosPage.locator("input[switch]").count()) > 0,
+  );
+
+  const chip = iosPage.locator("[data-no-swipe] button").first();
+  if (await chip.count()) {
+    const cbox = await chip.boundingBox();
+    const cx = cbox.x + cbox.width / 2;
+    const cy = cbox.y + cbox.height / 2;
+    const totalNow = () =>
+      iosPage.evaluate(() => {
+        const m = document.body.innerText.match(/([\d,]+)\s*\/\s*([\d,]+)/);
+        return m ? Number(m[1].replace(/,/g, "")) : -1;
+      });
+
+    const before = await totalNow();
+    await iosCdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ x: cx, y: cy }],
+    });
+    for (let i = 1; i <= 8; i++) {
+      await iosCdp.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [{ x: cx, y: cy - i * 18 }],
+      });
+      await iosPage.waitForTimeout(14);
+    }
+    await iosCdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await iosPage.waitForTimeout(3500);
+
+    check(
+      "scrolling over a repeat chip does not log the food",
+      (await totalNow()) === before,
+      `${before} -> ${await totalNow()}`,
+    );
+
+    // And the control must still actually work. Re-measure first: the scroll
+    // above genuinely moved the page, so the old coordinates point elsewhere.
+    // Centre it in the viewport rather than merely "in view": the dock is
+    // fixed to the bottom, so scrollIntoViewIfNeeded can leave the chip
+    // underneath it and the tap lands on the navigation instead.
+    await chip.evaluate((el) =>
+      el.scrollIntoView({ block: "center", behavior: "instant" }),
+    );
+    await iosPage.waitForTimeout(500);
+    const again = await chip.boundingBox();
+    await iosPage.touchscreen.tap(
+      again.x + again.width / 2,
+      again.y + again.height / 2,
+    );
+    await iosPage.waitForTimeout(3500);
+    check(
+      "a clean tap on the chip still logs it",
+      (await totalNow()) > before,
+      `${before} -> ${await totalNow()}`,
+    );
+  } else {
+    check("a repeat chip exists to test against", false, "none found");
+  }
+  await iosCtx.close();
+
+  /* ---------------------------------------------------------------- */
   section("Offline cold start (used to be a dead end)");
   // A fresh context on purpose. "Cold start" means a browser that has the app
   // cached and no connection, not one still carrying state from the tests

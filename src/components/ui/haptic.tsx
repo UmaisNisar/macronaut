@@ -23,6 +23,9 @@ import { cn } from "@/lib/utils";
  * own active state. Keyboard users never meet the overlay: it is aria-hidden
  * and untabbable, so the button underneath stays the real, accessible control.
  */
+/** Movement past this many pixels means the finger is scrolling, not tapping. */
+const SLOP = 8;
+
 export function Haptic({
   children,
   kind = "tap",
@@ -34,6 +37,14 @@ export function Haptic({
 }) {
   const ios = useIsIosTouch();
   const host = useRef<HTMLSpanElement | null>(null);
+
+  /** Where the finger went down, so a scroll can be told from a tap. */
+  const gesture = useRef<{
+    x: number;
+    y: number;
+    at: number;
+    moved: boolean;
+  } | null>(null);
 
   // Both platforms render the SAME box. An earlier version used
   // `display: contents` off-iOS, which silently dropped this className and let
@@ -58,10 +69,39 @@ export function Haptic({
           // and it is the switch-ness that produces the haptic.
           {...({ switch: "" } as Record<string, string>)}
           className="absolute inset-0 z-10 m-0 h-full w-full cursor-pointer opacity-0"
+          onPointerDown={(event) => {
+            gesture.current = { x: event.clientX, y: event.clientY, at: Date.now(), moved: false };
+          }}
+          onPointerMove={(event) => {
+            const g = gesture.current;
+            if (!g) return;
+            // A finger that has travelled this far is scrolling, not tapping.
+            if (Math.hypot(event.clientX - g.x, event.clientY - g.y) > SLOP) {
+              g.moved = true;
+            }
+          }}
+          // The browser taking the gesture over for scrolling is the clearest
+          // possible signal that it was never a tap.
+          onPointerCancel={() => {
+            if (gesture.current) gesture.current.moved = true;
+          }}
           onChange={(event) => {
             // Snap back so the next tap is another real off -> on toggle.
             // Assigning `checked` does not re-dispatch change, so this cannot loop.
             event.currentTarget.checked = false;
+
+            const g = gesture.current;
+            gesture.current = null;
+
+            /*
+             * A native switch is not a button: iOS toggles it on a *drag* as
+             * well as a tap. Overlaid on a scrollable list, that meant a
+             * vertical scroll beginning on a repeat chip silently logged the
+             * food again. A button would never have done this, so the guard
+             * has to be added back by hand.
+             */
+            if (g && (g.moved || Date.now() - g.at > 700)) return;
+
             host.current
               ?.querySelector<HTMLElement>('button, a, [role="button"]')
               ?.click();
