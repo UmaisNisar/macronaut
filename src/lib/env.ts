@@ -35,3 +35,15 @@ export const SOLO_USER_ID = "solo-pilot";
 
 export const localDataFile =
   process.env.MACRONAUT_DATA_FILE?.trim() || ".data/macronaut.json";
+
+/**
+ * Web push signing. Public key is safe in the browser; the private one signs
+ * on the server and must never leave it.
+ */
+export const vapid = {
+  publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim() || "",
+  privateKey: process.env.VAPID_PRIVATE_KEY?.trim() || "",
+  subject: process.env.VAPID_SUBJECT?.trim() || "mailto:hello@macronaut.app",
+};
+
+export const isPushConfigured = Boolean(vapid.publicKey);

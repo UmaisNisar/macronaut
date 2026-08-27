@@ -2,6 +2,7 @@ import { Check, Minus } from "lucide-react";
 
 import { DangerZone } from "@/components/profile/danger-zone";
 import { ExportData } from "@/components/profile/export-data";
+import { ReminderSettings } from "@/components/profile/reminder-settings";
 import { SignOutButton } from "@/components/profile/sign-out-button";
 import { GoalEditor } from "@/components/profile/goal-editor";
 import { MomoGreeter } from "@/components/mascot/momo-greeter";
@@ -10,7 +11,13 @@ import { Sticker, StickerHeading, Squiggle } from "@/components/kit";
 import { Button } from "@/components/ui/button";
 import { requireProfile } from "@/lib/session";
 import { userToday } from "@/lib/server-date";
-import { geminiModel, isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
+import {
+  geminiModel,
+  isGeminiConfigured,
+  isPushConfigured,
+  isSupabaseConfigured,
+  vapid,
+} from "@/lib/env";
 import { formatHeight, formatWeight } from "@/lib/nutrition";
 import { shortDayLabel } from "@/lib/date";
 
@@ -116,6 +123,13 @@ export default async function ProfilePage() {
               offText="Offline estimator and template coaching"
             />
           </ul>
+
+          {isPushConfigured && isSupabaseConfigured ? (
+            <ReminderSettings
+              publicKey={vapid.publicKey}
+              initialHour={profile.reminderHour}
+            />
+          ) : null}
 
           <ExportData />
 

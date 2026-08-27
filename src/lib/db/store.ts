@@ -36,6 +36,17 @@ export function foodKey(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+export type PushSub = { endpoint: string; p256dh: string; auth: string };
+
+/** One person plus their devices, for the reminder job. */
+export type ReminderCandidate = {
+  userId: string;
+  displayName: string | null;
+  reminderHour: number;
+  timeZone: string;
+  subscriptions: PushSub[];
+};
+
 export type ErrorReport = {
   source: "client" | "server";
   kind: string;
@@ -114,6 +125,12 @@ export interface DataStore {
 
   /* learned corrections -------------------------------------------- */
   listFoodCorrections(userId: string): Promise<FoodCorrection[]>;
+
+  /* reminders ------------------------------------------------------ */
+  savePushSubscription(userId: string, sub: PushSub): Promise<void>;
+  deletePushSubscription(endpoint: string): Promise<void>;
+  /** Everyone who could be nudged right now. Cron-only, so it crosses users. */
+  listReminderCandidates(): Promise<ReminderCandidate[]>;
   saveFoodCorrection(
     userId: string,
     correction: Omit<FoodCorrection, "times" | "updatedAt">,

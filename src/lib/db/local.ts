@@ -220,6 +220,14 @@ export function createLocalStore(): DataStore {
       });
     },
 
+    // Solo mode is a single machine with no server to run a cron on, so
+    // reminders are inert rather than pretending to work.
+    async savePushSubscription() {},
+    async deletePushSubscription() {},
+    async listReminderCandidates() {
+      return [];
+    },
+
     async listFoodCorrections(userId: string) {
       return query((db) =>
         (db.corrections ?? []).filter((c) => c.userId === userId),

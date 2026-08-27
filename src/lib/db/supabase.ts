@@ -23,6 +23,7 @@ import type {
   NewGoalSnapshot,
   ProfileSeed,
 } from "@/lib/db/store";
+import type { PushSub } from "@/lib/db/store";
 import { rankFrequentFoods } from "@/lib/db/store";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -54,6 +55,9 @@ function toProfile(r: Row): Profile {
     activityLevel: r.activity_level,
     units: r.units,
     onboardedAt: r.onboarded_at ?? null,
+    reminderHour:
+      typeof r.reminder_hour === "number" ? r.reminder_hour : null,
+    timeZone: r.time_zone ?? null,
     createdAt: r.created_at,
   };
 }
@@ -353,6 +357,55 @@ export function createSupabaseStore(sb: SupabaseClient): DataStore {
       });
       if (error) fail("record ai usage", error);
       return typeof data === "number" ? data : 0;
+    },
+
+    async savePushSubscription(userId, sub) {
+      const { error } = await sb.from("push_subscriptions").upsert(
+        {
+          endpoint: sub.endpoint,
+          user_id: userId,
+          p256dh: sub.p256dh,
+          auth: sub.auth,
+          failed_at: null,
+        },
+        { onConflict: "endpoint" },
+      );
+      if (error) fail("save push subscription", error);
+    },
+
+    async deletePushSubscription(endpoint) {
+      const { error } = await sb
+        .from("push_subscriptions")
+        .delete()
+        .eq("endpoint", endpoint);
+      if (error) fail("remove push subscription", error);
+    },
+
+    async listReminderCandidates() {
+      // Reads across accounts, so it is only ever called from the cron route
+      // with the service key — the anon client's RLS would return nothing.
+      const { data, error } = await sb
+        .from("profiles")
+        .select(
+          "id, display_name, reminder_hour, time_zone, push_subscriptions(endpoint, p256dh, auth)",
+        )
+        .not("reminder_hour", "is", null)
+        .not("time_zone", "is", null);
+      if (error) fail("load reminder candidates", error);
+
+      return (data ?? [])
+        .map((row) => ({
+          userId: row.id as string,
+          displayName: (row.display_name as string | null) ?? null,
+          reminderHour: row.reminder_hour as number,
+          timeZone: row.time_zone as string,
+          subscriptions: ((row.push_subscriptions ?? []) as PushSub[]).map((s) => ({
+            endpoint: s.endpoint,
+            p256dh: s.p256dh,
+            auth: s.auth,
+          })),
+        }))
+        .filter((c) => c.subscriptions.length > 0);
     },
 
     async listFoodCorrections(userId) {

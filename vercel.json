@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/reminders",
+      "comment": "Hourly, because everyone is in a different time zone: the job works out whose local hour matches their chosen one.",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

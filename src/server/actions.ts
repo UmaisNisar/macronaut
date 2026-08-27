@@ -9,6 +9,8 @@ import {
   EditFoodInput,
   RepeatFoodInput,
   LogBarcodeInput,
+  PushSubscriptionInput,
+  ReminderSettingsInput,
   LogFoodPhotoInput,
   LogFoodInput,
   LogWeightInput,
@@ -142,6 +144,8 @@ export async function completeOnboardingAction(
     activityLevel: input.activityLevel,
     units: input.units,
     onboardedAt: existing?.onboardedAt ?? new Date().toISOString(),
+    reminderHour: null,
+    timeZone: null,
   });
 
   await store.insertGoalSnapshot({
@@ -564,6 +568,55 @@ export async function logBarcodeAction(
 
   revalidateApp();
   return { ok: true, day, entries, added };
+}
+
+/** Store a device's push subscription and, with it, turn reminders on. */
+export async function savePushSubscriptionAction(
+  raw: unknown,
+): Promise<ActionResult<{ done: true }>> {
+  const ctx = await withProfile();
+  if (!ctx.ok) return fail(ctx.error);
+
+  const parsed = PushSubscriptionInput.safeParse(raw);
+  if (!parsed.success) return fail("That subscription could not be read.");
+
+  await ctx.store.savePushSubscription(ctx.profile.id, parsed.data);
+  return { ok: true, done: true };
+}
+
+export async function removePushSubscriptionAction(
+  endpoint: string,
+): Promise<ActionResult<{ done: true }>> {
+  const ctx = await withProfile();
+  if (!ctx.ok) return fail(ctx.error);
+  if (typeof endpoint !== "string" || !endpoint) return fail("Nothing to remove.");
+
+  await ctx.store.deletePushSubscription(endpoint);
+  return { ok: true, done: true };
+}
+
+/**
+ * When to nudge, in the person's own hours.
+ *
+ * The time zone rides along because a cron job running in UTC has no other way
+ * to know when 8pm is for them.
+ */
+export async function saveReminderSettingsAction(
+  raw: unknown,
+): Promise<ActionResult<{ done: true }>> {
+  const ctx = await withProfile();
+  if (!ctx.ok) return fail(ctx.error);
+
+  const parsed = ReminderSettingsInput.safeParse(raw);
+  if (!parsed.success) return fail("Pick an hour between 0 and 23.");
+
+  await ctx.store.patchProfile(ctx.profile.id, {
+    reminderHour: parsed.data.reminderHour,
+    ...(parsed.data.timeZone ? { timeZone: parsed.data.timeZone } : {}),
+  });
+
+  revalidateApp();
+  return { ok: true, done: true };
 }
 
 export async function repeatFoodAction(

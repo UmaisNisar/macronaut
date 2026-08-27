@@ -152,6 +152,58 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
+/*
+ * The one notification this app sends: an evening nudge on a day with nothing
+ * logged. The payload is small and non-medical on purpose — a push message
+ * lands on a lock screen, so it says "you have not logged today", never a
+ * weight or a calorie figure.
+ */
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = {};
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Macronaut", {
+      body: data.body || "Anything to log today?",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      tag: data.tag || "macronaut-reminder",
+      // Replace rather than stack: two nudges is nagging.
+      renotify: false,
+      data: { url: data.url || "/today" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = event.notification.data?.url || "/today";
+
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      // Reuse a window that is already open rather than piling up tabs.
+      for (const client of all) {
+        if (client.url.includes(target) && "focus" in client) {
+          return client.focus();
+        }
+      }
+      if (all[0] && "focus" in all[0]) {
+        await all[0].focus();
+        return all[0].navigate?.(target);
+      }
+      return self.clients.openWindow(target);
+    })(),
+  );
+});
+
 // Signing out must not leave a snapshot of someone's day on the device.
 self.addEventListener("message", (event) => {
   if (event.data?.type === "clear-pages") {

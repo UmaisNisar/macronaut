@@ -110,6 +110,8 @@ export async function POST() {
     activityLevel: "light",
     units: "metric",
     onboardedAt: new Date().toISOString(),
+    reminderHour: null,
+    timeZone: null,
   });
 
   await store.insertGoalSnapshot({

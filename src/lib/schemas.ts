@@ -107,9 +107,26 @@ export const Profile = z.object({
   activityLevel: ActivityLevel,
   units: UnitSystem,
   onboardedAt: z.string().nullable(),
+  /** Local hour (0-23) to nudge at, or null for no reminders. */
+  reminderHour: z.number().int().min(0).max(23).nullable().default(null),
+  /** IANA zone, so a UTC cron can work out when it is 8pm for this person. */
+  timeZone: z.string().nullable().default(null),
   createdAt: z.string(),
 });
 export type Profile = z.infer<typeof Profile>;
+
+export const PushSubscriptionInput = z.object({
+  endpoint: z.string().url().max(600),
+  p256dh: z.string().min(8).max(255),
+  auth: z.string().min(8).max(255),
+});
+export type PushSubscriptionInput = z.infer<typeof PushSubscriptionInput>;
+
+export const ReminderSettingsInput = z.object({
+  reminderHour: z.number().int().min(0).max(23).nullable(),
+  timeZone: z.string().min(1).max(64).optional(),
+});
+export type ReminderSettingsInput = z.infer<typeof ReminderSettingsInput>;
 
 /** Immutable snapshot written whenever goals change, so history stays honest. */
 export const GoalSnapshot = z.object({
