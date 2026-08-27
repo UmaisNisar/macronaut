@@ -1,124 +1,123 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  motion,
-  useMotionValue,
-  useReducedMotion,
-  useTransform,
-} from "motion/react";
 
 import { NAV_ITEMS, navIndexOf } from "@/lib/nav-items";
 import { useIsTouch } from "@/lib/use-media-query";
 
 /**
- * Swipe left/right to move between tabs, in the same order as the dock.
+ * Swipe left and right to move between tabs, in the order of the dock.
  *
- * `dragDirectionLock` means Motion commits to one axis at the start of a
- * gesture, so a vertical scroll never turns into a page change halfway down.
- * Motion also sets `touch-action: pan-y` for a horizontal drag, which keeps
- * normal scrolling intact.
+ * Implemented with passive touch listeners rather than a draggable wrapper.
+ * The wrapper approach put a gesture handler around the entire page, and that
+ * handler claimed horizontal movement everywhere — including inside the
+ * horizontally scrolling "Log again" strip, which could not be scrolled at all
+ * because the page was consuming the gesture. Marking the strip `data-no-swipe`
+ * stopped it navigating but not the drag itself, so scrolling stayed broken.
  *
- * A pill peeks in from the edge as you pull, naming the page you are about to
- * land on — otherwise the gesture is invisible until someone discovers it.
+ * Listening passively fixes that by construction: nothing is intercepted,
+ * nothing calls preventDefault, and the browser handles every scroll natively.
+ * A tab change is decided after the fact, from where the finger started and
+ * finished.
+ *
+ * The cost is the peek pill that used to follow your thumb. Reliable scrolling
+ * is worth more than that.
  */
 
-/** Past this, releasing commits to the next page. */
+/** Horizontal travel needed before a swipe counts. */
 const DISTANCE = 70;
-const VELOCITY = 480;
+/** How much more horizontal than vertical it must be, so scrolls never count. */
+const DIRECTION_RATIO = 1.8;
+/** Longer than this is a drag or a pause, not a flick. */
+const MAX_DURATION = 700;
 
 export function SwipeNav({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const isTouch = useIsTouch();
-  const reduce = useReducedMotion();
 
-  const index = navIndexOf(pathname);
-  const prev = index > 0 ? NAV_ITEMS[index - 1] : null;
-  const next =
-    index >= 0 && index < NAV_ITEMS.length - 1 ? NAV_ITEMS[index + 1] : null;
+  const host = useRef<HTMLDivElement | null>(null);
+  const start = useRef<{ x: number; y: number; at: number; ok: boolean } | null>(
+    null,
+  );
 
-  const x = useMotionValue(0);
-  // Pulling right reveals the previous page, and vice versa.
-  const prevOpacity = useTransform(x, [10, DISTANCE], [0, 1]);
-  const prevScale = useTransform(x, [10, DISTANCE], [0.8, 1]);
-  const nextOpacity = useTransform(x, [-DISTANCE, -10], [1, 0]);
-  const nextScale = useTransform(x, [-DISTANCE, -10], [1, 0.8]);
+  // The listeners are attached once and stay passive, so they read the current
+  // route through a ref rather than being torn down on every navigation.
+  const target = useRef({ pathname, router });
+  useEffect(() => {
+    target.current = { pathname, router };
+  }, [pathname, router]);
 
-  /** Set when a gesture starts inside something that scrolls sideways itself. */
-  const blocked = useRef(false);
+  useEffect(() => {
+    const node = host.current;
+    if (!node || !isTouch) return;
 
-  const enabled = isTouch && index >= 0 && !reduce;
-
-  return (
-    <>
-      <motion.div
-        drag={enabled ? "x" : false}
-        dragDirectionLock
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.2}
-        dragMomentum={false}
-        style={{ x }}
-        onDragStart={(event) => {
-          const target = event.target as HTMLElement | null;
-          blocked.current = Boolean(target?.closest?.("[data-no-swipe]"));
-        }}
-        onDragEnd={(_event, info) => {
-          if (blocked.current) {
-            blocked.current = false;
-            return;
+    /**
+     * A gesture that begins inside something which scrolls sideways itself
+     * belongs to that thing, not to navigation.
+     */
+    const startsInsideScroller = (el: Element | null): boolean => {
+      for (let n = el; n && n !== node; n = n.parentElement) {
+        if (n instanceof HTMLElement) {
+          if (n.dataset.noSwipe !== undefined) return true;
+          const overflow = getComputedStyle(n).overflowX;
+          if (
+            (overflow === "auto" || overflow === "scroll") &&
+            n.scrollWidth > n.clientWidth + 1
+          ) {
+            return true;
           }
-          const { offset, velocity } = info;
-          const goNext = offset.x < -DISTANCE || velocity.x < -VELOCITY;
-          const goPrev = offset.x > DISTANCE || velocity.x > VELOCITY;
-          if (goNext && next) router.push(next.href);
-          else if (goPrev && prev) router.push(prev.href);
-        }}
-      >
-        {children}
-      </motion.div>
+        }
+      }
+      return false;
+    };
 
-      {enabled ? (
-        <>
-          {prev ? (
-            <EdgePeek item={prev} side="left" opacity={prevOpacity} scale={prevScale} />
-          ) : null}
-          {next ? (
-            <EdgePeek item={next} side="right" opacity={nextOpacity} scale={nextScale} />
-          ) : null}
-        </>
-      ) : null}
-    </>
-  );
-}
+    const onStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) {
+        start.current = null;
+        return;
+      }
+      const t = event.touches[0];
+      start.current = {
+        x: t.clientX,
+        y: t.clientY,
+        at: Date.now(),
+        ok: !startsInsideScroller(event.target as Element | null),
+      };
+    };
 
-function EdgePeek({
-  item,
-  side,
-  opacity,
-  scale,
-}: {
-  item: (typeof NAV_ITEMS)[number];
-  side: "left" | "right";
-  opacity: ReturnType<typeof useTransform<number, number>>;
-  scale: ReturnType<typeof useTransform<number, number>>;
-}) {
-  return (
-    <motion.div
-      aria-hidden
-      style={{ opacity, scale }}
-      className={`pointer-events-none fixed top-1/2 z-30 -translate-y-1/2 ${
-        side === "left" ? "left-2" : "right-2"
-      }`}
-    >
-      <span
-        className="flex flex-col items-center gap-1 rounded-3xl px-3 py-2.5 text-white shadow-lg"
-        style={{ background: item.color }}
-      >
-        <span className="text-xl leading-none">{item.emoji}</span>
-        <span className="text-[0.6rem] font-bold">{item.label}</span>
-      </span>
-    </motion.div>
-  );
+    const onEnd = (event: TouchEvent) => {
+      const s = start.current;
+      start.current = null;
+      if (!s || !s.ok) return;
+
+      const t = event.changedTouches[0];
+      if (!t) return;
+
+      const dx = t.clientX - s.x;
+      const dy = t.clientY - s.y;
+      if (Date.now() - s.at > MAX_DURATION) return;
+      if (Math.abs(dx) < DISTANCE) return;
+      if (Math.abs(dx) < Math.abs(dy) * DIRECTION_RATIO) return;
+
+      const index = navIndexOf(target.current.pathname);
+      if (index < 0) return;
+      const next = dx < 0 ? NAV_ITEMS[index + 1] : NAV_ITEMS[index - 1];
+      if (next) target.current.router.push(next.href);
+    };
+
+    // Passive: this only ever observes. It must never be able to block a scroll.
+    node.addEventListener("touchstart", onStart, { passive: true });
+    node.addEventListener("touchend", onEnd, { passive: true });
+    node.addEventListener("touchcancel", () => (start.current = null), {
+      passive: true,
+    });
+    return () => {
+      node.removeEventListener("touchstart", onStart);
+      node.removeEventListener("touchend", onEnd);
+    };
+  }, [isTouch]);
+
+  return <div ref={host}>{children}</div>;
 }

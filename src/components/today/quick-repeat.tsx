@@ -57,7 +57,14 @@ export function QuickRepeat({
 
       <div
         data-no-swipe
-        className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        /*
+         * A scrolling strip on a phone, where sideways swiping is natural and
+         * vertical space is precious. On a pointer device it wraps instead:
+         * horizontal scrolling with a mouse means shift-and-wheel, which
+         * nobody discovers, and the scrollbar is hidden — so anything past the
+         * fold was simply unreachable.
+         */
+        className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden"
       >
         {foods.map((food) => {
           const busy = busyId === food.entryId;
