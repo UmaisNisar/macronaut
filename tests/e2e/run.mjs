@@ -14,7 +14,7 @@
  *
  *   npm run test:e2e
  */
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { readFile, rm } from "node:fs/promises";
 import { chromium } from "playwright-core";
 
@@ -59,11 +59,17 @@ async function assertPortFree() {
   );
 }
 
-/** `child.kill()` only kills the shell on Windows, leaving `next` running. */
+/**
+ * `child.kill()` only kills the shell on Windows, leaving `next` running.
+ *
+ * Synchronous on purpose: an async spawn here loses the race against the
+ * process exiting, which is how a server survived a failing run and then
+ * poisoned the next one.
+ */
 function killTree(child) {
   if (!child.pid) return;
   if (process.platform === "win32") {
-    spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+    spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
       stdio: "ignore",
     });
   } else {
@@ -341,6 +347,40 @@ try {
   );
 
   await ctx.close();
+
+  /* ---------------------------------------------------------------- */
+  section("Offline cold start (used to be a dead end)");
+  // A fresh context on purpose. "Cold start" means a browser that has the app
+  // cached and no connection, not one still carrying state from the tests
+  // above — which is what made this fail when it shared a context.
+  const coldCtx = await browser.newContext(phone);
+  const coldPage = await coldCtx.newPage();
+  await coldPage.goto(`${SITE}/today`, { waitUntil: "networkidle" });
+  // The first navigation is never service-worker controlled: the worker is
+  // still installing during it, so nothing is intercepted or cached. A real
+  // person gets their snapshot on the second visit too.
+  await coldPage.evaluate(() => navigator.serviceWorker.ready);
+  await coldPage.goto(`${SITE}/today`, { waitUntil: "networkidle" });
+  await coldPage.waitForTimeout(2000);
+
+  const snapshot = await coldPage.evaluate(async () => {
+    const key = (await caches.keys()).find((k) => k.endsWith("-pages"));
+    if (!key) return [];
+    return (await (await caches.open(key)).keys()).map((r) => new URL(r.url).pathname);
+  });
+  check("Today is kept as a snapshot", snapshot.includes("/today"), JSON.stringify(snapshot));
+
+  await coldCtx.setOffline(true);
+  await coldPage.waitForTimeout(300);
+  await coldPage.goto(`${SITE}/today`, { waitUntil: "domcontentloaded" }).catch(() => {});
+  await coldPage.waitForTimeout(4000);
+
+  const coldBody = await coldPage.evaluate(() => document.body.innerText);
+  check("launching with no signal still opens the app", /Tell me what you ate/i.test(coldBody));
+  check("does not fall through to the offline dead end", !/No signal/i.test(coldBody));
+  check("says the numbers are a snapshot, not live", /showing your last snapshot/i.test(coldBody));
+  check("you can still type a meal offline", (await coldPage.locator("textarea").count()) > 0);
+  await coldCtx.close();
 
   /* ---------------------------------------------------------------- */
   section("Interactive affordances (regressed once: nothing felt clickable)");

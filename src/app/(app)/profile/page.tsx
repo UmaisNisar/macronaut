@@ -1,7 +1,8 @@
-import { Check, LogOut, Minus } from "lucide-react";
+import { Check, Minus } from "lucide-react";
 
 import { DangerZone } from "@/components/profile/danger-zone";
 import { ExportData } from "@/components/profile/export-data";
+import { SignOutButton } from "@/components/profile/sign-out-button";
 import { GoalEditor } from "@/components/profile/goal-editor";
 import { MomoGreeter } from "@/components/mascot/momo-greeter";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
@@ -12,7 +13,6 @@ import { userToday } from "@/lib/server-date";
 import { geminiModel, isGeminiConfigured, isSupabaseConfigured } from "@/lib/env";
 import { formatHeight, formatWeight } from "@/lib/nutrition";
 import { shortDayLabel } from "@/lib/date";
-import { signOutAction } from "@/server/actions";
 
 export const metadata = { title: "You" };
 export const dynamic = "force-dynamic";
@@ -129,12 +129,7 @@ export default async function ProfilePage() {
           </p>
 
           {isSupabaseConfigured ? (
-            <form action={signOutAction} className="mt-4">
-              <Button type="submit" variant="outline">
-                <LogOut className="size-4" />
-                Sign out
-              </Button>
-            </form>
+            <SignOutButton />
           ) : null}
         </Sticker>
       </div>

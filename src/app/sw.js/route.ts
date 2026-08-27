@@ -37,7 +37,24 @@ function source(version: string): string {
 const VERSION = ${JSON.stringify(`macronaut-${version}`)};
 const STATIC_CACHE = VERSION + "-static";
 const SHELL_CACHE = VERSION + "-shell";
+const PAGE_CACHE = VERSION + "-pages";
 const OFFLINE_URL = "/offline.html";
+
+/*
+ * Only Today is kept, and only as a last resort when the network is gone.
+ *
+ * The rule everywhere else is that pages are never cached, because a stale
+ * dashboard showing yesterday's calories is worse than an error. The exception
+ * exists because the outbox could only accept a meal if the app was already
+ * open — launch it cold in a restaurant basement and you got the offline page,
+ * which is exactly when you most want to log something. A snapshot you can
+ * type into beats a dead end, and the app shows an offline banner over it so
+ * the numbers are never mistaken for live ones.
+ *
+ * Note this stores a signed-in page on the device. It is cleared when the app
+ * signs out, and whenever a new deployment activates.
+ */
+const CACHEABLE_PAGES = ["/today"];
 
 const PRECACHE = [OFFLINE_URL, "/icons/icon-192.png", "/icons/icon-512.png"];
 
@@ -106,17 +123,39 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request).catch(async () => {
-        const cache = await caches.open(SHELL_CACHE);
-        return (
-          (await cache.match(OFFLINE_URL)) ??
-          new Response("Offline", {
-            status: 503,
-            headers: { "content-type": "text/plain" },
-          })
-        );
-      }),
+      (async () => {
+        try {
+          const response = await fetch(request);
+          if (response.ok && CACHEABLE_PAGES.includes(url.pathname)) {
+            const copy = response.clone();
+            event.waitUntil(
+              caches.open(PAGE_CACHE).then((c) => c.put(url.pathname, copy)),
+            );
+          }
+          return response;
+        } catch {
+          const pages = await caches.open(PAGE_CACHE);
+          const snapshot = await pages.match(url.pathname);
+          if (snapshot) return snapshot;
+
+          const shell = await caches.open(SHELL_CACHE);
+          return (
+            (await shell.match(OFFLINE_URL)) ??
+            new Response("Offline", {
+              status: 503,
+              headers: { "content-type": "text/plain" },
+            })
+          );
+        }
+      })(),
     );
+  }
+});
+
+// Signing out must not leave a snapshot of someone's day on the device.
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "clear-pages") {
+    event.waitUntil(caches.delete(PAGE_CACHE));
   }
 });
 `;
