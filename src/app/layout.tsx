@@ -1,3 +1,5 @@
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata, Viewport } from "next";
 import { Fredoka, Nunito } from "next/font/google";
 import { Toaster } from "sonner";
@@ -67,6 +69,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <CelebrationProvider>{children}</CelebrationProvider>
         </ThemeProvider>
         <ServiceWorkerRegistrar />
+        {/*
+          Vercel's own analytics: cookieless, no cross-site identifiers, and no
+          per-person profiles — which is the only kind worth putting on an app
+          that knows what someone eats and what they weigh. Speed Insights
+          reports real-device timings, which is how the navigation work earlier
+          gets checked against actual phones rather than a throttled desktop.
+        */}
+        <Analytics />
+        <SpeedInsights />
         <Toaster
           position="bottom-right"
           offset={{ bottom: 20, right: 20 }}

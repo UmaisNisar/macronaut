@@ -26,7 +26,18 @@ export function todayIso(): Iso {
 }
 
 export function isValidIso(value: unknown): value is Iso {
-  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+  // Shape alone accepts "2026-13-45" and "2026-02-30", which then become an
+  // Invalid Date downstream and render as NaN. Round-tripping through Date
+  // proves the day actually exists: anything that rolls over comes back
+  // different from what went in.
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return (
+    !Number.isNaN(parsed.getTime()) &&
+    parsed.toISOString().slice(0, 10) === value
+  );
 }
 
 export function addDays(iso: Iso, days: number): Iso {
