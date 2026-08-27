@@ -47,8 +47,23 @@ describe("estimateFromText", () => {
     }
   });
 
-  it("says what it assumed, so the numbers can be judged", () => {
-    const r = estimateFromText("large chicken with rice");
-    expect(r.assumptions.length).toBeGreaterThan(0);
+  it("says what it assumed, on the food it assumed it about", () => {
+    const r = estimateFromText("chicken with rice");
+    expect(r.foods.length).toBeGreaterThanOrEqual(2);
+    expect(r.foods.some((f) => f.assumptions.length > 0)).toBe(true);
+  });
+
+  /**
+   * The bug this guards: one entry listing two foods used to stamp the whole
+   * request's assumptions onto every item, so a yogurt logged alongside a
+   * rice bowl claimed the bowl's portion size as its own.
+   */
+  it("never puts one food's assumption on another", () => {
+    const r = estimateFromText("chicken with rice");
+    const chicken = r.foods.find((f) => /chicken/i.test(f.name));
+    const rice = r.foods.find((f) => /rice/i.test(f.name));
+    if (!chicken || !rice) throw new Error("expected both foods to be found");
+    for (const note of chicken.assumptions) expect(note).not.toMatch(/rice/i);
+    for (const note of rice.assumptions) expect(note).not.toMatch(/chicken/i);
   });
 });

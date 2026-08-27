@@ -359,7 +359,9 @@ export async function logFoodAction(
       fiber: round(f.fiber, 1),
       sugar: round(f.sugar, 1),
       confidence: f.confidence,
-      assumptions: [...analysis.assumptions, ...learned.notes],
+      // This item's own assumptions first. Anything the model put at the
+      // top level applies to the whole entry, so it follows.
+      assumptions: [...f.assumptions, ...analysis.assumptions, ...learned.notes],
       rawInput: text,
       source: source === "ai" ? "ai" : "estimator",
     })),
@@ -466,7 +468,7 @@ export async function logFoodPhotoAction(
       fiber: round(f.fiber, 1),
       sugar: round(f.sugar, 1),
       confidence: f.confidence,
-      assumptions: read.analysis.assumptions,
+      assumptions: [...f.assumptions, ...read.analysis.assumptions],
       rawInput: note?.trim() ? "photo: " + note.trim() : "photo",
       source: "ai",
     })),
@@ -697,7 +699,7 @@ export async function reanalyseFoodAction(
     fiber: round(best.fiber, 1),
     sugar: round(best.sugar, 1),
     confidence: best.confidence,
-    assumptions: analysis.assumptions,
+    assumptions: [...best.assumptions, ...analysis.assumptions],
     source: "ai",
   });
   if (!updated) return fail("That entry no longer exists.");

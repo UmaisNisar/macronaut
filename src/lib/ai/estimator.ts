@@ -148,6 +148,13 @@ export function estimateFromText(input: string): AiFoodAnalysis {
     const qty = parseQuantity(clause, food);
     const m = qty.multiplier;
 
+    // Built before the item, so nothing depends on mutating an array that
+    // has already been handed over.
+    const itemNotes =
+      m === 1 && !qty.fromGrams
+        ? [`Assumed ${food.unit} of ${food.label.toLowerCase()}.`]
+        : [];
+
     foods.push({
       name: food.label,
       emoji: resolveFoodEmoji(food.label, food.emoji),
@@ -160,11 +167,9 @@ export function estimateFromText(input: string): AiFoodAnalysis {
       fiber: r1((food.fib ?? 0) * m),
       sugar: r1((food.sug ?? 0) * m),
       confidence: qty.fromGrams ? "medium" : m === 1 ? "low" : "medium",
+      assumptions: itemNotes,
     });
 
-    if (m === 1 && !qty.fromGrams) {
-      assumptions.add(`Assumed ${food.unit} of ${food.label.toLowerCase()}.`);
-    }
   }
 
   if (!foods.length) {
@@ -174,6 +179,7 @@ export function estimateFromText(input: string): AiFoodAnalysis {
       emoji: resolveFoodEmoji(input),
       meal: carriedMeal ?? "snack",
       estimatedQuantity: "1 serving",
+      assumptions: [],
       calories: 400,
       protein: 18,
       carbs: 45,

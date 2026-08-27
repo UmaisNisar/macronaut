@@ -251,6 +251,15 @@ export const AiFoodItem = z.object({
   fiber: z.number().min(0).max(200).default(0),
   sugar: z.number().min(0).max(400).default(0),
   confidence: Confidence.catch("medium"),
+  /**
+   * Assumptions about THIS food.
+   *
+   * Previously there was only a request-level list, and every item in a
+   * multi-food entry was stamped with all of it — so logging a bowl and a
+   * yogurt in one sentence left the yogurt claiming the bowl's portion size.
+   * Defaulted, because older stored analyses have no such field.
+   */
+  assumptions: z.array(z.string().max(240)).max(6).default([]),
 });
 export type AiFoodItem = z.infer<typeof AiFoodItem>;
 

@@ -36,7 +36,8 @@ Rules:
 - calories, protein, carbs, fat, fiber, sugar are TOTALS for the stated quantity, not per unit. Units: calories in kcal, everything else in grams.
 - Sanity-check yourself: protein*4 + carbs*4 + fat*9 should land within roughly 15% of your calorie figure.
 - confidence: "high" when the food and portion are both clear; "medium" when you assumed a standard portion; "low" when the description is vague or the dish varies wildly.
-- assumptions: list every meaningful guess you made, one short sentence each, written as neutral statements rather than in the first person — "Standard restaurant-sized portion assumed." not "I assumed it was a restaurant-sized portion." Do not list an assumption for something the user stated explicitly, and do not restate the obvious.
+- Each food carries its OWN assumptions, in its own "assumptions" array. An assumption about the burger does not belong on the drink beside it. Write them as neutral statements rather than in the first person — "Standard restaurant-sized portion assumed." not "I assumed it was a restaurant-sized portion." Do not list an assumption for something the user stated explicitly, and do not restate the obvious. Leave the array empty when there is genuinely nothing to declare.
+- The top-level "assumptions" array is only for things that span the whole entry and belong to no single food. Usually it should be empty.
 - emoji: a single emoji character that best represents the item — the character itself, never its name. "🥣", not "bowl".
 - If the text contains no food at all, return a single item named "Nothing recognised" with all zero values and confidence "low".
 
@@ -67,6 +68,7 @@ export const FOOD_SCHEMA: GeminiSchema = {
           fiber: { type: "NUMBER" },
           sugar: { type: "NUMBER" },
           confidence: { type: "STRING", enum: ["high", "medium", "low"] },
+          assumptions: { type: "ARRAY", items: { type: "STRING" } },
         },
         required: [
           "name",
@@ -80,6 +82,7 @@ export const FOOD_SCHEMA: GeminiSchema = {
           "fiber",
           "sugar",
           "confidence",
+          "assumptions",
         ],
         propertyOrdering: [
           "name",
@@ -93,6 +96,7 @@ export const FOOD_SCHEMA: GeminiSchema = {
           "fiber",
           "sugar",
           "confidence",
+          "assumptions",
         ],
       },
     },

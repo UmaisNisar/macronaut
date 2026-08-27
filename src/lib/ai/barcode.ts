@@ -116,6 +116,7 @@ export async function lookupBarcode(code: string): Promise<BarcodeLookup> {
       sugar: round1(num(nutriments.sugars_100g) * scale),
       // Straight off the label, so this is the most confident the app ever is.
       confidence: "high",
+      assumptions: [],
     },
   };
 }
