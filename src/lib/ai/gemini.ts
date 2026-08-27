@@ -4,7 +4,7 @@ import type { ZodType } from "zod";
 
 import {
   geminiApiKey,
-  geminiFallbackModel,
+  geminiFallbackModels,
   geminiModel,
   isGeminiConfigured,
 } from "@/lib/env";
@@ -123,13 +123,22 @@ export async function generateJson<T>(
     });
   };
 
-  // The backup only exists to survive one model having a bad ten minutes.
-  // Dropping straight to the keyword estimator loses far more quality than
-  // answering from an older model does.
-  const models =
-    geminiFallbackModel && geminiFallbackModel !== geminiModel
-      ? [geminiModel, geminiFallbackModel]
-      : [geminiModel];
+  /*
+   * A chain, not a single backup.
+   *
+   * Gemini's free tier meters GenerateRequestsPerDayPerProjectPerModel, and on
+   * this project that limit is twenty. Per model — so each additional model in
+   * the chain is another twenty requests a day, and a single spare one is not
+   * much of a spare. Ordered best-quality first; the app only walks down the
+   * list when something above it is exhausted or broken.
+   *
+   * This is a way of living within a free tier, not a substitute for paying for
+   * one. Enabling billing removes the ceiling entirely.
+   */
+  const models = [
+    geminiModel,
+    ...geminiFallbackModels.filter((m) => m && m !== geminiModel),
+  ];
 
   let lastDetail = "";
   /** Set when the primary refused in a way a different model cannot fix. */
@@ -156,10 +165,12 @@ export async function generateJson<T>(
 
         if (!response.ok) {
           lastDetail = `${model}: ${response.status} ${(await response.text()).slice(0, 400)}`;
-          // 4xx other than rate limiting will not fix itself on retry. An
-          // unknown model or a rejected config might still work elsewhere, so
-          // remember the failure and let the next model have a go.
-          if (response.status < 500 && response.status !== 429) {
+          // A daily quota does not refill in the second it takes to retry, so
+          // 429 moves straight to the next model instead of burning a retry.
+          if (response.status === 429) break;
+          // Other 4xx will not fix themselves either, but a different model
+          // might not share the objection — remember it and carry on down.
+          if (response.status < 500) {
             hardFailure = { ok: false, reason: "api", detail: lastDetail };
             break;
           }

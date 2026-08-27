@@ -21,12 +21,23 @@ export const geminiModel =
   process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
 
 /**
- * Tried when the primary model fails outright. One model having a bad ten
- * minutes should degrade the answer, not drop the whole feature to the
- * keyword estimator. Set to the same value as GEMINI_MODEL to disable.
+ * Models to fall back through, in order, when the one above is exhausted or
+ * failing.
+ *
+ * Gemini's free tier caps requests per day *per model* — twenty on this
+ * project — so each extra name here is another twenty requests a day. That
+ * makes a chain meaningfully better than a single spare, though it is still
+ * rationing rather than a fix: billing removes the ceiling.
+ *
+ * Comma-separated. Set to an empty string to disable fallback entirely.
  */
-export const geminiFallbackModel =
-  process.env.GEMINI_FALLBACK_MODEL?.trim() || "gemini-3.5-flash";
+export const geminiFallbackModels = (
+  process.env.GEMINI_FALLBACK_MODELS ??
+  "gemini-3.6-flash,gemini-3.5-flash,gemini-2.5-flash-lite,gemini-3.5-flash-lite,gemini-3.1-flash-lite"
+)
+  .split(",")
+  .map((m) => m.trim())
+  .filter(Boolean);
 
 export const isGeminiConfigured = Boolean(geminiApiKey);
 
