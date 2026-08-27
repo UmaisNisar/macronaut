@@ -7,8 +7,15 @@ import { cn } from "@/lib/utils"
  * Chunky candy button. Every filled variant has a solid "lip" underneath so
  * pressing it feels physical: it lifts on hover and sinks on tap.
  */
+/*
+ * The springy curve overshoots by design (1.56 > 1), which is what gives a
+ * press its bounce. Applied to background-color it overshoots the colour too:
+ * measured, the hover background shot to rgb 255 before settling at 241, which
+ * reads as a blink every time you hover a button. Movement gets the bounce;
+ * colour gets a plain ease.
+ */
 const buttonVariants = cva(
-  "group/button relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full font-semibold whitespace-nowrap select-none outline-none transition-[transform,box-shadow,background-color] duration-150 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:ring-4 focus-visible:ring-[var(--violet)]/30 disabled:pointer-events-none disabled:opacity-55 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full font-semibold whitespace-nowrap select-none outline-none [transition:transform_150ms_cubic-bezier(0.34,1.56,0.64,1),box-shadow_150ms_cubic-bezier(0.34,1.56,0.64,1),background-color_150ms_ease-out,color_150ms_ease-out] focus-visible:ring-4 focus-visible:ring-[var(--violet)]/30 disabled:pointer-events-none disabled:opacity-55 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

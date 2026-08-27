@@ -1,12 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { AnimatePresence, motion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
 import { Haptic } from "@/components/ui/haptic";
 import { Momo } from "@/components/mascot/momo";
 import { isIosTouch } from "@/lib/haptics";
+import { useIsTouch } from "@/lib/use-media-query";
 import { EASE } from "@/lib/motion";
 
 /**
@@ -48,40 +54,49 @@ function wasDismissed(): boolean {
   }
 }
 
+const noSubscribe = () => () => {};
+
+/**
+ * Browser facts that never change during a session. Read through
+ * useSyncExternalStore rather than an effect: the server snapshot is a stable
+ * `false`, so this hydrates cleanly, and nothing calls setState during an
+ * effect just to learn what device it is running on.
+ */
+function useBrowserFlag(read: () => boolean): boolean {
+  return useSyncExternalStore(noSubscribe, read, () => false);
+}
+
 export function InstallPrompt() {
   const [deferred, setDeferred] = useState<InstallPromptEvent | null>(null);
-  const [showIos, setShowIos] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [closed, setClosed] = useState(false);
+  const isTouch = useIsTouch();
+
+  const installed = useBrowserFlag(alreadyInstalled);
+  const dismissedBefore = useBrowserFlag(wasDismissed);
+  const onIos = useBrowserFlag(isIosTouch);
 
   useEffect(() => {
     if (alreadyInstalled() || wasDismissed()) return;
 
-    // Chrome tells us when the app qualifies; we hold the event and use it later.
+    // Chrome tells us when the app qualifies; we hold the event and use it
+    // later. Setting state from an event callback is exactly what effects are
+    // for, unlike deriving device facts.
     const onPrompt = (event: Event) => {
       event.preventDefault();
       setDeferred(event as InstallPromptEvent);
-      setOpen(true);
     };
+    const onInstalled = () => setClosed(true);
+
     window.addEventListener("beforeinstallprompt", onPrompt);
-
-    // Safari never fires it, so iOS is detected rather than announced.
-    if (isIosTouch()) {
-      setShowIos(true);
-      setOpen(true);
-    }
-
-    const onInstalled = () => setOpen(false);
     window.addEventListener("appinstalled", onInstalled);
-
     return () => {
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const dismiss = useCallback(() => {
-    setOpen(false);
+    setClosed(true);
     try {
       localStorage.setItem(DISMISS_KEY, "1");
     } catch {
@@ -95,8 +110,14 @@ export function InstallPrompt() {
     await deferred.userChoice;
     // The event is single-use; Chrome will fire a fresh one if still eligible.
     setDeferred(null);
-    setOpen(false);
+    setClosed(true);
   }, [deferred]);
+
+  // Safari never fires beforeinstallprompt, so iOS is detected rather than
+  // announced; everywhere else we wait to be told the app is installable.
+  const showIos = onIos && !deferred;
+  const open =
+    !closed && !installed && !dismissedBefore && (showIos || deferred !== null);
 
   if (!open) return null;
 
@@ -107,7 +128,10 @@ export function InstallPrompt() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 24 }}
         transition={{ duration: 0.3, ease: EASE.glide }}
-        className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] lg:left-auto lg:max-w-sm"
+        // Clears the mobile dock, which is fixed at bottom-0 with a lower
+        // z-index: anchoring this at bottom-0 too would bury the navigation
+        // behind it. On desktop there is no dock, so it can sit at the edge.
+        className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-50 px-3 lg:right-4 lg:bottom-4 lg:left-auto lg:max-w-sm lg:px-0"
         role="dialog"
         aria-label="Install Macronaut"
       >
@@ -116,7 +140,7 @@ export function InstallPrompt() {
 
           <div className="min-w-0 flex-1">
             <p className="text-sm leading-tight font-bold">
-              Keep Momo on your home screen
+              {isTouch ? "Keep Momo on your home screen" : "Install Macronaut"}
             </p>
 
             {showIos ? (
@@ -128,7 +152,9 @@ export function InstallPrompt() {
               </p>
             ) : (
               <p className="mt-1 text-xs leading-relaxed font-medium text-[var(--ink-soft)]">
-                Opens full screen, loads faster, and works like a real app.
+                {isTouch
+                  ? "Opens full screen, loads faster, and works like a real app."
+                  : "Opens in its own window, without the browser bar."}
               </p>
             )}
 
@@ -142,7 +168,8 @@ export function InstallPrompt() {
               ) : (
                 <Haptic>
                   <Button size="sm" onClick={install}>
-                    <span aria-hidden>📲</span> Add to home screen
+                    <span aria-hidden>{isTouch ? "📲" : "🖥️"}</span>
+                    {isTouch ? "Add to home screen" : "Install app"}
                   </Button>
                 </Haptic>
               )}

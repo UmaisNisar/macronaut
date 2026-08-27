@@ -39,7 +39,40 @@ function section(title) {
   console.log(`\n${title}`);
 }
 
+/**
+ * Refuse to run against something we did not start.
+ *
+ * A leftover server on this port silently serves an old build, and the suite
+ * happily tests it — which looks exactly like a fresh regression and cost a
+ * long detour to diagnose once already.
+ */
+async function assertPortFree() {
+  try {
+    await fetch(`${SITE}/onboarding`, { signal: AbortSignal.timeout(1500) });
+  } catch {
+    return; // nothing there, which is what we want
+  }
+  throw new Error(
+    `Something is already listening on port ${PORT}. That is probably a ` +
+      `leaked server from an earlier run; stop it (or set E2E_PORT) before ` +
+      `running, otherwise this suite tests a stale build.`,
+  );
+}
+
+/** `child.kill()` only kills the shell on Windows, leaving `next` running. */
+function killTree(child) {
+  if (!child.pid) return;
+  if (process.platform === "win32") {
+    spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+      stdio: "ignore",
+    });
+  } else {
+    child.kill("SIGTERM");
+  }
+}
+
 async function startServer() {
+  await assertPortFree();
   await rm(DATA_FILE, { force: true });
   const server = spawn(
     process.platform === "win32" ? "npx.cmd" : "npx",
@@ -69,21 +102,70 @@ async function startServer() {
   throw new Error("server did not start");
 }
 
-/** Walk the onboarding wizard so the rest of the suite has a real profile. */
+/**
+ * Walk the onboarding wizard so the rest of the suite has a real profile.
+ *
+ * Waits on state rather than the clock. Fixed sleeps made this flaky the moment
+ * page load got slower, and a flaky setup step fails every assertion after it,
+ * which looks alarmingly like a real regression.
+ */
 async function onboard(page) {
   await page.goto(`${SITE}/onboarding`, { waitUntil: "networkidle" });
   await page.getByPlaceholder("your name").fill("Tester").catch(() => {});
-  for (let i = 0; i < 6; i++) {
-    const next = page.getByRole("button", { name: /^Next/ });
-    if (await next.isVisible().catch(() => false)) {
-      await next.click();
-      await page.waitForTimeout(300);
-    } else break;
-  }
+
   const go = page.getByRole("button", { name: /Let.s go/ });
-  if (await go.isVisible().catch(() => false)) await go.click();
-  await page.waitForURL(/\/today/, { timeout: 30000 }).catch(() => {});
-  await page.waitForTimeout(3500);
+  const heading = () =>
+    page.evaluate(() => document.querySelector("h2,h1")?.textContent ?? "");
+
+  for (let i = 0; i < 10; i++) {
+    if (await go.isVisible().catch(() => false)) break;
+    const next = page.getByRole("button", { name: /^Next/ });
+    await next.waitFor({ state: "visible", timeout: 15000 }).catch(() => {});
+    if (!(await next.isVisible().catch(() => false))) break;
+
+    // Confirm the click actually advanced the wizard. Clicking a button that
+    // React has not hydrated yet does nothing and looks identical to a click
+    // that worked, which is how this silently stalled on step one.
+    const before = await heading();
+    await next.click();
+    await page
+      .waitForFunction(
+        (prev) => (document.querySelector("h2,h1")?.textContent ?? "") !== prev,
+        before,
+        { timeout: 4000 },
+      )
+      .catch(async () => {
+        await page.waitForTimeout(600);
+        await next.click().catch(() => {});
+        await page.waitForTimeout(600);
+      });
+  }
+
+  try {
+    await go.waitFor({ state: "visible", timeout: 15000 });
+  } catch (error) {
+    // A failed setup step fails everything after it, so say why rather than
+    // leaving a wall of unrelated red.
+    console.log("\n  onboarding stalled at:", page.url());
+    const text = await page.evaluate(() => document.body.innerText);
+    console.log("  page said:", text.replace(/\s+/g, " ").slice(0, 300));
+    const buttons = await page.evaluate(() =>
+      [...document.querySelectorAll("button")]
+        .filter((b) => b.getBoundingClientRect().height > 0)
+        .map((b) => (b.innerText || "").replace(/\s+/g, " ").trim()),
+    );
+    console.log("  buttons:", JSON.stringify(buttons));
+    throw error;
+  }
+  await go.click();
+  await page.waitForURL(/\/today/, { timeout: 45000 });
+
+  // The post-onboarding celebration covers the page; wait it out, then dismiss.
+  await page
+    .waitForFunction(() => /Tell me what you ate/i.test(document.body.innerText), null, {
+      timeout: 30000,
+    })
+    .catch(() => {});
   await page.keyboard.press("Escape").catch(() => {});
   await page.waitForTimeout(800);
 }
@@ -314,6 +396,33 @@ try {
   );
 
   /* ---------------------------------------------------------------- */
+  section("Hover colour does not overshoot (regressed once: buttons blinked)");
+  const easing = await dpage.evaluate(() => {
+    const btn = [...document.querySelectorAll("button")].find(
+      (b) => b.getBoundingClientRect().height > 0,
+    );
+    if (!btn) return null;
+    const s = getComputedStyle(btn);
+    const props = s.transitionProperty.split(",").map((p) => p.trim());
+    const timings = s.transitionTimingFunction.split(/,(?![^(]*\))/).map((t) => t.trim());
+    const idx = props.indexOf("background-color");
+    return { prop: props, colourTiming: idx >= 0 ? timings[idx] : null };
+  });
+  // A cubic-bezier whose control points exceed 1 overshoots. That is the point
+  // for a transform, and a visible flash for a colour.
+  const overshoots = (timing) => {
+    const m = timing?.match(/cubic-bezier\(([^)]+)\)/);
+    if (!m) return false;
+    const [, y1, , y2] = m[1].split(",").map((n) => Number(n.trim()));
+    return y1 > 1 || y2 > 1;
+  };
+  check(
+    "background-color is not animated with an overshooting curve",
+    !!easing && !overshoots(easing.colourTiming),
+    `colour timing: ${easing?.colourTiming}`,
+  );
+
+  /* ---------------------------------------------------------------- */
   section("Desktop composer layout");
   const deskLayout = await dpage.evaluate(() => {
     const look = [...document.querySelectorAll("button")].find((b) =>
@@ -362,7 +471,7 @@ try {
   await dctx.close();
 } finally {
   await browser.close();
-  server.kill();
+  killTree(server);
   await rm(DATA_FILE, { force: true });
 }
 
