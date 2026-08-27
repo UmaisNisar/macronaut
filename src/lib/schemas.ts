@@ -176,6 +176,13 @@ export const LogFoodPhotoInput = z.object({
 });
 export type LogFoodPhotoInput = z.infer<typeof LogFoodPhotoInput>;
 
+export const LogBarcodeInput = z.object({
+  code: z.string().trim().regex(/^\d{6,14}$/, "That does not look like a barcode."),
+  date: IsoDate,
+  meal: MealSlot.optional(),
+});
+export type LogBarcodeInput = z.infer<typeof LogBarcodeInput>;
+
 export const RepeatFoodInput = z.object({
   sourceId: z.string().min(1),
   date: IsoDate,

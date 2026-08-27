@@ -8,6 +8,7 @@ import { Camera, Search, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Haptic } from "@/components/ui/haptic";
+import { BarcodeScanner } from "@/components/today/barcode-scanner";
 import { Momo } from "@/components/mascot/momo";
 import { AnimatedNumber } from "@/components/viz/animated-number";
 import { logFoodAction, logFoodPhotoAction } from "@/server/actions";
@@ -350,6 +351,8 @@ export function FoodComposer({
           {/* The parent stacks on mobile, so the two actions get their own row
               or the camera drops beneath the primary button as a stray. */}
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            {isToday ? <BarcodeScanner date={date} /> : null}
+
             <Haptic className="shrink-0">
               <Button
                 type="button"

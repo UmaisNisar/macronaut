@@ -8,6 +8,7 @@ import {
   CredentialsInput,
   EditFoodInput,
   RepeatFoodInput,
+  LogBarcodeInput,
   LogFoodPhotoInput,
   LogFoodInput,
   LogWeightInput,
@@ -36,6 +37,7 @@ import { computeStreaks, periodPair, weightStats } from "@/lib/insights";
 import { analyseFood, analyseFoodPhoto } from "@/lib/ai/food";
 import { consumeAiBudget } from "@/lib/ai/budget";
 import { foodKey } from "@/lib/db/store";
+import { lookupBarcode } from "@/lib/ai/barcode";
 import type { DataStore } from "@/lib/db/store";
 import type { AiFoodItem } from "@/lib/schemas";
 import { isGeminiConfigured } from "@/lib/env";
@@ -494,6 +496,74 @@ export async function logFoodPhotoAction(
       return def ? [{ key, name: def.name, emoji: def.emoji }] : [];
     }),
   };
+}
+
+/**
+ * Log a packaged food by its barcode.
+ *
+ * No model call at all: the numbers come off the manufacturer's label, so this
+ * is both free and more accurate than anything an estimate could produce. It
+ * still respects the daily food budget so the lookup cannot be hammered.
+ */
+export async function logBarcodeAction(
+  raw: unknown,
+): Promise<ActionResult<{ day: DailyLog; entries: FoodEntry[]; added: FoodEntry[] }>> {
+  const ctx = await withProfile();
+  if (!ctx.ok) return fail(ctx.error);
+
+  const parsed = LogBarcodeInput.safeParse(raw);
+  if (!parsed.success) {
+    return fail(parsed.error.issues[0]?.message ?? "That barcode could not be read.");
+  }
+
+  const { profile, store } = ctx;
+  const { code, date } = parsed.data;
+
+  const budget = await consumeAiBudget(store, profile.id, await userToday(), "food");
+  if (!budget.ok) return fail(budget.message);
+
+  const found = await lookupBarcode(code);
+  if (!found.ok) return fail(found.reason);
+
+  const f = found.food;
+  const learned = await applyCorrections(store, profile.id, [f]);
+
+  const added = await store.insertFoodEntries(
+    learned.foods.map((item) => ({
+      userId: profile.id,
+      logDate: date,
+      meal: parsed.data.meal ?? item.meal,
+      name: item.name,
+      quantity: item.estimatedQuantity,
+      emoji: item.emoji,
+      calories: round(item.calories),
+      protein: round(item.protein, 1),
+      carbs: round(item.carbs, 1),
+      fat: round(item.fat, 1),
+      fiber: round(item.fiber, 1),
+      sugar: round(item.sugar, 1),
+      confidence: item.confidence,
+      assumptions: [
+        "Nutrition read from the product label via Open Food Facts.",
+        ...learned.notes,
+      ],
+      rawInput: `barcode ${code}`,
+      source: "manual",
+    })),
+  );
+
+  const goals = await store.listGoalSnapshots(profile.id);
+  const day = await recomputeDay(
+    store,
+    profile.id,
+    date,
+    targetsForDate(goals, profile, date),
+  );
+  const entries = await store.listFoodEntries(profile.id, date, date);
+  await refreshAchievements(store, profile, await userToday());
+
+  revalidateApp();
+  return { ok: true, day, entries, added };
 }
 
 export async function repeatFoodAction(
