@@ -26,9 +26,10 @@ export function EstimateNotice({ entries }: { entries: FoodEntry[] }) {
         </p>
         <p className="mt-0.5 text-xs leading-relaxed font-medium text-[var(--ink-soft)]">
           Momo&rsquo;s AI could not be reached, so these came from the built-in
-          estimator and are rough. Tap any one marked{" "}
-          <span className="font-bold">GUESS</span> to correct it — Momo
-          remembers your correction for next time.
+          estimator and are rough. Tap{" "}
+          <span className="font-bold">GUESS · RETRY</span> on one to have the AI
+          another go, or the pencil to set the numbers yourself — Momo remembers
+          what you tell it.
         </p>
       </div>
     </div>

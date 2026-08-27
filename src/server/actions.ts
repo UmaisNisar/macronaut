@@ -632,6 +632,92 @@ export async function searchFoodAction(
   return { ok: true, entries };
 }
 
+/**
+ * Ask the model to have another go at an entry the estimator guessed.
+ *
+ * When the AI is unreachable a log still succeeds, but from a keyword match.
+ * Once it is reachable again there was no way to upgrade that guess short of
+ * deleting the entry and retyping it, which loses the meal's place in the day.
+ *
+ * The item is re-described to the model on its own — name and quantity, plus
+ * the original wording as context — rather than re-running the whole original
+ * input. One item goes in and one comes out, so the replacement is predictable
+ * even when the original sentence contained several foods.
+ */
+export async function reanalyseFoodAction(
+  entryId: unknown,
+): Promise<ActionResult<{ day: DailyLog; entries: FoodEntry[]; entry: FoodEntry }>> {
+  const ctx = await withProfile();
+  if (!ctx.ok) return fail(ctx.error);
+  if (typeof entryId !== "string" || !entryId) return fail("Nothing to redo.");
+
+  const { profile, store } = ctx;
+  const existing = await store.getFoodEntry(profile.id, entryId);
+  if (!existing) return fail("That entry no longer exists.");
+
+  if (!isGeminiConfigured) {
+    return fail("Momo's AI is not configured, so there is nothing better to try.");
+  }
+
+  const budget = await consumeAiBudget(store, profile.id, await userToday(), "food");
+  if (!budget.ok) return fail(budget.message);
+
+  const described =
+    existing.rawInput && existing.rawInput !== existing.name
+      ? `${existing.name}, ${existing.quantity} (from: "${existing.rawInput}")`
+      : `${existing.name}, ${existing.quantity}`;
+
+  const { analysis, source, fallbackReason } = await analyseFood(described);
+
+  if (source !== "ai") {
+    void store.recordError(profile.id, {
+      source: "server",
+      kind: "ai-fallback",
+      message: "Re-analysis fell back to the estimator",
+      detail: fallbackReason ?? null,
+      path: "/today",
+    });
+    return fail(
+      "Momo's AI still cannot be reached — it is usually a daily limit. Try again later.",
+    );
+  }
+
+  const best = analysis.foods.find((f) => !/^nothing/i.test(f.name.trim()));
+  if (!best) return fail("Momo could not make sense of that one.");
+
+  const updated = await store.updateFoodEntry(profile.id, entryId, {
+    name: best.name,
+    quantity: best.estimatedQuantity,
+    emoji: best.emoji || existing.emoji,
+    calories: round(best.calories),
+    protein: round(best.protein, 1),
+    carbs: round(best.carbs, 1),
+    fat: round(best.fat, 1),
+    fiber: round(best.fiber, 1),
+    sugar: round(best.sugar, 1),
+    confidence: best.confidence,
+    assumptions: analysis.assumptions,
+    source: "ai",
+  });
+  if (!updated) return fail("That entry no longer exists.");
+
+  const goals = await store.listGoalSnapshots(profile.id);
+  const day = await recomputeDay(
+    store,
+    profile.id,
+    updated.logDate,
+    targetsForDate(goals, profile, updated.logDate),
+  );
+  const entries = await store.listFoodEntries(
+    profile.id,
+    updated.logDate,
+    updated.logDate,
+  );
+
+  revalidateApp();
+  return { ok: true, day, entries, entry: updated };
+}
+
 export async function repeatFoodAction(
   raw: unknown,
 ): Promise<ActionResult<{ day: DailyLog; entries: FoodEntry[] }>> {

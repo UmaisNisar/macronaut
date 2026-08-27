@@ -27,6 +27,7 @@ import { MEAL_SLOTS, type FoodEntry, type MealSlot } from "@/lib/schemas";
 import type { Iso } from "@/lib/date";
 import {
   deleteFoodAction,
+  reanalyseFoodAction,
   repeatFoodAction,
   updateFoodAction,
 } from "@/server/actions";
@@ -174,9 +175,24 @@ function FoodSticker({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [repeating, startRepeat] = useTransition();
+  const [redoing, startRedo] = useTransition();
   const [repeated, setRepeated] = useState(false);
   const [open, setOpen] = useState(false);
   const isTouch = useIsTouch();
+
+  function redo() {
+    startRedo(async () => {
+      const result = await reanalyseFoodAction(entry.id);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(`Momo re-read it: ${result.entry.name}`, {
+        description: `${Math.round(result.entry.calories)} kcal`,
+      });
+      router.refresh();
+    });
+  }
 
   function logAgain() {
     startRepeat(async () => {
@@ -240,12 +256,17 @@ function FoodSticker({
               wrong number was baffling rather than explicable.
             */}
             {entry.source === "estimator" ? (
-              <span
-                className="rounded-full bg-[var(--sun-soft)] px-1.5 py-0.5 text-[0.55rem] font-bold text-[#8a6100]"
-                title="Momo's AI was unavailable, so this is a rough offline guess. Tap to correct it."
+              // The badge is the button. A label that explains a problem and
+              // offers no way out is just a complaint.
+              <button
+                type="button"
+                onClick={redo}
+                disabled={redoing}
+                className="tappable rounded-full bg-[var(--sun-soft)] px-1.5 py-0.5 text-[0.55rem] font-bold text-[#8a6100] disabled:opacity-60"
+                title="Guessed offline because Momo's AI was unavailable. Tap to try the AI again."
               >
-                GUESS
-              </span>
+                {redoing ? "TRYING…" : "GUESS · RETRY"}
+              </button>
             ) : null}
           </div>
 
