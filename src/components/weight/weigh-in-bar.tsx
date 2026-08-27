@@ -38,7 +38,7 @@ export function WeighInBar({
         trigger={
           <button
             type="button"
-            className="sticker-flat flex w-full items-center gap-3 px-4 py-3 text-left transition-transform active:scale-[0.99]"
+            className="sticker-flat tappable flex w-full items-center gap-3 px-4 py-3 text-left"
           >
             <span className="text-xl leading-none" aria-hidden>
               ⚖️
@@ -83,7 +83,7 @@ export function WeighInBar({
         trigger={
           <button
             type="button"
-            className="flex w-full items-center gap-3 text-left transition-transform active:scale-[0.99]"
+            className="tappable -m-1 flex w-full items-center gap-3 rounded-3xl p-1 text-left"
           >
             <span className="text-2xl leading-none" aria-hidden>
               ⚖️

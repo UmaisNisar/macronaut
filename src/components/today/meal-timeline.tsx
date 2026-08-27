@@ -428,7 +428,7 @@ function EditDialog({
                   {MEAL_SLOTS.map((slot) => (
                     <label
                       key={slot}
-                      className="cursor-pointer rounded-full bg-[var(--muted)] px-3 py-2 text-xs font-bold text-[var(--ink-soft)] transition-colors has-checked:bg-[var(--violet)] has-checked:text-white"
+                      className="cursor-pointer rounded-full bg-[var(--muted)] px-3 py-2 text-xs font-bold text-[var(--ink-soft)] transition-colors hover:bg-[color-mix(in_oklab,var(--violet)_18%,var(--muted))] hover:text-[var(--ink)] has-checked:bg-[var(--violet)] has-checked:text-white has-checked:hover:bg-[var(--violet)]"
                     >
                       <input
                         type="radio"

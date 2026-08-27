@@ -173,6 +173,24 @@
 }
 
 @layer base {
+  /*
+   * Tailwind v4's preflight dropped the pointer cursor on buttons, so every
+   * <button> in the app was showing a plain arrow while links showed a hand.
+   * On desktop that reads as "this is not clickable" — the single biggest
+   * reason the UI felt inert. Put back deliberately.
+   */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
   * {
     @apply border-border;
   }
@@ -267,6 +285,63 @@
     background: var(--card);
     border-radius: var(--radius-xl);
     box-shadow: 0 3px 0 0 var(--lip);
+  }
+
+  /*
+   * Anything clickable that is not a <Button>. Buttons carry their own lift and
+   * press; hand-rolled controls kept missing out, which left things like the
+   * repeat chips looking identical whether or not they did anything.
+   *
+   * Hover is gated behind (hover: hover) so a tap on a phone does not leave the
+   * control stuck in its hovered state afterwards.
+   */
+  .tappable {
+    cursor: pointer;
+    transition:
+      transform 150ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 150ms ease,
+      background-color 150ms ease;
+  }
+  @media (hover: hover) {
+    .tappable:hover {
+      transform: translateY(-2px);
+      box-shadow:
+        0 5px 0 0 var(--lip),
+        0 8px 18px -10px rgb(123 97 255 / 0.45);
+      background: color-mix(in oklab, var(--violet) 6%, var(--card));
+    }
+  }
+  .tappable:active {
+    transform: translateY(1px) scale(0.985);
+    box-shadow: 0 1px 0 0 var(--lip);
+  }
+  .tappable:focus-visible {
+    outline: 3px solid color-mix(in oklab, var(--violet) 55%, transparent);
+    outline-offset: 3px;
+  }
+
+  /*
+   * A text field you can see. The composer used to be a near-white box on a
+   * white card with no edge and no focus state, so there was nothing telling
+   * you it could be typed in.
+   */
+  .field {
+    /* A soft edge even at rest. Hover does not exist on a phone, so a field
+       that only reveals itself on hover reveals itself to nobody there. */
+    border: 2px solid color-mix(in oklab, var(--violet) 14%, transparent);
+    transition:
+      border-color 150ms ease,
+      box-shadow 150ms ease,
+      background-color 150ms ease;
+  }
+  @media (hover: hover) {
+    .field:hover {
+      border-color: color-mix(in oklab, var(--violet) 28%, transparent);
+    }
+  }
+  .field:focus-within {
+    border-color: var(--violet);
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--violet) 18%, transparent);
   }
 
   /*

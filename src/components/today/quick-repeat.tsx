@@ -2,11 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "motion/react";
 
 import { repeatFoodAction } from "@/server/actions";
 import { Haptic } from "@/components/ui/haptic";
-import { EASE } from "@/lib/motion";
 import type { FrequentFood } from "@/lib/db/store";
 import type { Iso } from "@/lib/date";
 
@@ -66,13 +64,14 @@ export function QuickRepeat({
           const added = justAdded === food.entryId;
           return (
             <Haptic key={food.entryId} className="shrink-0 snap-start">
-              <motion.button
+              {/* A plain button on purpose. Motion would write an inline
+                  transform and silently beat the CSS hover lift, so the chip
+                  would look inert on hover — the exact problem this fixes. */}
+              <button
                 type="button"
                 onClick={() => repeat(food)}
                 disabled={pending}
-                animate={added ? { scale: [1, 1.06, 1] } : { scale: 1 }}
-                transition={{ duration: 0.35, ease: EASE.glide }}
-                className="sticker-flat flex items-center gap-2 rounded-full py-2 pr-3.5 pl-3 text-left transition-opacity disabled:opacity-50"
+                className="sticker-flat tappable flex items-center gap-2 rounded-full py-2 pr-3.5 pl-3 text-left disabled:pointer-events-none disabled:opacity-50"
               >
                 <span className="text-lg leading-none" aria-hidden>
                   {added ? "✅" : busy ? "⏳" : food.emoji}
@@ -85,7 +84,7 @@ export function QuickRepeat({
                     {added ? "added!" : `${Math.round(food.calories)} kcal`}
                   </span>
                 </span>
-              </motion.button>
+              </button>
             </Haptic>
           );
         })}

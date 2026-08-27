@@ -40,8 +40,10 @@ function reactTo(entries: FoodEntry[]) {
   const kcal = entries.reduce((a, e) => a + e.calories, 0);
   const protein = entries.reduce((a, e) => a + e.protein, 0);
   if (protein >= 40) return "Okayyy, that protein is looking GOOD 👀";
-  if (entries.length >= 4) return "Ooh, a proper spread. Logged every bit of it!";
-  if (kcal < 250) return "Noted! Light one — I'll keep an eye on the running total.";
+  if (entries.length >= 4)
+    return "Ooh, a proper spread. Logged every bit of it!";
+  if (kcal < 250)
+    return "Noted! Light one — I'll keep an eye on the running total.";
   return "Got it all down. Nice one 💪";
 }
 
@@ -69,7 +71,8 @@ export function FoodComposer({
   useEffect(() => {
     if (pending || text) return;
     const id = setInterval(
-      () => setPlaceholder(EXAMPLES[Math.floor(Math.random() * EXAMPLES.length)]),
+      () =>
+        setPlaceholder(EXAMPLES[Math.floor(Math.random() * EXAMPLES.length)]),
       5000,
     );
     return () => clearInterval(id);
@@ -77,7 +80,10 @@ export function FoodComposer({
 
   useEffect(() => {
     if (!pending) return;
-    const id = setInterval(() => setStep((i) => (i + 1) % WORKING.length), 1500);
+    const id = setInterval(
+      () => setStep((i) => (i + 1) % WORKING.length),
+      1500,
+    );
     return () => clearInterval(id);
   }, [pending]);
 
@@ -159,7 +165,9 @@ export function FoodComposer({
    * a plate of food is perfectly legible at 1024px. Whatever the camera hands
    * us — HEIC included — comes out the other side as JPEG.
    */
-  async function downscale(file: File): Promise<{ data: string; mime: string }> {
+  async function downscale(
+    file: File,
+  ): Promise<{ data: string; mime: string }> {
     const bitmap = await createImageBitmap(file);
     const scale = Math.min(1, 1024 / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement("canvas");
@@ -265,10 +273,12 @@ export function FoodComposer({
               htmlFor="food-input"
               className="mb-1.5 block font-[family-name:var(--font-display)] text-base font-semibold sm:text-lg"
             >
-              {isToday ? "Tell me what you ate 🍜" : "Add something to this day 🍜"}
+              {isToday
+                ? "Tell me what you ate 🍜"
+                : "Add something to this day 🍜"}
             </label>
 
-            <div className="rounded-3xl bg-[var(--inset)] p-3 shadow-[inset_0_2px_6px_rgb(123_97_255_/_0.10)]">
+            <div className="field rounded-3xl bg-[var(--inset)] p-3 shadow-[inset_0_2px_6px_rgb(123_97_255_/_0.10)]">
               <textarea
                 id="food-input"
                 ref={area}
@@ -337,41 +347,45 @@ export function FoodComposer({
             }}
           />
 
-          <Haptic className="shrink-0">
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              disabled={pending}
-              onClick={() => fileInput.current?.click()}
-              aria-label="Log a meal from a photo"
-              title="Snap your plate"
-            >
-              <Camera className="size-4" />
-              <span className="sm:hidden">Photo</span>
-            </Button>
-          </Haptic>
+          {/* The parent stacks on mobile, so the two actions get their own row
+              or the camera drops beneath the primary button as a stray. */}
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <Haptic className="shrink-0">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                disabled={pending}
+                onClick={() => fileInput.current?.click()}
+                aria-label="Log a meal from a photo"
+                title="Snap your plate"
+              >
+                <Camera className="size-4" />
+                <span className="sm:hidden">Photo</span>
+              </Button>
+            </Haptic>
 
-          <Haptic className="w-full shrink-0 sm:w-auto">
-            <Button
-              onClick={submit}
-              disabled={pending}
-              size="lg"
-              className="w-full shrink-0 sm:w-auto"
-            >
-              {pending ? (
-                <motion.span
-                  animate={{ rotate: [0, 20, -20, 0] }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                >
-                  <Search className="size-4" />
-                </motion.span>
-              ) : (
-                <Sparkles className="size-4" />
-              )}
-              {pending ? "Investigating" : "Let Momo look 🔍"}
-            </Button>
-          </Haptic>
+            <Haptic className="min-w-0 flex-1 sm:flex-none">
+              <Button
+                onClick={submit}
+                disabled={pending}
+                size="lg"
+                className="w-full"
+              >
+                {pending ? (
+                  <motion.span
+                    animate={{ rotate: [0, 20, -20, 0] }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                  >
+                    <Search className="size-4" />
+                  </motion.span>
+                ) : (
+                  <Sparkles className="size-4" />
+                )}
+                {pending ? "Investigating" : "Let Momo look 🔍"}
+              </Button>
+            </Haptic>
+          </div>
         </div>
       </div>
 
