@@ -13,6 +13,8 @@ import type { Iso } from "@/lib/date";
 
 export type NewFoodEntry = Omit<FoodEntry, "id" | "createdAt">;
 
+export type AiKind = "food" | "photo" | "coach" | "report";
+
 /** A food worth offering as a one-tap repeat. */
 export type FrequentFood = {
   /** Latest entry with this name; the row that gets copied. */
@@ -68,6 +70,14 @@ export interface DataStore {
    */
   listFrequentFoods(userId: string, limit: number): Promise<FrequentFood[]>;
   getFoodEntry(userId: string, id: string): Promise<FoodEntry | null>;
+
+  /* ai budget ------------------------------------------------------ */
+  /**
+   * Atomically record one model call and return the running total for the day.
+   * Atomic on purpose: read-then-write would let concurrent requests both see
+   * the same count and walk straight past the limit.
+   */
+  bumpAiUsage(userId: string, dateIso: Iso, kind: AiKind): Promise<number>;
 
   /* daily rollups -------------------------------------------------- */
   getDailyLog(userId: string, dateIso: Iso): Promise<DailyLog | null>;

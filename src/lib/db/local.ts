@@ -32,6 +32,15 @@ type Shape = {
   weightLogs: WeightLog[];
   achievements: (Achievement & { userId: string })[];
   reports: StoredReport[];
+  /** Optional so files written before AI budgeting still load. */
+  aiUsage?: AiUsageRow[];
+};
+
+type AiUsageRow = {
+  userId: string;
+  usageDate: string;
+  kind: string;
+  count: number;
 };
 
 const EMPTY: Shape = {
@@ -192,6 +201,21 @@ export function createLocalStore(): DataStore {
           )
           .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
       );
+    },
+
+    async bumpAiUsage(userId: string, dateIso: string, kind: string) {
+      return mutate((db) => {
+        const rows: AiUsageRow[] = (db.aiUsage ??= []);
+        const row = rows.find(
+          (r) => r.userId === userId && r.usageDate === dateIso && r.kind === kind,
+        );
+        if (row) {
+          row.count += 1;
+          return row.count;
+        }
+        rows.push({ userId, usageDate: dateIso, kind, count: 1 });
+        return 1;
+      });
     },
 
     async getFoodEntry(userId: string, id: string) {

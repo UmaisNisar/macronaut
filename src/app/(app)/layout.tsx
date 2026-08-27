@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 
+import { InstallPrompt } from "@/components/shell/install-prompt";
 import { CandyBackground } from "@/components/shell/candy-background";
 import { NavDock, NavRail } from "@/components/shell/nav";
 import { PageShell } from "@/components/shell/page-shell";
@@ -19,6 +20,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     <div className="relative min-h-dvh">
       <CandyBackground />
       <TimezoneSync />
+      <InstallPrompt />
       <NavRail />
       <NavDock />
       <main className="mx-auto w-full max-w-5xl px-4 pt-5 pb-32 sm:px-6 lg:pt-10 lg:pb-16 lg:pl-[132px]">

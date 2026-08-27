@@ -34,6 +34,7 @@ import { userToday } from "@/lib/server-date";
 import { computeJourney, computeTargets, round } from "@/lib/nutrition";
 import { computeStreaks, periodPair, weightStats } from "@/lib/insights";
 import { analyseFood, analyseFoodPhoto } from "@/lib/ai/food";
+import { consumeAiBudget } from "@/lib/ai/budget";
 import {
   writeDailyNote,
   writePeriodReport,
@@ -253,6 +254,14 @@ export async function logFoodAction(
   const { profile, store } = ctx;
   const { text, date } = parsed.data;
 
+  const budget = await consumeAiBudget(
+    store,
+    profile.id,
+    await userToday(),
+    "food",
+  );
+  if (!budget.ok) return fail(budget.message);
+
   const { analysis, source } = await analyseFood(text);
 
   // Keep genuinely zero-calorie items — a logged Coke Zero or black coffee is
@@ -345,6 +354,14 @@ export async function logFoodPhotoAction(
 
   const { profile, store } = ctx;
   const { imageBase64, mimeType, date, note } = parsed.data;
+
+  const budget = await consumeAiBudget(
+    store,
+    profile.id,
+    await userToday(),
+    "photo",
+  );
+  if (!budget.ok) return fail(budget.message);
 
   const read = await analyseFoodPhoto({ data: imageBase64, mimeType }, note);
   if (!read.ok) return fail(read.reason);
@@ -563,6 +580,14 @@ export async function ensureDailyCoachAction(
     date,
   );
 
+  const budget = await consumeAiBudget(
+    store,
+    profile.id,
+    await userToday(),
+    "coach",
+  );
+  if (!budget.ok) return fail(budget.message);
+
   const { note } = await writeDailyNote({
     dateLabel: relativeDayLabel(date),
     totals: day.totals,
@@ -680,6 +705,14 @@ export async function ensureWeightCoachAction(
 
   const previous = index > 0 ? all[index - 1] : null;
 
+  const budget = await consumeAiBudget(
+    store,
+    profile.id,
+    await userToday(),
+    "coach",
+  );
+  if (!budget.ok) return fail(budget.message);
+
   const { note } = await writeWeightNote({
     newWeightKg: round(row.weightKg, 1),
     previousWeightKg: previous ? round(previous.weightKg, 1) : null,
@@ -784,6 +817,14 @@ export async function generateReportAction(
   const inWindow = weights.filter(
     (w) => w.loggedOn >= start && w.loggedOn <= today,
   );
+
+  const budget = await consumeAiBudget(
+    store,
+    profile.id,
+    await userToday(),
+    "report",
+  );
+  if (!budget.ok) return fail(budget.message);
 
   const { report } = await writePeriodReport({
     period,
