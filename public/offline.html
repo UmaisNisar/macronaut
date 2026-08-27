@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Offline · Macronaut</title>
+    <style>
+      /*
+        Served by the service worker when a navigation fails, so it cannot use
+        the app's stylesheet. Everything is inline, and both themes are handled
+        with prefers-color-scheme since there is no JS to read the toggle.
+      */
+      :root {
+        color-scheme: light dark;
+        --bg: #f7f5ff;
+        --card: #ffffff;
+        --ink: #2e2545;
+        --ink-soft: #7c7396;
+        --violet: #7b61ff;
+        --lip: #e0d9ff;
+        --glow-1: #e7e0ff;
+        --glow-2: #ffeade;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #141221;
+          --card: #1e1a2e;
+          --ink: #f1edff;
+          --ink-soft: #a79fc4;
+          --violet: #9b85ff;
+          --lip: #100e1b;
+          --glow-1: #241d43;
+          --glow-2: #33262f;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 2rem;
+        background:
+          radial-gradient(40rem 26rem at 12% -8%, var(--glow-1), transparent 60%),
+          radial-gradient(34rem 22rem at 92% 4%, var(--glow-2), transparent 58%),
+          var(--bg);
+        color: var(--ink);
+        font-family: ui-rounded, "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-weight: 600;
+        text-align: center;
+      }
+      .card {
+        max-width: 24rem;
+        background: var(--card);
+        border-radius: 2.25rem;
+        padding: 2.25rem 1.75rem;
+        box-shadow: 0 4px 0 0 var(--lip), 0 10px 30px -12px rgb(123 97 255 / 0.28);
+      }
+      h1 {
+        font-size: 1.3rem;
+        letter-spacing: -0.015em;
+        margin: 1rem 0 0;
+      }
+      p {
+        color: var(--ink-soft);
+        line-height: 1.6;
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin: 0.6rem 0 0;
+      }
+      button {
+        margin-top: 1.6rem;
+        border: 0;
+        border-radius: 999px;
+        padding: 0.8rem 1.6rem;
+        font: inherit;
+        font-weight: 700;
+        color: #fff;
+        background: var(--violet);
+        box-shadow: 0 4px 0 0 rgb(0 0 0 / 0.18);
+        cursor: pointer;
+      }
+      button:active {
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 0 rgb(0 0 0 / 0.18);
+      }
+      svg {
+        display: block;
+        margin: 0 auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <!-- Momo, sleeping until the connection comes back -->
+      <svg width="104" height="104" viewBox="0 0 120 116" aria-hidden="true">
+        <defs>
+          <linearGradient id="b" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#E2D8FF" />
+            <stop offset="55%" stop-color="#C4AEFF" />
+            <stop offset="100%" stop-color="#A98BFF" />
+          </linearGradient>
+        </defs>
+        <ellipse cx="60" cy="110" rx="26" ry="5" fill="#B7A6E8" opacity=".28" />
+        <path d="M60 26 C59 19 59 15 60 11" stroke="#7FC85C" stroke-width="3.6" stroke-linecap="round" fill="none" />
+        <ellipse cx="68" cy="11" rx="9" ry="5.5" fill="#93D959" transform="rotate(-18 68 11)" />
+        <path d="M60 24 C85 24 101 43 101 66 C101 91 83 106 60 106 C37 106 19 91 19 66 C19 43 35 24 60 24 Z" fill="url(#b)" />
+        <ellipse cx="13" cy="74" rx="9.5" ry="7" fill="#C6B2FF" />
+        <ellipse cx="107" cy="74" rx="9.5" ry="7" fill="#C6B2FF" />
+        <ellipse cx="34" cy="78" rx="7" ry="5" fill="#FF9A5C" opacity=".32" />
+        <ellipse cx="86" cy="78" rx="7" ry="5" fill="#FF9A5C" opacity=".32" />
+        <path d="M38 64 Q45 58 52 64" stroke="#372B52" stroke-width="3.4" stroke-linecap="round" fill="none" />
+        <path d="M68 64 Q75 58 82 64" stroke="#372B52" stroke-width="3.4" stroke-linecap="round" fill="none" />
+        <path d="M54 84 Q60 88 66 84" stroke="#372B52" stroke-width="3" stroke-linecap="round" fill="none" opacity=".75" />
+      </svg>
+
+      <h1>No signal 💤</h1>
+      <p>
+        Momo needs a connection — your log lives on the server so it stays in
+        sync between your laptop and your phone. Nothing you have logged is
+        lost.
+      </p>
+      <button onclick="location.reload()">Try again</button>
+    </div>
+  </body>
+</html>

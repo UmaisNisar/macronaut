@@ -1,0 +1,37 @@
+"use client";
+
+import { useEffect } from "react";
+import { RotateCw } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Momo } from "@/components/mascot/momo";
+
+export default function AppError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    console.error("Macronaut route error:", error);
+  }, [error]);
+
+  return (
+    <div className="sticker tint-violet mx-auto max-w-md p-8 text-center">
+      <Momo mood="caring" size={104} className="mx-auto" />
+      <h1 className="mt-3 text-xl font-bold">Oops, that bit fell over</h1>
+      <p className="mt-2 text-sm leading-relaxed font-medium text-[var(--ink-soft)]">
+        Nothing you logged is lost — this was just a rendering hiccup. Give it
+        another go?
+      </p>
+      {error.digest ? (
+        <p className="label-cute mt-3 text-[0.55rem]">ref {error.digest}</p>
+      ) : null}
+      <Button onClick={reset} className="mt-5">
+        <RotateCw className="size-4" />
+        Try again
+      </Button>
+    </div>
+  );
+}

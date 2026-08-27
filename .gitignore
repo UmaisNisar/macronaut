@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Macronaut local data (solo mode)
+.data/
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
+
+.vercel
+.env*

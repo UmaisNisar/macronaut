@@ -1,26 +1,456 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-sans);
+  --font-heading: var(--font-display);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* ---- Macronaut candy palette -------------------------------------- */
+  --color-violet: var(--violet);
+  --color-violet-soft: var(--violet-soft);
+  --color-peach: var(--peach);
+  --color-peach-soft: var(--peach-soft);
+  --color-mint: var(--mint);
+  --color-mint-soft: var(--mint-soft);
+  --color-sky: var(--sky);
+  --color-sky-soft: var(--sky-soft);
+  --color-sun: var(--sun);
+  --color-sun-soft: var(--sun-soft);
+  --color-leaf: var(--leaf);
+  --color-leaf-soft: var(--leaf-soft);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-track: var(--track);
+  --color-inset: var(--inset);
+
+  --radius-sm: 0.7rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.35rem;
+  --radius-xl: 1.75rem;
+  --radius-2xl: 2.25rem;
+  --radius-3xl: 2.75rem;
+  --radius-4xl: 3.25rem;
+
+  --animate-float: float 5s ease-in-out infinite;
+  --animate-bob: bob 3.2s ease-in-out infinite;
+  --animate-wiggle: wiggle 2.6s ease-in-out infinite;
+  --animate-sparkle: sparkle 2.4s ease-in-out infinite;
+  --animate-drift-x: drift-x 26s ease-in-out infinite;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* =====================================================================
+   LIGHT — the default. Violet leads; every other colour has one job.
+   ===================================================================== */
+:root {
+  color-scheme: light;
+  --radius: 1.35rem;
+
+  --background: #f7f5ff;
+  --foreground: #2e2545;
+  --ink: #2e2545;
+  --ink-soft: #7c7396;
+
+  --card: #ffffff;
+  --card-foreground: #2e2545;
+  --popover: #ffffff;
+  --popover-foreground: #2e2545;
+
+  /* Candy colours — each one has exactly one job */
+  --violet: #7b61ff; /* primary: actions, brand, active nav  */
+  --violet-soft: #e9e4ff;
+  --peach: #ff9a5c; /* energy / calories                     */
+  --peach-soft: #ffe6d6;
+  --mint: #2fc79a; /* protein, good news                    */
+  --mint-soft: #d2f6e9;
+  --sky: #4fb8ff; /* carbs                                 */
+  --sky-soft: #d9f0ff;
+  --sun: #ffb627; /* fat, achievements, streaks            */
+  --sun-soft: #fff0ce;
+  --leaf: #86d14f; /* fiber, plants                         */
+  --leaf-soft: #e7f8d8;
+
+  /* Neutral furniture */
+  --track: #ece7ff; /* empty meters, jar glass, chart grid   */
+  --inset: #ffffff; /* panels nested inside a sticker        */
+  --lip: #e0d9ff; /* the solid edge under every sticker    */
+  --muted: #f1eeff;
+  --muted-foreground: #7c7396;
+
+  --primary: var(--violet);
+  --primary-foreground: #ffffff;
+  --primary-lip: #6247e0;
+  --secondary: #f1eeff;
+  --secondary-foreground: #2e2545;
+  --accent: #eae5ff;
+  --accent-foreground: #2e2545;
+  --destructive: #f4557d;
+
+  --border: #e7e1ff;
+  --input: #ded6ff;
+  --ring: #7b61ff;
+
+  --shadow-soft: 0 10px 30px -12px rgb(123 97 255 / 0.28);
+  --page-glow-1: #e7e0ff;
+  --page-glow-2: #ffeade;
+  --page-glow-3: #dcf1ff;
+}
+
+/* =====================================================================
+   DARK — same world after sunset. Not grey: a deep violet night.
+   ===================================================================== */
+.dark {
+  color-scheme: dark;
+
+  --background: #141221;
+  --foreground: #f1edff;
+  --ink: #f1edff;
+  --ink-soft: #a79fc4;
+
+  --card: #1e1a2e;
+  --card-foreground: #f1edff;
+  --popover: #221d34;
+  --popover-foreground: #f1edff;
+
+  /* Lifted a little so they keep their punch against a dark ground */
+  --violet: #9b85ff;
+  --violet-soft: #2f2750;
+  --peach: #ffab73;
+  --peach-soft: #3d2b22;
+  --mint: #45ddaa;
+  --mint-soft: #17372f;
+  --sky: #6bc7ff;
+  --sky-soft: #172f42;
+  --sun: #ffc85a;
+  --sun-soft: #3a2f18;
+  --leaf: #9be063;
+  --leaf-soft: #23361b;
+
+  --track: #2b2543;
+  --inset: #2a2440;
+  --lip: #100e1b;
+  --muted: #262137;
+  --muted-foreground: #a79fc4;
+
+  --primary: var(--violet);
+  --primary-foreground: #1b1430;
+  --primary-lip: #6f57d6;
+  --secondary: #282240;
+  --secondary-foreground: #f1edff;
+  --accent: #2b2543;
+  --accent-foreground: #f1edff;
+  --destructive: #ff7a9c;
+
+  --border: #322b4c;
+  --input: #3a3258;
+  --ring: #9b85ff;
+
+  --shadow-soft: 0 12px 34px -14px rgb(0 0 0 / 0.75);
+  --page-glow-1: #241d43;
+  --page-glow-2: #33262f;
+  --page-glow-3: #16283a;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans), ui-rounded, system-ui, sans-serif;
+    font-weight: 500;
+    /* A soft candy sky, tinted by whichever theme is on. */
+    background-image:
+      radial-gradient(58rem 34rem at 8% -8%, var(--page-glow-1) 0%, transparent 60%),
+      radial-gradient(46rem 30rem at 98% 2%, var(--page-glow-2) 0%, transparent 58%),
+      radial-gradient(52rem 32rem at 50% 104%, var(--page-glow-3) 0%, transparent 60%);
+    background-attachment: fixed;
+    overflow-x: hidden;
+    transition:
+      background-color 0.35s ease,
+      color 0.35s ease;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display), var(--font-sans), sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+  }
+
+  ::selection {
+    background: var(--violet-soft);
+    color: var(--ink);
+  }
+
+  /* Touch devices zoom a focused input under 16px; keep pinch-zoom available. */
+  @media (pointer: coarse) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
+  @supports (padding: env(safe-area-inset-top)) {
+    body {
+      padding-top: env(safe-area-inset-top);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    }
+  }
+
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--track);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--violet-soft);
+    background-clip: content-box;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /*
+   * The sticker: the one surface in the app. A card with a solid coloured lip
+   * underneath so it reads as a physical cut-out rather than a flat panel.
+   */
+  .sticker {
+    position: relative;
+    background: var(--card);
+    border-radius: var(--radius-2xl);
+    box-shadow:
+      0 4px 0 0 var(--lip),
+      var(--shadow-soft);
+  }
+
+  .sticker-flat {
+    background: var(--card);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 3px 0 0 var(--lip);
+  }
+
+  /*
+   * Tints. In light they wash the card with a hint of colour; in dark they
+   * lift it instead, because a dark card washed darker just disappears.
+   */
+  .tint-violet {
+    --lip: #d7cdff;
+    background: linear-gradient(180deg, var(--card) 0%, #f7f5ff 100%);
+  }
+  .tint-peach {
+    --lip: #ffdcc4;
+    background: linear-gradient(180deg, var(--card) 0%, #fff7f1 100%);
+  }
+  .tint-grape {
+    --lip: #ded2ff;
+    background: linear-gradient(180deg, var(--card) 0%, #f7f4ff 100%);
+  }
+  .tint-mint {
+    --lip: #b9efdc;
+    background: linear-gradient(180deg, var(--card) 0%, #f1fdf9 100%);
+  }
+  .tint-sky {
+    --lip: #c2e7ff;
+    background: linear-gradient(180deg, var(--card) 0%, #f2fbff 100%);
+  }
+  .tint-sun {
+    --lip: #ffe1a0;
+    background: linear-gradient(180deg, var(--card) 0%, #fffaee 100%);
+  }
+
+  .dark .tint-violet {
+    --lip: #100e1b;
+    background: linear-gradient(180deg, #262040 0%, var(--card) 100%);
+  }
+  .dark .tint-peach {
+    --lip: #100e1b;
+    background: linear-gradient(180deg, #2e2130 0%, var(--card) 100%);
+  }
+  .dark .tint-grape {
+    --lip: #100e1b;
+    background: linear-gradient(180deg, #272044 0%, var(--card) 100%);
+  }
+  .dark .tint-mint {
+    --lip: #100e1b;
+    background: linear-gradient(180deg, #1c2f33 0%, var(--card) 100%);
+  }
+  .dark .tint-sky {
+    --lip: #100e1b;
+    background: linear-gradient(180deg, #1b2a3d 0%, var(--card) 100%);
+  }
+  .dark .tint-sun {
+    --lip: #100e1b;
+    background: linear-gradient(180deg, #2f2a1f 0%, var(--card) 100%);
+  }
+
+  /* Small uppercase label — the app's "handwriting" */
+  .label-cute {
+    font-family: var(--font-display), sans-serif;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .numeral {
+    font-family: var(--font-display), sans-serif;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  /* Speech bubble with a little tail */
+  .bubble {
+    position: relative;
+    background: var(--card);
+    border-radius: var(--radius-2xl);
+    box-shadow:
+      0 4px 0 0 var(--lip),
+      var(--shadow-soft);
+  }
+  .bubble::before {
+    content: "";
+    position: absolute;
+    left: 26px;
+    top: -11px;
+    width: 22px;
+    height: 22px;
+    background: inherit;
+    border-radius: 6px 0 0 0;
+    transform: rotate(45deg);
+  }
+  .bubble-left::before {
+    left: -10px;
+    top: 26px;
+    border-radius: 0 0 0 6px;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(1deg);
+  }
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes sparkle {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+/*
+ * Phones do not get the drifting backdrop. Those blobs carry a 64px blur, and
+ * re-rasterising a blurred layer that size every frame is one of the most
+ * expensive things you can ask a mobile GPU to do. They are decorative and sit
+ * at 0.28-0.55 opacity, so holding them still costs nothing visually and buys
+ * back a lot of scrolling headroom.
+ */
+@media (pointer: coarse) {
+  .animate-drift-x,
+  .animate-float {
+    animation: none !important;
+  }
+}
+
+@keyframes drift-x {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(3%, -2%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
