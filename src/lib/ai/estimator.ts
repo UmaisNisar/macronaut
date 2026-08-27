@@ -1,4 +1,5 @@
 import type { AiFoodAnalysis, AiFoodItem, MealSlot } from "@/lib/schemas";
+import { resolveFoodEmoji } from "@/lib/food-emoji";
 import { ALIAS_INDEX, type FoodDef } from "@/lib/ai/food-table";
 
 /**
@@ -149,7 +150,7 @@ export function estimateFromText(input: string): AiFoodAnalysis {
 
     foods.push({
       name: food.label,
-      emoji: food.emoji,
+      emoji: resolveFoodEmoji(food.label, food.emoji),
       meal: carriedMeal ?? food.meal ?? "snack",
       estimatedQuantity: qty.label,
       calories: Math.round(food.kcal * m),
@@ -170,7 +171,7 @@ export function estimateFromText(input: string): AiFoodAnalysis {
     // Better to log something the user can correct than to lose the entry.
     foods.push({
       name: input.trim().slice(0, 60) || "Unidentified meal",
-      emoji: "🍽️",
+      emoji: resolveFoodEmoji(input),
       meal: carriedMeal ?? "snack",
       estimatedQuantity: "1 serving",
       calories: 400,

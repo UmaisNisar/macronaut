@@ -38,6 +38,7 @@ import { computeStreaks, weightStats } from "@/lib/insights";
 import { analyseFood, analyseFoodPhoto } from "@/lib/ai/food";
 import { consumeAiBudget } from "@/lib/ai/budget";
 import { foodKey } from "@/lib/db/store";
+import { resolveFoodEmoji } from "@/lib/food-emoji";
 import { lookupBarcode } from "@/lib/ai/barcode";
 import type { DataStore } from "@/lib/db/store";
 import type { AiFoodItem } from "@/lib/schemas";
@@ -350,7 +351,7 @@ export async function logFoodAction(
       meal: f.meal,
       name: f.name,
       quantity: f.estimatedQuantity,
-      emoji: f.emoji || "🍽️",
+      emoji: resolveFoodEmoji(f.name, f.emoji),
       calories: round(f.calories),
       protein: round(f.protein, 1),
       carbs: round(f.carbs, 1),
@@ -457,7 +458,7 @@ export async function logFoodPhotoAction(
       meal: f.meal,
       name: f.name,
       quantity: f.estimatedQuantity,
-      emoji: f.emoji || "🍽️",
+      emoji: resolveFoodEmoji(f.name, f.emoji),
       calories: round(f.calories),
       protein: round(f.protein, 1),
       carbs: round(f.carbs, 1),
@@ -538,7 +539,7 @@ export async function logBarcodeAction(
       meal: parsed.data.meal ?? item.meal,
       name: item.name,
       quantity: item.estimatedQuantity,
-      emoji: item.emoji,
+      emoji: resolveFoodEmoji(item.name, item.emoji),
       calories: round(item.calories),
       protein: round(item.protein, 1),
       carbs: round(item.carbs, 1),
@@ -688,7 +689,7 @@ export async function reanalyseFoodAction(
   const updated = await store.updateFoodEntry(profile.id, entryId, {
     name: best.name,
     quantity: best.estimatedQuantity,
-    emoji: best.emoji || existing.emoji,
+    emoji: resolveFoodEmoji(best.name, best.emoji),
     calories: round(best.calories),
     protein: round(best.protein, 1),
     carbs: round(best.carbs, 1),

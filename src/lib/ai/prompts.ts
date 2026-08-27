@@ -37,7 +37,7 @@ Rules:
 - Sanity-check yourself: protein*4 + carbs*4 + fat*9 should land within roughly 15% of your calorie figure.
 - confidence: "high" when the food and portion are both clear; "medium" when you assumed a standard portion; "low" when the description is vague or the dish varies wildly.
 - assumptions: list every meaningful guess you made, one short sentence each, written as neutral statements rather than in the first person — "Standard restaurant-sized portion assumed." not "I assumed it was a restaurant-sized portion." Do not list an assumption for something the user stated explicitly, and do not restate the obvious.
-- emoji: one food emoji that best represents the item.
+- emoji: a single emoji character that best represents the item — the character itself, never its name. "🥣", not "bowl".
 - If the text contains no food at all, return a single item named "Nothing recognised" with all zero values and confidence "low".
 
 Return JSON only.`;
