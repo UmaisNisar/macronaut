@@ -57,7 +57,15 @@ export function targetsForDate(
   }
   // Before the first snapshot, the earliest plan is the closest truth we have.
   if (!chosen && goals.length) chosen = goals[0];
-  if (chosen) return chosen.targets;
+  if (chosen) {
+    // Snapshots written before sugar existed carry no ceiling. Deriving it from
+    // the calorie figure already in the snapshot keeps old days comparable with
+    // new ones without rewriting history.
+    const t = chosen.targets;
+    return t.sugar > 0
+      ? t
+      : { ...t, sugar: Math.round((t.calories * 0.1) / 4) };
+  }
 
   return computeTargets({
     age: profile.age,

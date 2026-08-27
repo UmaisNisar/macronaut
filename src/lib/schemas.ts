@@ -88,6 +88,13 @@ export const Targets = z.object({
   carbs: z.number(),
   fat: z.number(),
   fiber: z.number(),
+  /**
+   * Defaulted, because targets are stored as JSON on every goal snapshot and
+   * the ones written before sugar was tracked have no such key. A zero here
+   * means "not recorded", and targetsForDate derives one rather than showing a
+   * target of nothing.
+   */
+  sugar: z.number().default(0),
   /** True when the raw deficit was clamped to keep intake at a safe floor. */
   deficitClamped: z.boolean(),
 });

@@ -112,6 +112,18 @@ export function computeTargets(input: {
 
   const fiber = clamp((14 * calories) / 1000, 20, 45);
 
+  /*
+   * The WHO puts free sugars below 10% of energy, and suggests 5% for further
+   * benefit. 10% is the line used here.
+   *
+   * One honest caveat, surfaced in the UI rather than buried: what gets logged
+   * is *total* sugars, so the fruit in your porridge and the lactose in milk
+   * count towards this, while the guideline is about free sugars. Treat it as a
+   * ceiling worth watching rather than a hard fail — which is also why it does
+   * not feed the daily score.
+   */
+  const sugar = Math.round((calories * 0.1) / 4);
+
   return {
     bmr: Math.round(bmr),
     tdee: Math.round(tdee),
@@ -121,6 +133,7 @@ export function computeTargets(input: {
     carbs: Math.round(carbs),
     fat: Math.round(fat),
     fiber: Math.round(fiber),
+    sugar,
     deficitClamped: rawTarget < floor - 1,
   };
 }

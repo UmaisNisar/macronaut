@@ -76,6 +76,10 @@
    * every hint and caption in the app was just under. This measures 5.33 and
    * 4.94, and is barely distinguishable by eye. Dark mode was already fine.
    */
+  /* Sugar. An orchid that reads as its own thing next to the violet
+     primary, and is not the pink this app deliberately moved away from. */
+  --berry: #a855c7;
+  --berry-soft: #f6e9fb;
   --ink-soft: #6f6689;
 
   --card: #ffffff;
@@ -135,6 +139,8 @@
   --background: #141221;
   --foreground: #f1edff;
   --ink: #f1edff;
+  --berry: #c98ae0;
+  --berry-soft: #3a2545;
   --ink-soft: #a79fc4;
 
   --card: #1e1a2e;

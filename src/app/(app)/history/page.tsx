@@ -197,6 +197,11 @@ export default async function HistoryPage(props: PageProps<"/history">) {
                       value: day.totals.fiber,
                       target: targets.fiber,
                     },
+                    {
+                      kind: "sugar",
+                      value: day.totals.sugar,
+                      target: targets.sugar,
+                    },
                   ]}
                 />
               </>

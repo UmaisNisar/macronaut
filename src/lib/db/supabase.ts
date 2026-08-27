@@ -188,6 +188,10 @@ function toDaily(r: Row): DailyLog {
       carbs: num(r.carb_target),
       fat: num(r.fat_target),
       fiber: num(r.fiber_target),
+      // daily_logs has no sugar_target column, and does not need one: the
+      // ceiling is a pure function of the calorie target already stored
+      // here. Deriving it avoids a migration and keeps old rows consistent.
+      sugar: Math.round((num(r.calorie_target) * 0.1) / 4),
       deficitClamped: Boolean(r.deficit_clamped),
     },
     totals: {

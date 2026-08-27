@@ -7,7 +7,7 @@ import { AnimatedNumber } from "@/components/viz/animated-number";
 import { EASE, SPRING } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
-export type MacroKind = "protein" | "carbs" | "fat" | "fiber";
+export type MacroKind = "protein" | "carbs" | "fat" | "fiber" | "sugar";
 
 export const MACRO_STYLE: Record<
   MacroKind,
@@ -36,6 +36,12 @@ export const MACRO_STYLE: Record<
     emoji: "🌱",
     color: "var(--leaf)",
     soft: "var(--leaf-soft)",
+  },
+  sugar: {
+    name: "Sugar",
+    emoji: "🍬",
+    color: "var(--berry)",
+    soft: "var(--berry-soft)",
   },
 };
 

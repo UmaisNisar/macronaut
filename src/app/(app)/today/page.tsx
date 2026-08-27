@@ -158,6 +158,7 @@ export default async function TodayPage() {
                 { kind: "carbs", value: day.totals.carbs, target: targets.carbs },
                 { kind: "fat", value: day.totals.fat, target: targets.fat },
                 { kind: "fiber", value: day.totals.fiber, target: targets.fiber },
+                { kind: "sugar", value: day.totals.sugar, target: targets.sugar },
               ]}
             />
           </div>
