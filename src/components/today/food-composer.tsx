@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
-import { Camera, Search, Sparkles } from "lucide-react";
+import { Camera, Search, Sparkles, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Haptic } from "@/components/ui/haptic";
@@ -122,6 +128,8 @@ export function FoodComposer({
       applyResult(await logFoodAction({ text: value, date }));
     });
   }
+
+  const dismissReveal = useCallback(() => setReveal(null), []);
 
   /** Shared by both inputs: typing a meal and photographing one land here. */
   function applyResult(result: Awaited<ReturnType<typeof logFoodAction>>) {
@@ -404,9 +412,15 @@ export function FoodComposer({
         </div>
       </div>
 
-      <AnimatePresence>
+      <AnimatePresence initial={false}>
         {reveal ? (
-          <RevealCard entries={reveal} onDone={() => setReveal(null)} />
+          <RevealCard
+            // A fresh card per log, so the phases replay for new food and
+            // never for a re-render of the same food.
+            key={reveal.map((e) => e.id).join("|")}
+            entries={reveal}
+            onDone={dismissReveal}
+          />
         ) : null}
       </AnimatePresence>
     </div>
@@ -426,16 +440,27 @@ function RevealCard({
   const kcal = entries.reduce((a, e) => a + e.calories, 0);
   const protein = entries.reduce((a, e) => a + e.protein, 0);
 
+  /*
+   * Runs once per reveal, and deliberately does not depend on `onDone`.
+   *
+   * It used to. `onDone` is an inline arrow recreated on every render of the
+   * composer, and the composer re-renders whenever the page refreshes — which
+   * it does after every log, and again when the coach note arrives. So the
+   * effect tore down and restarted all three timers each time, replaying the
+   * card through items -> totals -> Momo over and over. Each phase is a
+   * different height, so the page jumped on every replay: the "keeps appearing
+   * and going away" that made scrolling feel possessed.
+   */
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase("totals"), 250 + entries.length * 170);
-    const t2 = setTimeout(() => setPhase("momo"), 900 + entries.length * 170);
-    const t3 = setTimeout(onDone, 6500 + entries.length * 170);
+    const step = 170 * entries.length;
+    const t1 = setTimeout(() => setPhase("totals"), 250 + step);
+    const t2 = setTimeout(() => setPhase("momo"), 900 + step);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
-      clearTimeout(t3);
     };
-  }, [entries.length, onDone]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <motion.div
@@ -445,7 +470,22 @@ function RevealCard({
       transition={{ duration: 0.3, ease: EASE.squish }}
       className="sticker tint-mint mt-3 p-4 sm:p-5"
     >
-      <p className="label-cute mb-3">Found it 🎉</p>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <p className="label-cute">Found it 🎉</p>
+        {/*
+          Dismissing is now a choice rather than something that happens under
+          you. The card used to remove itself on a timer, which pulled four
+          hundred pixels out of the page while you were reading the list below.
+        */}
+        <button
+          type="button"
+          onClick={onDone}
+          aria-label="Dismiss"
+          className="-m-1 grid size-8 place-items-center rounded-full p-1 text-[var(--ink-soft)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--ink)]"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
 
       <ul className="flex flex-wrap gap-2">
         {entries.map((entry, i) => (

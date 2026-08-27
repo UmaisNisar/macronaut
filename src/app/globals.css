@@ -215,12 +215,13 @@
      */
     scroll-behavior: auto;
     /*
-     * Content is inserted above the viewport all the time here — the outbox
-     * banner, the offline banner, the analysis reveal. Scroll anchoring reacts
-     * to that by moving the page under the reader's thumb; better that new
-     * content pushes down predictably than that the view jumps to compensate.
+     * Scroll anchoring left ON, deliberately. An earlier version turned it off
+     * on the theory that it caused the jumping; it does the opposite. Content
+     * appears above the viewport here all the time — the outbox banner, the
+     * offline banner, the analysis reveal — and anchoring is precisely the
+     * mechanism that keeps what you are reading still while that happens.
      */
-    overflow-anchor: none;
+    overflow-anchor: auto;
   }
 
 
