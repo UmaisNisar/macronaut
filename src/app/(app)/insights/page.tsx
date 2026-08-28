@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { AchievementGrid } from "@/components/insights/achievement-grid";
 import { WeeklyRecap, type RecapStats } from "@/components/insights/weekly-recap";
+import { SugarSources } from "@/components/insights/sugar-sources";
 import { WeekStrip } from "@/components/viz/week-strip";
 import { Magnet, Sticker, StickerHeading } from "@/components/kit";
 import { ACHIEVEMENTS } from "@/lib/achievements";
@@ -13,6 +14,7 @@ import {
   buildDaySeries,
   computeStreaks,
   periodPair,
+  topSugarSources,
   weightStats,
 } from "@/lib/insights";
 import { isGeminiConfigured } from "@/lib/env";
@@ -39,11 +41,14 @@ export default async function InsightsPage(props: PageProps<"/insights">) {
     : "7d";
   const { days: length } = PERIOD_META[period];
 
-  const [goals, days, weights, achievements] = await Promise.all([
+  const [goals, days, weights, achievements, windowEntries] = await Promise.all([
     store.listGoalSnapshots(profile.id),
     store.listDailyLogs(profile.id, addDays(today, -90), today),
     store.listWeightLogs(profile.id),
     store.listAchievements(profile.id),
+    // Only this window's entries: the breakdown below is the one thing on
+    // the page that needs individual foods rather than daily totals.
+    store.listFoodEntries(profile.id, addDays(today, -(length - 1)), today),
   ]);
 
   const targets = targetsForDate(goals, profile, today);
@@ -60,6 +65,8 @@ export default async function InsightsPage(props: PageProps<"/insights">) {
     inWindow.length >= 2
       ? round(inWindow[inWindow.length - 1].weightKg - inWindow[0].weightKg, 1)
       : null;
+
+  const sugarSources = topSugarSources(windowEntries);
 
   const unlocked = new Map<string, Iso>(
     achievements.map((a) => [a.key, a.unlockedOn]),
@@ -169,6 +176,15 @@ export default async function InsightsPage(props: PageProps<"/insights">) {
           <WeekStrip series={series} />
         </div>
       </Sticker>
+
+      <SugarSources
+        sources={sugarSources}
+        avgSugar={current.avgSugar}
+        ceiling={current.avgSugarTarget || targets.sugar}
+        daysOver={current.daysOverSugar}
+        daysLogged={current.daysLogged}
+        days={length}
+      />
 
       <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:items-start">
         <Sticker tint="sun" tilt={-0.6}>

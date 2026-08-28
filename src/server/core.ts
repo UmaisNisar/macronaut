@@ -117,6 +117,10 @@ export function coachSignature(totals: Macros, entryCount: number): string {
         Math.round(totals.protein),
         Math.round(totals.carbs),
         Math.round(totals.fat),
+        // The note talks about these now, so a day whose fiber or sugar moved
+        // without moving anything else still deserves a fresh one.
+        Math.round(totals.fiber),
+        Math.round(totals.sugar),
         entryCount,
       ].join("|"),
     )
@@ -302,7 +306,12 @@ export async function buildPeriodReport(input: {
     }
   }
 
-  const budget = await consumeAiBudget(store, profile.id, today, "report");
+  const budget = await consumeAiBudget(
+    store,
+    { id: profile.id, email: profile.email },
+    today,
+    "report",
+  );
   if (!budget.ok) return { ok: false, error: budget.message };
 
   const weights = await store.listWeightLogs(profile.id);

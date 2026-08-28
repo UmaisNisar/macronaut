@@ -59,6 +59,7 @@ Protein: ${Math.round(c.totals.protein)} g of ${c.targets.protein} g (${pct(c.to
 Carbs: ${Math.round(c.totals.carbs)} g of ${c.targets.carbs} g
 Fat: ${Math.round(c.totals.fat)} g of ${c.targets.fat} g
 Fiber: ${Math.round(c.totals.fiber)} g of ${c.targets.fiber} g
+Sugar: ${Math.round(c.totals.sugar)} g of ${c.targets.sugar} g ceiling (${pct(c.totals.sugar, c.targets.sugar)}%)
 Daily score: ${c.score}/100
 Foods logged: ${c.entryNames.slice(0, 12).join(", ") || "none"}
 
@@ -73,7 +74,11 @@ Target weight: ${c.targetWeightKg} kg at ${c.weeklyLossKg} kg/week
 Write today's debrief.`;
 }
 
-function dailyTemplate(c: DailyCoachContext): AiCoachNote {
+/**
+ * The note shown when there is no model to write one — which, on the free
+ * tier, is a good part of the time. It has to stand on its own.
+ */
+function dailyBase(c: DailyCoachContext): AiCoachNote {
   const ratio = c.targets.calories
     ? c.totals.calories / c.targets.calories
     : 0;
@@ -127,6 +132,35 @@ function dailyTemplate(c: DailyCoachContext): AiCoachNote {
     tone: "steady",
     nextMove: remaining > 150 ? `You have about ${remaining} calories left.` : "",
   };
+}
+
+/**
+ * Add a line about sugar when the day went past its ceiling.
+ *
+ * Appended rather than woven into each branch: the calorie verdict is the
+ * headline whatever the sugar did, and a day can be perfectly on target and
+ * still be two thirds sugar — which is exactly the day worth mentioning.
+ *
+ * Deliberately restrained. This is total sugars, so fruit and milk are in
+ * it, and a template cannot tell those apart from a chocolate bar.
+ */
+function withSugar(note: AiCoachNote, c: DailyCoachContext): AiCoachNote {
+  const ceiling = c.targets.sugar;
+  const eaten = Math.round(c.totals.sugar);
+  if (ceiling <= 0 || eaten <= ceiling) return note;
+
+  const over = eaten - ceiling;
+  // A few grams past is noise; a third past is a pattern.
+  if (over < Math.max(8, ceiling * 0.15)) return note;
+
+  return {
+    ...note,
+    message: `${note.message} Sugar came to ${eaten} g against a ${ceiling} g ceiling — worth a look at where it came from, remembering that fruit and milk count towards it too.`,
+  };
+}
+
+function dailyTemplate(c: DailyCoachContext): AiCoachNote {
+  return withSugar(dailyBase(c), c);
 }
 
 export async function writeDailyNote(
@@ -302,6 +336,7 @@ function reportPrompt(c: ReportContext): string {
   avg calories: ${s.avgCalories} (avg target ${s.avgTarget})
   avg protein: ${s.avgProtein} g
   avg carbs: ${s.avgCarbs} g | avg fat: ${s.avgFat} g | avg fiber: ${s.avgFiber} g
+  avg sugar: ${s.avgSugar} g against a ${s.avgSugarTarget} g ceiling, over it on ${s.daysOverSugar} day(s)
   avg daily score: ${s.avgScore}
   days inside calorie band: ${s.onTargetDays}
   consistency: ${Math.round(s.consistency * 100)}%`;

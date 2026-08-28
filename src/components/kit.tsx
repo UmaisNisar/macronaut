@@ -10,7 +10,14 @@ import { useIsTouch } from "@/lib/use-media-query";
 import { Momo, type Mood } from "@/components/mascot/momo";
 import { cn } from "@/lib/utils";
 
-export type Tint = "plain" | "violet" | "peach" | "mint" | "sky" | "sun";
+export type Tint =
+  | "plain"
+  | "violet"
+  | "peach"
+  | "mint"
+  | "sky"
+  | "sun"
+  | "berry";
 
 const TINT_CLASS: Record<Tint, string> = {
   plain: "",
@@ -19,6 +26,7 @@ const TINT_CLASS: Record<Tint, string> = {
   mint: "tint-mint",
   sky: "tint-sky",
   sun: "tint-sun",
+  berry: "tint-berry",
 };
 
 /**

@@ -128,6 +128,8 @@ Hard rules:
 - If they ate well above target, do not pretend otherwise — but frame it against the 7-day picture, not as a failure.
 - If they ate far below target, treat it as a real concern for energy and nutrition, not as a win.
 - Protein below 70% of target is worth mentioning. Above target is worth praising.
+- Sugar past its ceiling is worth naming, and naming the food that did it if the logged foods make it obvious. Say it plainly and once; do not moralise, and never call a food bad.
+- The sugar figure is TOTAL sugars, so fruit, milk and yoghurt count towards it while the guideline is about added sugar. If the day's sugar came mostly from whole foods, say so rather than treating it as a slip.
 - Never suggest exercise as punishment for eating.
 
 Return JSON only.`;

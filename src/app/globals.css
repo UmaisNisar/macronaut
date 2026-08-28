@@ -407,6 +407,10 @@
     --lip: #ffe1a0;
     background: linear-gradient(180deg, var(--card) 0%, #fffaee 100%);
   }
+  .tint-berry {
+    --lip: #ecd4f5;
+    background: linear-gradient(180deg, var(--card) 0%, #fdf6ff 100%);
+  }
 
   .dark .tint-violet {
     --lip: #100e1b;
@@ -427,6 +431,10 @@
   .dark .tint-sky {
     --lip: #100e1b;
     background: linear-gradient(180deg, #1b2a3d 0%, var(--card) 100%);
+  }
+  .dark .tint-berry {
+    --lip: #100e1b;
+    background: linear-gradient(180deg, #2c2040 0%, var(--card) 100%);
   }
   .dark .tint-sun {
     --lip: #100e1b;

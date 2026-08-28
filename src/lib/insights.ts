@@ -16,6 +16,11 @@ export type PeriodStats = {
   avgCarbs: number;
   avgFat: number;
   avgFiber: number;
+  avgSugar: number;
+  /** Average of the daily sugar ceilings, so the two are comparable. */
+  avgSugarTarget: number;
+  /** Days whose sugar went past that day's ceiling. */
+  daysOverSugar: number;
   avgTarget: number;
   avgScore: number;
   onTargetDays: number;
@@ -53,6 +58,16 @@ export function summarisePeriod(
     avgCarbs: round(mean(active.map((d) => d.totals.carbs))),
     avgFat: round(mean(active.map((d) => d.totals.fat))),
     avgFiber: round(mean(active.map((d) => d.totals.fiber))),
+    avgSugar: round(mean(active.map((d) => d.totals.sugar))),
+    // Days logged before sugar was tracked carry a target of 0. Skipping
+    // them keeps the average an average of real ceilings rather than one
+    // dragged towards zero by history.
+    avgSugarTarget: round(
+      mean(active.filter((d) => d.targets.sugar > 0).map((d) => d.targets.sugar)),
+    ),
+    daysOverSugar: active.filter(
+      (d) => d.targets.sugar > 0 && d.totals.sugar > d.targets.sugar,
+    ).length,
     avgTarget: round(mean(active.map((d) => d.targets.calories))),
     avgScore: round(mean(active.map((d) => d.score))),
     onTargetDays,
@@ -145,6 +160,25 @@ export function buildInsights(
       });
     }
 
+    /*
+     * Sugar is the one people most often suspect and least often measure.
+     * Reported as a change and as days past the ceiling, because a single
+     * average hides the blowout days that actually do the damage.
+     */
+    const sugarDelta = delta(current.avgSugar, previous.avgSugar);
+    if (Math.abs(sugarDelta) >= 8) {
+      out.push({
+        id: "sugar",
+        icon: sugarDelta < 0 ? "🍬" : "🍭",
+        metric: `${sugarDelta < 0 ? "−" : "+"}${Math.abs(sugarDelta)} g`,
+        text:
+          sugarDelta < 0
+            ? `Sugar is down ${Math.abs(sugarDelta)} g a day on the previous ${previous.totalDays} days, to about ${current.avgSugar} g.`
+            : `Sugar is up ${sugarDelta} g a day, to about ${current.avgSugar} g.`,
+        direction: sugarDelta < 0 ? "good" : "bad",
+      });
+    }
+
     const fiberDelta = delta(current.avgFiber, previous.avgFiber);
     if (Math.abs(fiberDelta) >= 4) {
       out.push({
@@ -155,6 +189,19 @@ export function buildInsights(
         direction: fiberDelta > 0 ? "good" : "neutral",
       });
     }
+  }
+
+  // Needs no previous period: a run of days past the ceiling is worth
+  // saying on its own, and it is the pattern an average flattens out.
+  if (current.daysOverSugar > 0 && current.avgSugarTarget > 0) {
+    out.push({
+      id: "sugar-days",
+      icon: "🍩",
+      metric: `${current.daysOverSugar}/${current.daysLogged}`,
+      text: `Sugar went past the ${current.avgSugarTarget} g ceiling on ${current.daysOverSugar} of the ${current.daysLogged} days you logged.`,
+      direction:
+        current.daysOverSugar > current.daysLogged / 2 ? "bad" : "neutral",
+    });
   }
 
   if (current.daysLogged >= 1) {
@@ -195,6 +242,72 @@ export function buildInsights(
   }
 
   return out;
+}
+
+/* ------------------------------------------------------------------ */
+/* Where the sugar came from                                           */
+/* ------------------------------------------------------------------ */
+
+export type SugarSource = {
+  name: string;
+  emoji: string;
+  /** Total grams across the window. */
+  sugar: number;
+  /** How many entries were folded into that total. */
+  times: number;
+  /** Share of the window's sugar, 0–1. */
+  share: number;
+};
+
+/**
+ * The handful of foods responsible for most of a window's sugar.
+ *
+ * An average tells you the number is high; it never tells you what to stop
+ * buying. Grouped by name so the same yoghurt eaten nine times reads as one
+ * line worth 90 g rather than nine forgettable ones worth 10.
+ *
+ * Case and spacing are normalised, but nothing cleverer: merging "latte" and
+ * "coffee with milk" would need a model, and getting it wrong would quietly
+ * blame the wrong food.
+ */
+export function topSugarSources(
+  entries: { name: string; emoji: string; sugar: number }[],
+  limit = 5,
+): SugarSource[] {
+  const groups = new Map<string, SugarSource>();
+  let total = 0;
+
+  for (const entry of entries) {
+    const sugar = Number.isFinite(entry.sugar) ? entry.sugar : 0;
+    if (sugar <= 0) continue;
+    total += sugar;
+
+    const key = entry.name.trim().toLowerCase().replace(/\s+/g, " ");
+    if (!key) continue;
+
+    const found = groups.get(key);
+    if (found) {
+      found.sugar += sugar;
+      found.times += 1;
+    } else {
+      groups.set(key, {
+        name: entry.name.trim(),
+        emoji: entry.emoji,
+        sugar,
+        times: 1,
+        share: 0,
+      });
+    }
+  }
+
+  return [...groups.values()]
+    .map((g) => ({
+      ...g,
+      sugar: round(g.sugar),
+      share: total > 0 ? g.sugar / total : 0,
+    }))
+    .sort((a, b) => b.sugar - a.sugar)
+    .slice(0, limit);
 }
 
 /* ------------------------------------------------------------------ */
