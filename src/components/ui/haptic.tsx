@@ -30,10 +30,13 @@ export function Haptic({
   children,
   kind = "tap",
   className,
+  pan = false,
 }: {
   children: ReactNode;
   kind?: HapticKind;
   className?: string;
+  /** Set on anything living inside a horizontally scrolling container. */
+  pan?: boolean;
 }) {
   const ios = useIsIosTouch();
   const host = useRef<HTMLSpanElement | null>(null);
@@ -45,6 +48,31 @@ export function Haptic({
     at: number;
     moved: boolean;
   } | null>(null);
+
+  /*
+   * Inside something that scrolls sideways, the overlay has to go.
+   *
+   * The iOS tick comes from a real switch laid over the control, and a switch
+   * is a thing you drag horizontally — that is how you operate one. Sitting on
+   * top of a horizontal strip it claims every sideways pan, so the strip could
+   * not be scrolled at all. An earlier fix stopped the drag *logging* the food,
+   * which made the symptom quieter without giving the gesture back.
+   *
+   * There is no way to keep both: the element that produces the haptic is the
+   * element that eats the scroll. Scrolling wins, so these controls tick on
+   * Android and stay silent on iOS.
+   */
+  if (pan) {
+    return (
+      <span
+        ref={host}
+        className={cn("relative inline-flex", className)}
+        onPointerDown={ios ? undefined : () => vibrate(kind)}
+      >
+        {children}
+      </span>
+    );
+  }
 
   // Both platforms render the SAME box. An earlier version used
   // `display: contents` off-iOS, which silently dropped this className and let

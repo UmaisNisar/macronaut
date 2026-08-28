@@ -642,6 +642,51 @@ try {
     (await iosPage.locator("input[switch]").count()) > 0,
   );
 
+  /*
+   * ...but never inside the strip that scrolls sideways.
+   *
+   * The overlay is a native switch, and a switch is a control you drag
+   * horizontally. Laid over the "Log again" row it claimed every sideways pan,
+   * so on an iPhone the row simply would not move — reported twice, and not
+   * reproducible in Chrome because Chrome never renders the overlay at all.
+   * There is no element left in there that can consume the gesture.
+   */
+  check(
+    "nothing in the Log again strip can eat a sideways drag",
+    (await iosPage.locator("[data-no-swipe] input").count()) === 0,
+    `${await iosPage.locator("[data-no-swipe] input").count()} overlay(s) found`,
+  );
+
+  const strip = await iosPage.evaluate(() => {
+    const el = document.querySelector("[data-no-swipe]");
+    if (!el) return null;
+    const cs = getComputedStyle(el);
+    return {
+      chips: el.querySelectorAll("button").length,
+      overflows: el.scrollWidth > el.clientWidth + 4,
+      overflowX: cs.overflowX,
+      touchAction: cs.touchAction,
+    };
+  });
+  check(
+    "the strip is set up to scroll sideways",
+    Boolean(strip) &&
+      strip.overflowX === "auto" &&
+      /auto|pan-x|manipulation/.test(strip.touchAction),
+    strip
+      ? `overflow-x:${strip.overflowX}, touch-action:${strip.touchAction}`
+      : "no strip",
+  );
+  // Only meaningful once there is more than a screenful; the suite does not
+  // always log enough distinct foods to fill one.
+  if (strip && strip.chips >= 4) {
+    check(
+      "and there is more of it than fits",
+      strip.overflows,
+      `${strip.chips} chips but no overflow`,
+    );
+  }
+
   const chip = iosPage.locator("[data-no-swipe] button").first();
   if (await chip.count()) {
     const cbox = await chip.boundingBox();

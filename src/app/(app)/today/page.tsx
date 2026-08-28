@@ -42,7 +42,10 @@ export default async function TodayPage() {
     store.listFoodEntries(profile.id, today, today),
     store.listDailyLogs(profile.id, addDays(today, -60), today),
     store.listWeightLogs(profile.id),
-    store.listFrequentFoods(profile.id, 8),
+    // The strip scrolls, so the limit is about how far back is still
+    // *your usual* rather than how many fit on screen. Same query either way:
+    // both stores rank the last 300 entries and slice.
+    store.listFrequentFoods(profile.id, 20),
   ]);
 
   const targets = targetsForDate(goals, profile, today);

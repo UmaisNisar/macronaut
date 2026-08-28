@@ -60,48 +60,74 @@ export function QuickRepeat({
 
   return (
     <div className="mb-3">
-      <p className="label-cute mb-2 px-1">Log again</p>
+      <div className="mb-2 flex items-baseline justify-between gap-2 px-1">
+        <p className="label-cute">Log again</p>
+        {/* Only worth saying when there is in fact more off the edge. */}
+        {foods.length > 3 ? (
+          <p className="text-[0.65rem] font-semibold text-[var(--ink-soft)] sm:hidden">
+            swipe for more →
+          </p>
+        ) : null}
+      </div>
 
-      <div
-        data-no-swipe
-        /*
-         * A scrolling strip on a phone, where sideways swiping is natural and
-         * vertical space is precious. On a pointer device it wraps instead:
-         * horizontal scrolling with a mouse means shift-and-wheel, which
-         * nobody discovers, and the scrollbar is hidden — so anything past the
-         * fold was simply unreachable.
-         */
-        className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden"
-      >
-        {foods.map((food) => {
-          const busy = busyId === food.entryId;
-          const added = justAdded === food.entryId;
-          return (
-            <Haptic key={food.entryId} className="shrink-0 snap-start">
-              {/* A plain button on purpose. Motion would write an inline
+      {/*
+        The fade is the only thing telling you the row continues. The scrollbar
+        is hidden, and a strip that ends flush with the screen edge looks like
+        a strip that ends.
+      */}
+      <div className="relative">
+        <div
+          data-no-swipe
+          /*
+           * A scrolling strip on a phone, where sideways swiping is natural and
+           * vertical space is precious. On a pointer device it wraps instead:
+           * horizontal scrolling with a mouse means shift-and-wheel, which
+           * nobody discovers, and the scrollbar is hidden — so anything past the
+           * fold was simply unreachable.
+           */
+          className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden"
+        >
+          {foods.map((food) => {
+            const busy = busyId === food.entryId;
+            const added = justAdded === food.entryId;
+            return (
+              /*
+               * `pan` matters here and nowhere else. The iOS haptic is a native
+               * switch laid over the control, and a switch is dragged sideways
+               * to operate — on this strip it swallowed every scroll. These
+               * chips give up their tick so the row can move.
+               */
+              <Haptic key={food.entryId} pan className="shrink-0 snap-start">
+                {/* A plain button on purpose. Motion would write an inline
                   transform and silently beat the CSS hover lift, so the chip
                   would look inert on hover — the exact problem this fixes. */}
-              <button
-                type="button"
-                onClick={() => repeat(food)}
-                disabled={pending}
-                className="sticker-flat tappable flex items-center gap-2 rounded-full py-2 pr-3.5 pl-3 text-left disabled:pointer-events-none disabled:opacity-50"
-              >
-                <span className="text-lg leading-none" aria-hidden>
-                  {added ? "✅" : busy ? "⏳" : food.emoji}
-                </span>
-                <span className="min-w-0">
-                  <span className="block max-w-[9.5rem] truncate text-xs leading-tight font-bold">
-                    {food.name}
+                <button
+                  type="button"
+                  onClick={() => repeat(food)}
+                  disabled={pending}
+                  className="sticker-flat tappable flex items-center gap-2 rounded-full py-2 pr-3.5 pl-3 text-left disabled:pointer-events-none disabled:opacity-50"
+                >
+                  <span className="text-lg leading-none" aria-hidden>
+                    {added ? "✅" : busy ? "⏳" : food.emoji}
                   </span>
-                  <span className="numeral block text-[0.65rem] leading-tight text-[var(--ink-soft)]">
-                    {added ? "added!" : `${Math.round(food.calories)} kcal`}
+                  <span className="min-w-0">
+                    <span className="block max-w-[9.5rem] truncate text-xs leading-tight font-bold">
+                      {food.name}
+                    </span>
+                    <span className="numeral block text-[0.65rem] leading-tight text-[var(--ink-soft)]">
+                      {added ? "added!" : `${Math.round(food.calories)} kcal`}
+                    </span>
                   </span>
-                </span>
-              </button>
-            </Haptic>
-          );
-        })}
+                </button>
+              </Haptic>
+            );
+          })}
+        </div>
+
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[var(--background)] to-transparent sm:hidden"
+        />
       </div>
 
       {error ? (
