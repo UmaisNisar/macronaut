@@ -7,7 +7,7 @@ import { JourneyPath } from "@/components/viz/journey-path";
 import { WeekStrip } from "@/components/viz/week-strip";
 import { ProgressRadar } from "@/components/viz/progress-radar";
 import { Magnet, Sticker, StickerHeading, Squiggle } from "@/components/kit";
-import { requireProfile } from "@/lib/session";
+import { onboardedProfile, requireUser } from "@/lib/session";
 import { userToday } from "@/lib/server-date";
 import { addDays, type Iso } from "@/lib/date";
 import {
@@ -44,16 +44,20 @@ const RANGES = [
 
 export default async function ProgressPage(props: PageProps<"/progress">) {
   const search = await props.searchParams;
-  const { store, profile } = await requireProfile();
+  const { session, store } = await requireUser();
+  // Fired together with the page's own queries below rather than before
+  // them: the queries only ever needed the id, which the token already has.
+  const profilePromise = onboardedProfile();
   const today = await userToday();
 
   const period = PERIODS.find((p) => p.key === search.p) ?? PERIODS[1];
   const range = RANGES.find((r) => r.key === search.r) ?? RANGES[0];
 
-  const [goals, days, weights] = await Promise.all([
-    store.listGoalSnapshots(profile.id),
-    store.listDailyLogs(profile.id, addDays(today, -120), today),
-    store.listWeightLogs(profile.id),
+  const [profile, goals, days, weights] = await Promise.all([
+    profilePromise,
+    store.listGoalSnapshots(session.userId),
+    store.listDailyLogs(session.userId, addDays(today, -120), today),
+    store.listWeightLogs(session.userId),
   ]);
 
   const targets = targetsForDate(goals, profile, today);

@@ -6,7 +6,7 @@ import { SugarSources } from "@/components/insights/sugar-sources";
 import { WeekStrip } from "@/components/viz/week-strip";
 import { Magnet, Sticker, StickerHeading } from "@/components/kit";
 import { ACHIEVEMENTS } from "@/lib/achievements";
-import { requireProfile } from "@/lib/session";
+import { onboardedProfile, requireUser } from "@/lib/session";
 import { userToday } from "@/lib/server-date";
 import { addDays, type Iso } from "@/lib/date";
 import { formatWeight, round } from "@/lib/nutrition";
@@ -33,7 +33,10 @@ const PERIOD_META: Record<ReportPeriod, { days: number; label: string }> = {
 
 export default async function InsightsPage(props: PageProps<"/insights">) {
   const search = await props.searchParams;
-  const { store, profile } = await requireProfile();
+  const { session, store } = await requireUser();
+  // Fired together with the page's own queries below rather than before
+  // them: the queries only ever needed the id, which the token already has.
+  const profilePromise = onboardedProfile();
   const today = await userToday();
 
   const period: ReportPeriod = REPORT_PERIODS.includes(search.p as ReportPeriod)
@@ -41,15 +44,17 @@ export default async function InsightsPage(props: PageProps<"/insights">) {
     : "7d";
   const { days: length } = PERIOD_META[period];
 
-  const [goals, days, weights, achievements, windowEntries] = await Promise.all([
-    store.listGoalSnapshots(profile.id),
-    store.listDailyLogs(profile.id, addDays(today, -90), today),
-    store.listWeightLogs(profile.id),
-    store.listAchievements(profile.id),
-    // Only this window's entries: the breakdown below is the one thing on
-    // the page that needs individual foods rather than daily totals.
-    store.listFoodEntries(profile.id, addDays(today, -(length - 1)), today),
-  ]);
+  const [profile, goals, days, weights, achievements, windowEntries] =
+    await Promise.all([
+      profilePromise,
+      store.listGoalSnapshots(session.userId),
+      store.listDailyLogs(session.userId, addDays(today, -90), today),
+      store.listWeightLogs(session.userId),
+      store.listAchievements(session.userId),
+      // Only this window's entries: the breakdown below is the one thing on
+      // the page that needs individual foods rather than daily totals.
+      store.listFoodEntries(session.userId, addDays(today, -(length - 1)), today),
+    ]);
 
   const targets = targetsForDate(goals, profile, today);
   const { current, previous } = periodPair(days, today, length);

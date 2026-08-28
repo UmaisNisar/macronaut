@@ -83,6 +83,40 @@ export async function requireSession(): Promise<Session> {
 }
 
 /**
+ * Everything a page needs to *start* querying: who, and where from.
+ *
+ * The user id comes out of the JWT, which is verified in-process, so it is
+ * known before any database round trip has happened. That matters more than
+ * it sounds: requireProfile below fetches the profile and only then does the
+ * page fire its own queries, which is two round trips in series — and the
+ * functions run in Washington while the database sits in Montreal, so each
+ * one is a border crossing. The page's queries only ever needed the id, so
+ * they can go at the same time as the profile rather than after it.
+ */
+export async function requireUser(): Promise<{
+  session: Session;
+  store: DataStore;
+}> {
+  const session = await requireSession();
+  const store = await getStore();
+  return { session, store };
+}
+
+/**
+ * The profile, as a promise to be awaited alongside a page's own queries.
+ *
+ * Redirects exactly as requireProfile does; throwing NEXT_REDIRECT from
+ * inside a Promise.all propagates the same way it would anywhere else.
+ */
+export async function onboardedProfile(): Promise<
+  NonNullable<Awaited<ReturnType<DataStore["getProfile"]>>>
+> {
+  const profile = await getCurrentProfile();
+  if (!profile?.onboardedAt) redirect("/onboarding");
+  return profile;
+}
+
+/**
  * Session + store + profile for an app page.
  *
  * Pages render in parallel with their layout, so the layout's onboarding

@@ -8,7 +8,7 @@ import { MealTimeline } from "@/components/today/meal-timeline";
 import { MacroMeters } from "@/components/viz/macro-meters";
 import { ScoreDial } from "@/components/viz/score-dial";
 import { Magnet, StatusBadge, Sticker, StickerHeading, Squiggle } from "@/components/kit";
-import { requireProfile } from "@/lib/session";
+import { onboardedProfile, requireUser } from "@/lib/session";
 import { userToday } from "@/lib/server-date";
 import {
   addDays,
@@ -29,7 +29,10 @@ export const dynamic = "force-dynamic";
 
 export default async function HistoryPage(props: PageProps<"/history">) {
   const search = await props.searchParams;
-  const { store, profile } = await requireProfile();
+  const { session, store } = await requireUser();
+  // Fired together with the page's own queries below rather than before
+  // them: the queries only ever needed the id, which the token already has.
+  const profilePromise = onboardedProfile();
   const today = await userToday();
 
   const rawDate = typeof search.d === "string" ? search.d : undefined;
@@ -42,17 +45,20 @@ export default async function HistoryPage(props: PageProps<"/history">) {
   const gridStart = addDays(startOfMonth(monthAnchor), -7);
   const gridEnd = addDays(endOfMonth(monthAnchor), 7);
 
-  const [goals, monthDays, entries, weights] = await Promise.all([
-    store.listGoalSnapshots(profile.id),
-    store.listDailyLogs(profile.id, gridStart, gridEnd),
-    store.listFoodEntries(profile.id, selected, selected),
-    store.listWeightLogs(profile.id),
-  ]);
+  // The day itself joins the batch too. It used to be fetched afterwards, on
+  // its own, which is a second border crossing for one row.
+  const [profile, goals, monthDays, entries, weights, existingDay] =
+    await Promise.all([
+      profilePromise,
+      store.listGoalSnapshots(session.userId),
+      store.listDailyLogs(session.userId, gridStart, gridEnd),
+      store.listFoodEntries(session.userId, selected, selected),
+      store.listWeightLogs(session.userId),
+      store.getDailyLog(session.userId, selected),
+    ]);
 
   const targets = targetsForDate(goals, profile, selected);
-  const day =
-    (await store.getDailyLog(profile.id, selected)) ??
-    emptyDay(profile.id, selected, targets);
+  const day = existingDay ?? emptyDay(session.userId, selected, targets);
 
   const weightOnDay = weights.find((w) => w.loggedOn === selected) ?? null;
   const isToday = selected === today;

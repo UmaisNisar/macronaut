@@ -117,9 +117,46 @@ export async function proxy(request: NextRequest) {
       },
     });
 
-    // Touching the user is what triggers the refresh. Do not remove it, and do
-    // not put anything between creating the client and this call.
-    await supabase.auth.getUser();
+    /*
+     * Refresh the session, but only when it is nearly out of time.
+     *
+     * The documented pattern is to call getUser() here on every request, and
+     * getUser() always asks the Auth API — a round trip from the function in
+     * Washington to the database in Montreal, in front of every navigation,
+     * including the ones where the token has fifty-nine minutes left on it.
+     * A no-op request through this proxy already measured 137ms against 59ms
+     * for a static file; that call sits on top of it.
+     *
+     * getClaims() answers the same question locally: it verifies the JWT
+     * against the project's published key, which it fetches once per instance
+     * and caches. So the network call now happens roughly once an hour, when
+     * the token is actually close to expiring, instead of once per page.
+     *
+     * Erring towards refreshing: anything unreadable, unexpired-but-unknown,
+     * or thrown is treated as "refresh now". A needless refresh costs a round
+     * trip; a missed one signs somebody out.
+     */
+    const REFRESH_WITHIN_SECONDS = 120;
+    let needsRefresh = true;
+
+    try {
+      const { data, error } = await supabase.auth.getClaims();
+      const exp = data?.claims?.exp;
+      if (!error && typeof exp === "number") {
+        needsRefresh = exp - Math.floor(Date.now() / 1000) < REFRESH_WITHIN_SECONDS;
+      } else if (!error && !data?.claims) {
+        // Nobody is signed in. Nothing to refresh, and nothing to ask about.
+        needsRefresh = false;
+      }
+    } catch {
+      needsRefresh = true;
+    }
+
+    if (needsRefresh) {
+      // Touching the user is what triggers the refresh, and what writes the
+      // new cookies back through setAll above.
+      await supabase.auth.getUser();
+    }
   }
 
   response.headers.set("content-security-policy", csp);

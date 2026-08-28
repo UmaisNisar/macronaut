@@ -28,11 +28,24 @@ const nextConfig: NextConfig = {
   generateBuildId: () => BUILD_ID,
   env: { APP_BUILD_ID: BUILD_ID },
   experimental: {
-    // Since v15 this defaults to 0, which throws away a prefetched dynamic
-    // page the instant it arrives — the prefetch above would be wasted work.
-    // Safe to cache briefly here because every mutation calls revalidatePath
-    // on the affected routes, so a new log can never be hidden behind it.
-    staleTimes: { dynamic: 30, static: 180 },
+    /*
+     * Since v15 this defaults to 0, which throws away a prefetched dynamic
+     * page the instant it arrives — the prefetch on every nav link would be
+     * wasted work.
+     *
+     * Two minutes rather than thirty seconds. Every page here is
+     * force-dynamic, so a tab switch that misses this cache is a round trip
+     * from Toronto to a function in Washington to a database in Montreal, and
+     * the floor for that measured 137ms before the page does anything at all.
+     * Thirty seconds is shorter than the gap between two glances at the app,
+     * so the common case — flick to Journal, flick back — was paying it twice.
+     *
+     * Safe because every mutation calls revalidatePath on the affected routes,
+     * which clears this cache too: a meal you just logged can never be hidden
+     * behind it. What can go stale for up to two minutes is a change made
+     * somewhere else entirely, like another device.
+     */
+    staleTimes: { dynamic: 120, static: 180 },
     // Photo logging posts a downscaled JPEG as base64 through a Server Action.
     // 1024px at quality 0.72 lands well under this; the headroom is for the
     // occasional very busy photo that compresses badly.

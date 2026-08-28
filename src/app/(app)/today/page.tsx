@@ -18,7 +18,7 @@ import { MomoGreeter } from "@/components/mascot/momo-greeter";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { Magnet, StatusBadge, Sticker, StickerHeading } from "@/components/kit";
 import { Button } from "@/components/ui/button";
-import { requireProfile } from "@/lib/session";
+import { onboardedProfile, requireUser } from "@/lib/session";
 import { userToday } from "@/lib/server-date";
 import { addDays, longDayLabel } from "@/lib/date";
 import {
@@ -34,18 +34,22 @@ export const metadata = { title: "Today" };
 export const dynamic = "force-dynamic";
 
 export default async function TodayPage() {
-  const { store, profile } = await requireProfile();
+  const { session, store } = await requireUser();
   const today = await userToday();
 
-  const [goals, entries, recent, weights, frequent] = await Promise.all([
-    store.listGoalSnapshots(profile.id),
-    store.listFoodEntries(profile.id, today, today),
-    store.listDailyLogs(profile.id, addDays(today, -60), today),
-    store.listWeightLogs(profile.id),
+  // The profile goes in the same batch as everything else. It used to be
+  // awaited first, which put a whole Montreal round trip in front of the
+  // queries that were only ever waiting on the user id.
+  const [profile, goals, entries, recent, weights, frequent] = await Promise.all([
+    onboardedProfile(),
+    store.listGoalSnapshots(session.userId),
+    store.listFoodEntries(session.userId, today, today),
+    store.listDailyLogs(session.userId, addDays(today, -60), today),
+    store.listWeightLogs(session.userId),
     // The strip scrolls, so the limit is about how far back is still
     // *your usual* rather than how many fit on screen. Same query either way:
     // both stores rank the last 300 entries and slice.
-    store.listFrequentFoods(profile.id, 20),
+    store.listFrequentFoods(session.userId, 20),
   ]);
 
   const targets = targetsForDate(goals, profile, today);

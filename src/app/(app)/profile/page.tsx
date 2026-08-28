@@ -9,7 +9,7 @@ import { GoalEditor } from "@/components/profile/goal-editor";
 import { MomoGreeter } from "@/components/mascot/momo-greeter";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { Sticker, StickerHeading, Squiggle } from "@/components/kit";
-import { requireProfile } from "@/lib/session";
+import { onboardedProfile, requireUser } from "@/lib/session";
 import { userToday } from "@/lib/server-date";
 import {
   geminiModel,
@@ -25,10 +25,18 @@ export const metadata = { title: "You" };
 export const dynamic = "force-dynamic";
 
 export default async function ProfilePage() {
-  const { store, profile } = await requireProfile();
+  const { session, store } = await requireUser();
+  // Fired together with the page's own queries below rather than before
+  // them: the queries only ever needed the id, which the token already has.
+  const profilePromise = onboardedProfile();
   const today = await userToday();
-  const errors = await store.listErrors(profile.id, 10);
-  const goals = await store.listGoalSnapshots(profile.id);
+  // These were awaited one after the other, which is two crossings to
+  // Montreal for two independent lists.
+  const [profile, errors, goals] = await Promise.all([
+    profilePromise,
+    store.listErrors(session.userId, 10),
+    store.listGoalSnapshots(session.userId),
+  ]);
   const history = [...goals].reverse().slice(0, 6);
 
   return (
