@@ -55,10 +55,8 @@ jobs:
 
       - run: npm ci
 
-      # The suite drives the runner's preinstalled Chrome rather than
-      # downloading a browser, matching how it runs locally.
-      - name: Build
-        run: npm run build
-
+      # No build step: the suite makes its own, into its own directory, so
+      # that it is built with Supabase keys genuinely absent. The job above
+      # already proves an ordinary build works.
       - name: End-to-end tests
         run: npm run test:e2e

@@ -7,6 +7,7 @@ import { EstimateNotice } from "@/components/today/estimate-notice";
 import { OfflineBanner } from "@/components/shell/offline-banner";
 import { OfflineOutbox } from "@/components/today/offline-outbox";
 import { QuickRepeat } from "@/components/today/quick-repeat";
+import { TargetReached } from "@/components/today/target-reached";
 import { WeighInBar } from "@/components/weight/weigh-in-bar";
 import { EnergyBubble } from "@/components/viz/energy-bubble";
 import { MacroMeters } from "@/components/viz/macro-meters";
@@ -120,6 +121,14 @@ export default async function TodayPage() {
       />
 
       {/* Hero: the jar */}
+      <TargetReached
+        date={today}
+        calories={day.totals.calories}
+        target={targets.calories}
+        protein={day.totals.protein}
+        proteinTarget={targets.protein}
+      />
+
       <Sticker tint="violet" className="overflow-hidden">
         <div className="grid gap-5 md:grid-cols-[minmax(0,260px)_minmax(0,1fr)] md:items-center md:gap-7">
           <div>

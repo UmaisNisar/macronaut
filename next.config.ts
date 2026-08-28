@@ -15,6 +15,16 @@ const BUILD_ID =
   process.env.VERCEL_DEPLOYMENT_ID ?? `b${Date.now().toString(36)}`;
 
 const nextConfig: NextConfig = {
+  /**
+   * Somewhere other than .next when asked.
+   *
+   * NEXT_PUBLIC_* values are inlined into the server bundle at build time,
+   * so a build made with .env.local present can never be started in solo
+   * mode however the runtime environment is set. The end-to-end suite needs
+   * a build with those keys genuinely absent, and building that over the top
+   * of .next would quietly replace the developer's real one.
+   */
+  distDir: process.env.MACRONAUT_DIST_DIR || ".next",
   generateBuildId: () => BUILD_ID,
   env: { APP_BUILD_ID: BUILD_ID },
   experimental: {

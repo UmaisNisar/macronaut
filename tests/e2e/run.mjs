@@ -8,9 +8,10 @@
  * onto its own row only at phone width. So this suite reads computed styles and
  * geometry rather than taking a screenshot and hoping.
  *
- * Runs against a production build in solo mode, so no account and no Supabase
- * are needed. Uses the Chrome already installed on the machine rather than
- * downloading a browser.
+ * Builds its own production build in solo mode, so no account and no Supabase
+ * are needed, and drives the Chrome already installed on the machine rather
+ * than downloading a browser. The build is its own because Supabase keys have
+ * to be absent when it is made, not merely when it is started.
  *
  *   npm run test:e2e
  */
@@ -21,6 +22,25 @@ import { chromium } from "playwright-core";
 const PORT = Number(process.env.E2E_PORT ?? 3399);
 const SITE = `http://localhost:${PORT}`;
 const DATA_FILE = ".data/e2e.json";
+const DIST_DIR = ".next-e2e";
+
+/**
+ * Solo mode: no account, no Supabase, JSON file storage.
+ *
+ * These have to be absent at *build* time, not just at run time. Next
+ * inlines NEXT_PUBLIC_* into the server bundle as literals, so a build made
+ * with .env.local present carries the real Supabase URL inside it and puts
+ * up a sign-in wall no matter what the environment says when it starts. That
+ * is why this builds rather than reusing .next, and why it builds somewhere
+ * else — the developer's own build stays where they left it.
+ */
+const SOLO_ENV = {
+  ...process.env,
+  NEXT_PUBLIC_SUPABASE_URL: "",
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: "",
+  MACRONAUT_DATA_FILE: DATA_FILE,
+  MACRONAUT_DIST_DIR: DIST_DIR,
+};
 
 let passed = 0;
 const failures = [];
@@ -77,20 +97,41 @@ function killTree(child) {
   }
 }
 
+/**
+ * Build the app the suite is going to test.
+ *
+ * Incremental after the first run, because .next-e2e is kept.
+ */
+async function build() {
+  console.log(`Building (${DIST_DIR})...`);
+  const started = Date.now();
+  const result = spawnSync(
+    process.platform === "win32" ? "npx.cmd" : "npx",
+    ["next", "build"],
+    {
+      env: SOLO_ENV,
+      stdio: "pipe",
+      encoding: "utf8",
+      shell: process.platform === "win32",
+    },
+  );
+  if (result.status !== 0) {
+    console.log(result.stdout ?? "");
+    console.log(result.stderr ?? "");
+    throw new Error("build failed");
+  }
+  console.log(`  done in ${Math.round((Date.now() - started) / 1000)}s`);
+}
+
 async function startServer() {
   await assertPortFree();
   await rm(DATA_FILE, { force: true });
+  await build();
   const server = spawn(
     process.platform === "win32" ? "npx.cmd" : "npx",
     ["next", "start", "-p", String(PORT)],
     {
-      env: {
-        ...process.env,
-        // Blank Supabase => solo mode => no sign-in wall.
-        NEXT_PUBLIC_SUPABASE_URL: "",
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: "",
-        MACRONAUT_DATA_FILE: DATA_FILE,
-      },
+      env: SOLO_ENV,
       stdio: "ignore",
       shell: process.platform === "win32",
     },
@@ -466,6 +507,67 @@ try {
     );
   } else {
     check("a repeat chip exists to test against", false, "none found");
+  }
+
+  /* ---------------------------------------------------------------- */
+  section("Weigh-in nudge buttons (the haptic overlay can eat taps)");
+  // Still on the iOS context on purpose. The haptic tick comes from a real
+  // switch laid over the control, which is exactly the thing that once
+  // swallowed a gesture — so these buttons have to be proved from the side
+  // where that overlay exists, not from a desktop click.
+  await iosPage.goto(`${SITE}/today`, { waitUntil: "networkidle" });
+  const openWeighIn = iosPage
+    .getByRole("button", { name: /weigh in|Update/i })
+    .first();
+  await openWeighIn.scrollIntoViewIfNeeded().catch(() => {});
+  await openWeighIn.click().catch(() => {});
+
+  const weight = iosPage.locator("#weight");
+  const opened = await weight
+    .waitFor({ state: "visible", timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
+  check("the weigh-in dialog opens", opened);
+
+  if (opened) {
+    const value = () => weight.inputValue().then(Number);
+    const start = await value();
+
+    const plus = iosPage.getByRole("button", { name: /Increase by/ });
+    const minus = iosPage.getByRole("button", { name: /Decrease by/ });
+
+    const box = await plus.boundingBox();
+    await iosPage.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+    await iosPage.waitForTimeout(250);
+    const up = await value();
+    check(
+      "tapping + moves the number up",
+      up > start,
+      `${start} -> ${up}`,
+    );
+
+    const mbox = await minus.boundingBox();
+    await iosPage.touchscreen.tap(mbox.x + mbox.width / 2, mbox.y + mbox.height / 2);
+    await iosPage.waitForTimeout(250);
+    const back = await value();
+    check(
+      "tapping - brings it back",
+      Math.abs(back - start) < 0.001,
+      `${up} -> ${back}, expected ${start}`,
+    );
+
+    // The field changed from a number input to a text one, so the thing the
+    // form actually reads has to still be named and filled.
+    check(
+      "the nudged value is what the form would submit",
+      (await weight.getAttribute("name")) === "weight" &&
+        (await weight.inputValue()).trim() !== "",
+      `name=${await weight.getAttribute("name")} value=${await weight.inputValue()}`,
+    );
+
+    // Nothing is saved: a weigh-in costs an AI call, and free-tier quota is
+    // scarce enough that the suite should not spend it to prove arithmetic.
+    await iosPage.keyboard.press("Escape").catch(() => {});
   }
   await iosCtx.close();
 

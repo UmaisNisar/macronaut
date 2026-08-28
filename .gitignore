@@ -49,3 +49,7 @@ supabase/.branches/
 
 .vercel
 .env*
+
+# Build made by the end-to-end suite, kept separate from .next so it can be
+# built without Supabase keys without replacing the real one.
+.next-e2e

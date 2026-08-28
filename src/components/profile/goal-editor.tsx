@@ -7,6 +7,7 @@ import { Loader2, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { StepperField } from "@/components/ui/stepper-field";
 import { Label } from "@/components/ui/label";
 import { Magnet, Squiggle } from "@/components/kit";
 import {
@@ -244,15 +245,17 @@ export function GoalEditor({ profile }: { profile: Profile }) {
 
           <div className="space-y-1.5">
             <Label htmlFor="target">Target weight</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="target"
-                inputMode="decimal"
-                value={target}
-                onChange={(e) => setTarget(e.target.value)}
-              />
-              <span className="label-cute">{unitLabel}</span>
-            </div>
+            {/* Set once and rarely revisited, so typing stays the fast path;
+                the nudges are for small corrections. */}
+            <StepperField
+              id="target"
+              value={target}
+              onChange={setTarget}
+              step={units === "imperial" ? 1 : 0.5}
+              min={30}
+              max={400}
+              suffix={unitLabel}
+            />
           </div>
         </div>
 

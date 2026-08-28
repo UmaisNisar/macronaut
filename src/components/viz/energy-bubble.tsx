@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 
 import { clamp } from "@/lib/nutrition";
 import { AnimatedNumber } from "@/components/viz/animated-number";
+import { isOnTarget } from "@/lib/nutrition";
 import { EASE } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +45,8 @@ export function EnergyBubble({
   className?: string;
 }) {
   const uid = useId().replace(/:/g, "");
+  // The same band streaks and insights use, so nothing can disagree.
+  const onTarget = isOnTarget(calories, target);
   const reduce = useReducedMotion();
 
   const safeTarget = Math.max(1, target);
@@ -201,17 +204,38 @@ export function EnergyBubble({
 
       {/* readout */}
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+        {/*
+          Three states, not two. Landing on target used to read as "still
+          got 40 kcal left", which is technically true and says nothing
+          about having arrived where you were aiming.
+        */}
         <span className="label-cute text-[0.65rem]">
-          {over ? "Over by" : "Still got"}
+          {onTarget ? "On target" : over ? "Over by" : "Still got"}
         </span>
         <span
           className="numeral mt-0.5 text-[2.9rem] leading-none"
-          style={{ color: over ? "var(--peach)" : "var(--ink)" }}
+          style={{
+            color: onTarget
+              ? "var(--mint)"
+              : over
+                ? "var(--peach)"
+                : "var(--ink)",
+          }}
         >
-          <AnimatedNumber value={Math.abs(remaining)} />
+          {onTarget ? (
+            <span aria-label="On target">🎯</span>
+          ) : (
+            <AnimatedNumber value={Math.abs(remaining)} />
+          )}
         </span>
         <span className="mt-1 text-xs font-semibold text-[var(--ink-soft)]">
-          {over ? "kcal over" : "kcal left"}
+          {onTarget
+            ? over
+              ? `${Math.abs(remaining)} kcal over, still in range`
+              : `${Math.abs(remaining)} kcal left, in range`
+            : over
+              ? "kcal over"
+              : "kcal left"}
         </span>
         <span className="mt-2 rounded-full bg-[var(--inset)]/80 px-2.5 py-1 text-[0.7rem] font-semibold text-[var(--ink-soft)]">
           <span className="text-[var(--peach)]">

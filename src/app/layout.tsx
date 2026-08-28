@@ -2,10 +2,10 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata, Viewport } from "next";
 import { Fredoka, Nunito } from "next/font/google";
-import { Toaster } from "sonner";
 
 import { CelebrationProvider } from "@/components/celebrate/celebration";
 import { ThemeProvider } from "@/components/shell/theme-provider";
+import { AppToaster } from "@/components/shell/app-toaster";
 import { ServiceWorkerRegistrar } from "@/components/shell/service-worker";
 
 import "./globals.css";
@@ -78,18 +78,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         */}
         <Analytics />
         <SpeedInsights />
-        <Toaster
-          position="bottom-right"
-          offset={{ bottom: 20, right: 20 }}
-          mobileOffset={{ bottom: 96, left: 12, right: 12 }}
-          toastOptions={{
-            classNames: {
-              toast:
-                "!bg-[var(--card)] !border-0 !rounded-[1.5rem] !text-[var(--ink)] !font-semibold !shadow-[0_4px_0_0_var(--lip),0_12px_32px_-12px_rgb(123_97_255_/_0.4)]",
-              description: "!text-[var(--ink-soft)] !font-medium",
-            },
-          }}
-        />
+        <AppToaster />
       </body>
     </html>
   );

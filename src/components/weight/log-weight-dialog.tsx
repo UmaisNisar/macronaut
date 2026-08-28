@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Haptic } from "@/components/ui/haptic";
 import { Input } from "@/components/ui/input";
+import { StepperField } from "@/components/ui/stepper-field";
 import { Label } from "@/components/ui/label";
 import { Momo } from "@/components/mascot/momo";
 import { MomoSays } from "@/components/mascot/momo-says";
@@ -56,9 +57,18 @@ export function LogWeightDialog({
     1,
   );
 
+  // Seeded from the last weigh-in, which is what makes the nudge buttons
+  // worth having: most days move this by a fraction of a kilo.
+  const [weightValue, setWeightValue] = useState(String(defaultValue));
+
   function reset(nextOpen: boolean) {
     setOpen(nextOpen);
+    // Seed on the way in, not at mount. The last weigh-in arrives as a prop
+    // and changes after each save, and state seeded once would go on offering
+    // a number the scale has already moved past.
+    if (nextOpen) setWeightValue(String(defaultValue));
     if (!nextOpen) {
+      setWeightValue(String(defaultValue));
       setTimeout(() => {
         setPhase("form");
         setCoach(null);
@@ -166,22 +176,24 @@ export function LogWeightDialog({
 
                 <div className="flex-1 space-y-1.5">
                   <Label htmlFor="weight">Today you are…</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="weight"
-                      name="weight"
-                      type="number"
-                      step="0.1"
-                      min="20"
-                      required
-                      autoFocus
-                      defaultValue={defaultValue}
-                      className="numeral h-14 max-w-[8rem] text-2xl"
-                    />
-                    <span className="text-base font-bold text-[var(--ink-soft)]">
-                      {unit}
-                    </span>
-                  </div>
+                  {/*
+                    Nudge buttons matter most here. This is pre-filled with
+                    your last weigh-in and is almost always within a kilo of
+                    it, so opening a numeric keyboard to change one digit is
+                    the slowest possible way to enter it.
+                  */}
+                  <StepperField
+                    id="weight"
+                    name="weight"
+                    value={weightValue}
+                    onChange={setWeightValue}
+                    step={units === "imperial" ? 0.2 : 0.1}
+                    min={20}
+                    max={400}
+                    suffix={unit}
+                    autoFocus
+                    inputClassName="h-14 max-w-[7rem] text-2xl"
+                  />
                 </div>
               </div>
 
