@@ -6,6 +6,9 @@ import { redirect } from "next/navigation";
 import {
   CredentialsInput,
   EditFoodInput,
+  CheckFoodInput,
+  CheckedFoodItem,
+  LogCheckedFoodInput,
   RepeatFoodInput,
   UndoLogInput,
   LogBarcodeInput,
@@ -38,6 +41,7 @@ import { computeJourney, computeTargets, round } from "@/lib/nutrition";
 import { computeStreaks, weightStats } from "@/lib/insights";
 import { analyseFood, analyseFoodPhoto } from "@/lib/ai/food";
 import { consumeAiBudget } from "@/lib/ai/budget";
+import { portionThatFits, verdictFor, type Verdict } from "@/lib/verdict";
 import { foodKey } from "@/lib/db/store";
 import { resolveFoodEmoji } from "@/lib/food-emoji";
 import { lookupBarcode } from "@/lib/ai/barcode";
@@ -837,6 +841,148 @@ export async function updateFoodAction(
 
   revalidateApp();
   return { ok: true, day, entries };
+}
+
+export type CheckFoodPayload = {
+  /** What it is, priced up, but not written anywhere. */
+  items: CheckedFoodItem[];
+  verdict: Verdict;
+  /** The smaller serving that would fit, when the whole thing does not. */
+  portion: { fraction: number; calories: number } | null;
+  source: "ai" | "estimator";
+  /** So the card can show the day it is talking about. */
+  day: { eaten: number; target: number };
+};
+
+/**
+ * Price something up without eating it.
+ *
+ * The app could only ever talk about food after it had been logged, which is
+ * the wrong way round for the question people actually have in a shop. This
+ * runs the same analysis and then writes nothing at all.
+ *
+ * It costs a model call, so it is charged to the same daily allowance as a
+ * log — checking is not a way around the budget. Deciding to eat the thing
+ * afterwards costs nothing more, because the numbers come back with the
+ * answer and logCheckedFoodAction takes them as they are.
+ */
+export async function checkFoodAction(
+  raw: unknown,
+): Promise<ActionResult<CheckFoodPayload>> {
+  const ctx = await withProfile();
+  if (!ctx.ok) return fail(ctx.error);
+
+  const parsed = CheckFoodInput.safeParse(raw);
+  if (!parsed.success) {
+    return fail(
+      parsed.error.issues[0]?.message ?? "That input could not be read.",
+    );
+  }
+
+  const { profile, store } = ctx;
+  const { text, date } = parsed.data;
+
+  const budget = await consumeAiBudget(
+    store,
+    { id: profile.id, email: profile.email },
+    await userToday(),
+    "food",
+  );
+  if (!budget.ok) return fail(budget.message);
+
+  const { analysis, source } = await analyseFood(text);
+  const usable = analysis.foods.filter((f) => !/^nothing/i.test(f.name.trim()));
+  if (!usable.length) {
+    return fail(
+      "I could not work out what that is. Try naming the dish and rough amount.",
+    );
+  }
+
+  // Corrections apply here too, or the check would quote a number the log
+  // would then disagree with.
+  const learned = await applyCorrections(store, profile.id, usable);
+
+  const items: CheckedFoodItem[] = learned.foods.map((f) => ({
+    name: f.name,
+    quantity: f.estimatedQuantity,
+    emoji: resolveFoodEmoji(f.name, f.emoji),
+    meal: f.meal,
+    calories: round(f.calories),
+    protein: round(f.protein, 1),
+    carbs: round(f.carbs, 1),
+    fat: round(f.fat, 1),
+    fiber: round(f.fiber, 1),
+    sugar: round(f.sugar, 1),
+    confidence: f.confidence,
+    assumptions: [...f.assumptions, ...analysis.assumptions, ...learned.notes],
+    rawInput: text,
+    source: source === "ai" ? "ai" : "estimator",
+  }));
+
+  const goals = await store.listGoalSnapshots(profile.id);
+  const targets = targetsForDate(goals, profile, date);
+  const existing = await store.getDailyLog(profile.id, date);
+  const totals = existing?.totals ?? emptyDay(profile.id, date, targets).totals;
+
+  // One verdict for the whole thing: asking about "a burger and chips" is one
+  // question, not two.
+  const combined = {
+    calories: items.reduce((a, i) => a + i.calories, 0),
+    protein: items.reduce((a, i) => a + i.protein, 0),
+    sugar: items.reduce((a, i) => a + i.sugar, 0),
+  };
+  const dayContext = {
+    eaten: totals.calories,
+    target: targets.calories,
+    sugarEaten: totals.sugar,
+    sugarCeiling: targets.sugar,
+  };
+
+  return {
+    ok: true,
+    items,
+    verdict: verdictFor(combined, dayContext),
+    portion: portionThatFits(combined, dayContext),
+    source,
+    day: { eaten: totals.calories, target: targets.calories },
+  };
+}
+
+/**
+ * Log something that was just checked, at the numbers it was checked at.
+ *
+ * No model call: re-analysing the same sentence a few seconds later would
+ * spend a second one and could quietly come back with different numbers than
+ * the ones the person just said yes to.
+ */
+export async function logCheckedFoodAction(
+  raw: unknown,
+): Promise<ActionResult<{ day: DailyLog; entries: FoodEntry[]; added: FoodEntry[] }>> {
+  const ctx = await withProfile();
+  if (!ctx.ok) return fail(ctx.error);
+
+  const parsed = LogCheckedFoodInput.safeParse(raw);
+  if (!parsed.success) return fail("Those numbers could not be read.");
+
+  const { profile, store } = ctx;
+  const { date, items } = parsed.data;
+
+  const added = await store.insertFoodEntries(
+    items.map((f) => ({ userId: profile.id, logDate: date, ...f })),
+  );
+
+  const goals = await store.listGoalSnapshots(profile.id);
+  const day = await recomputeDay(
+    store,
+    profile.id,
+    date,
+    targetsForDate(goals, profile, date),
+  );
+  const entries = await store.listFoodEntries(profile.id, date, date);
+  await refreshAchievements(store, profile, await userToday());
+
+  revalidateApp();
+  return { ok: true, day, entries, added };
 }
 
 /**

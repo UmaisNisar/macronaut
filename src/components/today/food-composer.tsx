@@ -20,6 +20,7 @@ import { AnimatedNumber } from "@/components/viz/animated-number";
 import { logFoodAction, logFoodPhotoAction } from "@/server/actions";
 import { isOffline, queueLog } from "@/lib/offline-queue";
 import { useCelebration } from "@/components/celebrate/celebration";
+import { CheckFirst } from "@/components/today/check-first";
 import { useUndoLog } from "@/components/today/undo";
 import type { FoodEntry } from "@/lib/schemas";
 import type { Iso } from "@/lib/date";
@@ -279,14 +280,24 @@ export function FoodComposer({
           </motion.div>
 
           <div className="min-w-0 flex-1">
-            <label
-              htmlFor="food-input"
-              className="mb-1.5 block font-[family-name:var(--font-display)] text-base font-semibold sm:text-lg"
-            >
-              {isToday
-                ? "Tell me what you ate 🍜"
-                : "Add something to this day 🍜"}
-            </label>
+            {/*
+              The question this box answers is "what did I eat". The other
+              question — "can I have this" — sits beside it rather than
+              inside it, because the scanner and camera below would otherwise
+              have two meanings and one of them logs your dinner.
+            */}
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <label
+                htmlFor="food-input"
+                className="min-w-0 font-[family-name:var(--font-display)] text-base font-semibold sm:text-lg"
+              >
+                {isToday
+                  ? "Tell me what you ate 🍜"
+                  : "Add something to this day 🍜"}
+              </label>
+
+              {isToday ? <CheckFirst date={date} /> : null}
+            </div>
 
             <div className="field rounded-3xl bg-[var(--inset)] p-3 shadow-[inset_0_2px_6px_rgb(123_97_255_/_0.10)]">
               <textarea

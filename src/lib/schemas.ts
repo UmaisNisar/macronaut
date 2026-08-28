@@ -222,6 +222,51 @@ export type RepeatFoodInput = z.infer<typeof RepeatFoodInput>;
  * real meal: a request with hundreds of ids is not a person changing their
  * mind.
  */
+/**
+ * Asking what something would cost, without eating it yet.
+ *
+ * Same input as a log; the difference is entirely in what the server does
+ * with the answer.
+ */
+export const CheckFoodInput = z.object({
+  text: z.string().trim().min(2, "Tell me what you are thinking of.").max(2000),
+  date: IsoDate,
+});
+export type CheckFoodInput = z.infer<typeof CheckFoodInput>;
+
+/**
+ * An item that came back from a check and is now being logged for real.
+ *
+ * The numbers arrive from the client rather than being re-derived, so that
+ * deciding to eat the thing you just checked does not cost a second model
+ * call. Bounded rather than trusted: a person can already type any number
+ * they like into an entry they own, so the only thing worth guarding is that
+ * the values are numbers of a plausible size.
+ */
+export const CheckedFoodItem = z.object({
+  name: z.string().trim().min(1).max(120),
+  quantity: z.string().trim().max(120),
+  emoji: z.string().max(16),
+  meal: MealSlot,
+  calories: z.number().min(0).max(5000),
+  protein: z.number().min(0).max(1000),
+  carbs: z.number().min(0).max(1000),
+  fat: z.number().min(0).max(1000),
+  fiber: z.number().min(0).max(500),
+  sugar: z.number().min(0).max(1000),
+  confidence: Confidence,
+  assumptions: z.array(z.string().max(300)).max(12).default([]),
+  rawInput: z.string().max(2000),
+  source: z.enum(["ai", "estimator"]),
+});
+export type CheckedFoodItem = z.infer<typeof CheckedFoodItem>;
+
+export const LogCheckedFoodInput = z.object({
+  date: IsoDate,
+  items: z.array(CheckedFoodItem).min(1).max(20),
+});
+export type LogCheckedFoodInput = z.infer<typeof LogCheckedFoodInput>;
+
 export const UndoLogInput = z.object({
   ids: z.array(z.string().min(1)).min(1).max(50),
   date: IsoDate,

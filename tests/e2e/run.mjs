@@ -40,6 +40,17 @@ const SOLO_ENV = {
   NEXT_PUBLIC_SUPABASE_ANON_KEY: "",
   MACRONAUT_DATA_FILE: DATA_FILE,
   MACRONAUT_DIST_DIR: DIST_DIR,
+  /*
+   * No model, on purpose.
+   *
+   * The suite inherits the developer's environment, so every run was spending
+   * real Gemini calls out of a free tier that allows twenty a day per model —
+   * a test suite quietly competing with the person using the app. Nothing here
+   * asserts anything a model produces that the built-in estimator does not,
+   * and an estimator is deterministic, which a model is not.
+   */
+  GEMINI_API_KEY: "",
+  GOOGLE_GENERATIVE_AI_API_KEY: "",
 };
 
 let passed = 0;
@@ -386,6 +397,101 @@ try {
     afterRepeat > afterLog,
     `${afterLog} -> ${afterRepeat}`,
   );
+
+  /* ---------------------------------------------------------------- */
+  section("Checking before eating (must not log)");
+  // The whole promise of this screen is that asking costs nothing. If a
+  // check ever writes an entry it is worse than not having the feature: you
+  // would be logging meals you decided against.
+  const beforeCheck = await total(page);
+  await page.getByRole("button", { name: /Check first/ }).click();
+
+  const checkBox = page.locator(
+    'textarea[aria-label="What are you thinking of eating?"]',
+  );
+  const checkOpened = await checkBox
+    .waitFor({ state: "visible", timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
+  check("the check sheet opens", checkOpened);
+
+  if (checkOpened) {
+    await checkBox.fill("a chocolate bar");
+    await page.getByRole("button", { name: /^Check it/ }).click();
+    await page
+      .waitForFunction(
+        () => /Room for this|Fits, just about|Tips you over|Puts you over|big one|Already past/i.test(document.body.innerText),
+        null,
+        { timeout: 60000 },
+      )
+      .catch(() => {});
+
+    const verdictShown = await page.evaluate(() =>
+      /Room for this|Fits, just about|Tips you over|Puts you over|big one|Already past/i.test(
+        document.body.innerText,
+      ),
+    );
+    check("it answers with a verdict", verdictShown);
+    check(
+      "it says what the food actually costs",
+      await page.evaluate(() => /\d+\s*kcal/i.test(document.body.innerText)),
+    );
+
+    // Give a write every chance to have happened before claiming it did not.
+    await page.waitForTimeout(2500);
+    await page.reload({ waitUntil: "networkidle" });
+    await page.waitForTimeout(1200);
+    check(
+      "checking logs nothing",
+      (await total(page)) === beforeCheck,
+      `${beforeCheck} -> ${await total(page)}`,
+    );
+
+    // And saying yes afterwards must still work, without a second model call.
+    await page.getByRole("button", { name: /Check first/ }).click();
+    await checkBox.waitFor({ state: "visible", timeout: 10000 }).catch(() => {});
+    await checkBox.fill("a chocolate bar");
+    await page.getByRole("button", { name: /^Check it/ }).click();
+    const ateIt = page.getByRole("button", { name: /I ate it/ });
+    const offered = await ateIt
+      .waitFor({ state: "visible", timeout: 60000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (offered) {
+      await ateIt.click();
+      await page
+        .waitForFunction(
+          (was) => {
+            const m = document.body.innerText.match(/([\d,]+)\s*\/\s*([\d,]+)/);
+            return m ? Number(m[1].replace(/,/g, "")) > was : false;
+          },
+          beforeCheck,
+          { timeout: 20000 },
+        )
+        .catch(() => {});
+      check(
+        "saying yes afterwards does log it",
+        (await total(page)) > beforeCheck,
+        `${beforeCheck} -> ${await total(page)}`,
+      );
+    } else {
+      check("saying yes afterwards does log it", false, "no log button");
+    }
+  }
+
+  /*
+   * Leave the page settled before moving on.
+   *
+   * This section logs something, and logging offers an undo toast. Both outlive
+   * the assertions: the next section read its baseline total mid-refresh and
+   * was one meal behind, which made its own undo look like it had added
+   * calories rather than removed them. A reload costs a second and removes a
+   * whole class of confusing cross-section failure.
+   */
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForTimeout(1500);
 
   /* ---------------------------------------------------------------- */
   section("Undo (a one-tap log needs a one-tap way back)");
