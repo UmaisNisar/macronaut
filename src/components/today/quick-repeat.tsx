@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { repeatFoodAction } from "@/server/actions";
 import { Haptic } from "@/components/ui/haptic";
+import { useUndoToast } from "@/components/today/undo";
 import type { FrequentFood } from "@/lib/db/store";
 import type { Iso } from "@/lib/date";
 
@@ -31,6 +32,7 @@ export function QuickRepeat({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [justAdded, setJustAdded] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const offerUndo = useUndoToast();
 
   if (!foods.length) return null;
 
@@ -47,6 +49,11 @@ export function QuickRepeat({
       }
       setJustAdded(food.entryId);
       setTimeout(() => setJustAdded(null), 1400);
+      // These chips sit in a strip you scroll through, so the tap that
+      // lands here is sometimes one you did not mean to make. Nothing else
+      // on screen says what was added, so the offer to take it back has to
+      // come with the confirmation.
+      offerUndo(result.added, date);
       router.refresh();
     });
   }

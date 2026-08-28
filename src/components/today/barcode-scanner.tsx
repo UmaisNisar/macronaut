@@ -8,6 +8,7 @@ import { Barcode, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Haptic } from "@/components/ui/haptic";
 import { logBarcodeAction } from "@/server/actions";
+import { useUndoToast } from "@/components/today/undo";
 import type { Iso } from "@/lib/date";
 
 /**
@@ -37,6 +38,7 @@ export function BarcodeScanner({ date }: { date: Iso }) {
   const [busy, setBusy] = useState(false);
   const [manual, setManual] = useState("");
   const [supported, setSupported] = useState(false);
+  const offerUndo = useUndoToast();
 
   const video = useRef<HTMLVideoElement | null>(null);
   const stream = useRef<MediaStream | null>(null);
@@ -59,12 +61,14 @@ export function BarcodeScanner({ date }: { date: Iso }) {
         toast.error(result.error);
         return;
       }
-      const first = result.added[0];
-      toast.success(first ? `Logged ${first.name}` : "Logged from the label");
+      // Replaces the plain confirmation rather than sitting beside it: a
+      // scan is easy to fire at the wrong packet, and two toasts saying
+      // almost the same thing is worse than one that can be acted on.
+      offerUndo(result.added, date);
       stop();
       router.refresh();
     },
-    [busy, date, router, stop],
+    [busy, date, offerUndo, router, stop],
   );
 
   // Detection loop. Kept in a ref rather than state so a frame callback cannot

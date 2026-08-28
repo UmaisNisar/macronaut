@@ -20,6 +20,7 @@ import { AnimatedNumber } from "@/components/viz/animated-number";
 import { logFoodAction, logFoodPhotoAction } from "@/server/actions";
 import { isOffline, queueLog } from "@/lib/offline-queue";
 import { useCelebration } from "@/components/celebrate/celebration";
+import { useUndoLog } from "@/components/today/undo";
 import type { FoodEntry } from "@/lib/schemas";
 import type { Iso } from "@/lib/date";
 import { EASE, SPRING } from "@/lib/motion";
@@ -419,6 +420,7 @@ export function FoodComposer({
             // never for a re-render of the same food.
             key={reveal.map((e) => e.id).join("|")}
             entries={reveal}
+            date={date}
             onDone={dismissReveal}
           />
         ) : null}
@@ -430,12 +432,15 @@ export function FoodComposer({
 /** The payoff: each food pops in, then the totals count up, then Momo reacts. */
 function RevealCard({
   entries,
+  date,
   onDone,
 }: {
   entries: FoodEntry[];
+  date: Iso;
   onDone: () => void;
 }) {
   const [phase, setPhase] = useState<"items" | "totals" | "momo">("items");
+  const { undo, undoing } = useUndoLog();
 
   const kcal = entries.reduce((a, e) => a + e.calories, 0);
   const protein = entries.reduce((a, e) => a + e.protein, 0);
@@ -472,19 +477,41 @@ function RevealCard({
     >
       <div className="mb-3 flex items-center justify-between gap-2">
         <p className="label-cute">Found it 🎉</p>
-        {/*
-          Dismissing is now a choice rather than something that happens under
-          you. The card used to remove itself on a timer, which pulled four
-          hundred pixels out of the page while you were reading the list below.
-        */}
-        <button
-          type="button"
-          onClick={onDone}
-          aria-label="Dismiss"
-          className="-m-1 grid size-8 place-items-center rounded-full p-1 text-[var(--ink-soft)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--ink)]"
-        >
-          <X className="size-4" />
-        </button>
+
+        <div className="flex items-center gap-1">
+          {/*
+            Undo belongs here rather than in a toast. This card is the app
+            saying what it logged, so it is the moment you notice it read the
+            meal wrong — and it is already on screen, already pointing at the
+            thing that would be removed.
+          */}
+          <button
+            type="button"
+            disabled={undoing}
+            onClick={() => {
+              void undo(entries, date).then((done) => {
+                if (done) onDone();
+              });
+            }}
+            className="tappable rounded-full bg-[var(--inset)] px-3 py-1.5 text-xs font-bold text-[var(--ink-soft)] transition-colors hover:text-[var(--ink)] disabled:opacity-50"
+          >
+            {undoing ? "Undoing…" : "Undo"}
+          </button>
+
+          {/*
+            Dismissing is now a choice rather than something that happens under
+            you. The card used to remove itself on a timer, which pulled four
+            hundred pixels out of the page while you were reading the list below.
+          */}
+          <button
+            type="button"
+            onClick={onDone}
+            aria-label="Dismiss"
+            className="-m-1 grid size-8 place-items-center rounded-full p-1 text-[var(--ink-soft)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--ink)]"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
       </div>
 
       <ul className="flex flex-wrap gap-2">
