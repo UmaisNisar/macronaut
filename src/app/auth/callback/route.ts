@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { safeNextPath } from "@/lib/safe-next";
 
 /**
  * Where Google (via Supabase) drops the user back.
@@ -44,19 +45,8 @@ export async function GET(request: Request) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) return bounce(error.message);
 
-  /*
-   * "/" decides between onboarding and today based on whether a profile
-   * exists.
-   *
-   * `next` comes off the query string, so it is attacker-controlled. Starting
-   * with "/" is not enough on its own: a browser reads "//evil.example" as a
-   * protocol-relative URL and leaves the site, and "/\evil.example" is treated
-   * the same way by some of them. Anything with a second separator in front is
-   * refused rather than cleaned up — a sign-in that lands somewhere unexpected
-   * is exactly the shape of a convincing phishing hop.
-   */
-  const next = url.searchParams.get("next");
-  const safeNext =
-    next && /^\/(?![/\\])/.test(next) ? next : "/";
-  return NextResponse.redirect(`${origin}${safeNext}`);
+  // "/" decides between onboarding and today based on whether a profile exists.
+  return NextResponse.redirect(
+    `${origin}${safeNextPath(url.searchParams.get("next"))}`,
+  );
 }
