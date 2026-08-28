@@ -1,13 +1,17 @@
 /**
  * The little world behind the app: soft drifting blobs and a few food doodles.
+ *
+ * Every colour here is a token, because the same swatch cannot serve both
+ * themes: a pale lavender that tints a white page is a searchlight on a black
+ * one.
  * Pure CSS animation on transform/opacity, fixed and non-interactive, so it
  * costs nothing and never gets in the way.
  */
 const BLOBS = [
-  { class: "bg-[#E3D9FF]", size: 320, top: "-6%", left: "-8%", delay: "0s" },
-  { class: "bg-[#E4D8FF]", size: 260, top: "12%", right: "-6%", delay: "-6s" },
-  { class: "bg-[#D6F0FF]", size: 300, bottom: "-8%", left: "10%", delay: "-12s" },
-  { class: "bg-[#FFE8D2]", size: 200, bottom: "18%", right: "8%", delay: "-3s" },
+  { tint: "var(--blob-1)", size: 320, top: "-6%", left: "-8%", delay: "0s" },
+  { tint: "var(--blob-2)", size: 260, top: "12%", right: "-6%", delay: "-6s" },
+  { tint: "var(--blob-3)", size: 300, bottom: "-8%", left: "10%", delay: "-12s" },
+  { tint: "var(--blob-4)", size: 200, bottom: "18%", right: "8%", delay: "-3s" },
 ];
 
 const DOODLES = [
@@ -25,7 +29,7 @@ export function CandyBackground() {
       {BLOBS.map((blob, i) => (
         <span
           key={i}
-          className={`animate-drift-x absolute rounded-full blur-3xl ${blob.class}`}
+          className="animate-drift-x absolute rounded-full blur-3xl"
           style={{
             width: blob.size,
             height: blob.size,
@@ -33,7 +37,8 @@ export function CandyBackground() {
             left: blob.left,
             right: blob.right,
             bottom: blob.bottom,
-            opacity: 0.55,
+            background: blob.tint,
+            opacity: "var(--blob-opacity)",
             animationDelay: blob.delay,
           }}
         />
@@ -49,7 +54,7 @@ export function CandyBackground() {
             right: d.right,
             bottom: d.bottom,
             fontSize: d.size,
-            opacity: 0.28,
+            opacity: "var(--doodle-opacity)",
             animationDelay: d.delay,
             animationDuration: `${6 + i}s`,
           }}

@@ -146,6 +146,23 @@
   --jar-plate-opacity: 0.92;
 
   --shadow-soft: 0 10px 30px -12px rgb(123 97 255 / 0.28);
+  /*
+   * The drifting blobs behind the page.
+   *
+   * They used to be hard-coded pale lavenders shared by both themes, which
+   * was fine in daylight — they sit a few L* *below* a near-white page, so
+   * they read as a faint tint. Over a near-black one the same colours
+   * landed forty-seven L* above it: four white searchlights on the
+   * wallpaper. Tokens now, and each theme gets blobs that move its own page
+   * by about the same small amount.
+   */
+  --blob-1: #e3d9ff;
+  --blob-2: #e4d8ff;
+  --blob-3: #d6f0ff;
+  --blob-4: #ffe8d2;
+  --blob-opacity: 0.55;
+  --doodle-opacity: 0.28;
+
   --page-glow-1: #e7e0ff;
   --page-glow-2: #ffeade;
   --page-glow-3: #dcf1ff;
@@ -252,9 +269,21 @@
   --jar-plate-opacity: 0.82;
 
   --shadow-soft: 0 14px 34px -18px rgb(8 4 26 / 0.9);
-  --page-glow-1: #2a1a63;
-  --page-glow-2: #3a1f4e;
-  --page-glow-3: #172a55;
+  /* Deep enough to be colour rather than light: each lifts the page by
+     about four L*, the same distance the daylight ones sink it. */
+  --blob-1: #4a35a8;
+  --blob-2: #5a3aa5;
+  --blob-3: #2b4f96;
+  --blob-4: #6b4070;
+  --blob-opacity: 0.16;
+  /* Emoji carry their own colour and glow against a dark page. */
+  --doodle-opacity: 0.12;
+
+  /* The vignette was lifting its corners by ten L*, which is a lamp
+     pointed at the screen rather than depth. */
+  --page-glow-1: #1f1252;
+  --page-glow-2: #281545;
+  --page-glow-3: #14204b;
 }
 
 @layer base {

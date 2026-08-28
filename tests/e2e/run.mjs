@@ -1097,6 +1097,42 @@ try {
     (navContrast ?? 0) >= 4.5,
     navContrast ? navContrast.toFixed(2) : "pill not found",
   );
+
+  /*
+   * The wallpaper must stay wallpaper.
+   *
+   * Four blurred blobs drift behind the page, and they were hard-coded pale
+   * lavenders shared with the light theme. Over a near-black page each one
+   * composited forty-seven L* above it — four white searchlights, which is
+   * what the dark theme actually looked like from across a room.
+   */
+  const wash = await darkPage.evaluate(() => {
+    const cs = getComputedStyle(document.documentElement);
+    const parse = (h) => {
+      const v = h.trim().replace("#", "");
+      return [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16));
+    };
+    const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+    const Lstar = (rgb) => {
+      const Y = 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
+      return Y > 0.008856 ? 116 * Math.cbrt(Y) - 16 : 903.3 * Y;
+    };
+    const page = parse(cs.getPropertyValue("--background"));
+    const alpha = Number(cs.getPropertyValue("--blob-opacity")) || 0;
+    let worst = 0;
+    for (const n of ["--blob-1", "--blob-2", "--blob-3", "--blob-4"]) {
+      const blob = parse(cs.getPropertyValue(n));
+      const mixed = blob.map((c, i) => alpha * c + (1 - alpha) * page[i]);
+      worst = Math.max(worst, Lstar(mixed) - Lstar(page));
+    }
+    return { worst, alpha };
+  });
+  check(
+    "the background blobs tint the page rather than light it up",
+    wash.worst <= 6,
+    `brightest blob lifts the page by ${wash.worst.toFixed(1)} L*`,
+  );
+
   await darkCtx.close();
 
   /* ---------------------------------------------------------------- */
