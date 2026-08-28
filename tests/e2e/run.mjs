@@ -861,6 +861,94 @@ try {
   await secCtx.close();
 
   /* ---------------------------------------------------------------- */
+  section("Dark mode (it was one flat value before)");
+  // The dark theme's problem was never the hue. Card against page measured
+  // 1.09 and the sticker lip 1.03, so the cut-out edge the whole design
+  // rests on did not exist. These assert the elevation stack directly, in
+  // CIE L*, because a WCAG ratio says nothing useful about whether two dark
+  // surfaces look like different surfaces.
+  const darkCtx = await browser.newContext({ ...phone, colorScheme: "dark" });
+  const darkPage = await darkCtx.newPage();
+  await darkPage.goto(`${SITE}/today`, { waitUntil: "networkidle" });
+  await darkPage.waitForTimeout(1200);
+
+  const surfaces = await darkPage.evaluate(() => {
+    const cs = getComputedStyle(document.documentElement);
+    const parse = (h) => {
+      const v = h.trim().replace("#", "");
+      return [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16));
+    };
+    const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+    const Lstar = (rgb) => {
+      const Y = 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]);
+      return Y > 0.008856 ? 116 * Math.cbrt(Y) - 16 : 903.3 * Y;
+    };
+    const of = (n) => Lstar(parse(cs.getPropertyValue(n)));
+    return {
+      isDark: document.documentElement.classList.contains("dark"),
+      background: of("--background"),
+      lip: of("--lip"),
+      card: of("--card"),
+      inset: of("--inset"),
+      track: of("--track"),
+    };
+  });
+
+  check("the dark theme is actually applied", surfaces.isDark);
+  check(
+    "a card is a distinct surface from the page",
+    surfaces.card - surfaces.background >= 8,
+    `${(surfaces.card - surfaces.background).toFixed(1)} L* apart`,
+  );
+  check(
+    "the sticker edge is visible against the page",
+    Math.abs(surfaces.lip - surfaces.background) >= 4,
+    `${Math.abs(surfaces.lip - surfaces.background).toFixed(1)} L* apart`,
+  );
+  check(
+    "the sticker edge is darker than the face it sits under",
+    surfaces.card - surfaces.lip >= 4,
+    `${(surfaces.card - surfaces.lip).toFixed(1)} L* apart`,
+  );
+  check(
+    "a nested panel reads as nested",
+    Math.abs(surfaces.inset - surfaces.card) >= 4,
+    `${Math.abs(surfaces.inset - surfaces.card).toFixed(1)} L* apart`,
+  );
+  // An empty meter should recede into the card, the way it does in daylight.
+  check(
+    "an empty meter is a groove, not a raised slab",
+    surfaces.track < surfaces.card,
+    `track ${surfaces.track.toFixed(1)} vs card ${surfaces.card.toFixed(1)}`,
+  );
+
+  // The active nav label was white on every pill: 1.54 on the amber one.
+  const navContrast = await darkPage.evaluate(() => {
+    const parse = (c) => (c.match(/[0-9.]+/g) || []).slice(0, 3).map(Number);
+    const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+    const lum = (r) => 0.2126 * lin(r[0]) + 0.7152 * lin(r[1]) + 0.0722 * lin(r[2]);
+    // Last one: the desktop rail is in the DOM at zero height on a phone, and
+    // the dock is the one a person can actually see.
+    const link = [...document.querySelectorAll('a[aria-current="page"]')].pop();
+    if (!link) return null;
+    const pill = link.querySelector("[style*='background']");
+    const label = [...link.querySelectorAll("span")].find(
+      (n) => (n.textContent || "").trim().length > 1,
+    );
+    if (!pill || !label) return null;
+    const a = lum(parse(getComputedStyle(label).color));
+    const b = lum(parse(getComputedStyle(pill).backgroundColor));
+    const [hi, lo] = [a, b].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  });
+  check(
+    "the active tab label is readable on its pill",
+    (navContrast ?? 0) >= 4.5,
+    navContrast ? navContrast.toFixed(2) : "pill not found",
+  );
+  await darkCtx.close();
+
+  /* ---------------------------------------------------------------- */
   section("Service worker and offline page");
   const sw = await dpage.evaluate(async () => {
     const reg = await navigator.serviceWorker.ready.catch(() => null);

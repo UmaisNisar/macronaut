@@ -111,6 +111,16 @@
      still held the value that measured 4.42:1 and failed WCAG AA. */
   --muted-foreground: var(--ink-soft);
 
+  /*
+   * Ink for text sitting on a candy colour — the active nav pill is the
+   * only place, and it was white on every one of them. White on the amber
+   * pill measured 1.75:1 in daylight and 1.54 after dark; the label was
+   * decoration rather than something you could read. One value for both
+   * themes, because the pills are bright in both, and dark enough to clear
+   * 4.5:1 on the darkest of them.
+   */
+  --on-candy: #120c24;
+
   --primary: var(--violet);
   --primary-foreground: #ffffff;
   --primary-lip: #6247e0;
@@ -124,6 +134,17 @@
   --input: #ded6ff;
   --ring: #7b61ff;
 
+  /*
+   * The jar's two pieces of theatre. Both are drawn in SVG, and both were
+   * written for daylight: a white gleam is invisible on a white jar, and a
+   * plate the colour of the card disappears into it. Neither is true after
+   * dark, where the same values became a grey smear and a dirty disc over
+   * the liquid.
+   */
+  --jar-shine: 0.4;
+  --jar-plate: var(--card);
+  --jar-plate-opacity: 0.92;
+
   --shadow-soft: 0 10px 30px -12px rgb(123 97 255 / 0.28);
   --page-glow-1: #e7e0ff;
   --page-glow-2: #ffeade;
@@ -131,60 +152,109 @@
 }
 
 /* =====================================================================
-   DARK — same world after sunset. Not grey: a deep violet night.
+   DARK — the same stickers after sunset.
+
+   The old dark theme measured badly in the one way that mattered: the card
+   sat 1.09 against the page and the lip 1.03, so the cut-out edge that is
+   this app's entire visual identity did not exist. Everything was one value
+   and the result was a flat violet soup.
+
+   Rebuilt as an elevation stack in CIE L*, because WCAG ratios describe text
+   legibility and say almost nothing about whether two dark surfaces look
+   like different surfaces. Even steps of 3-6 L* read as even steps to the
+   eye; matching the light theme's *ratios* instead pushed every value so
+   light it stopped being a dark theme at all.
+
+   The page keeps the candy violet and the cards sit on it as near-neutral
+   cut-outs, exactly as white cards do in daylight. That is what leaves the
+   tints somewhere to go: tinting a card that is already saturated violet
+   does nothing.
    ===================================================================== */
 .dark {
   color-scheme: dark;
 
-  --background: #141221;
-  --foreground: #f1edff;
-  --ink: #f1edff;
-  --berry: #c98ae0;
-  --berry-soft: #3a2545;
-  --ink-soft: #a79fc4;
+  /* L* 8 — the ground. Saturated, because it is the one surface that still
+     carries the brand colour. */
+  --background: #160d44;
+  --foreground: #f4f0ff;
+  --ink: #f4f0ff;
+  --ink-soft: #b3a9d4;
 
-  --card: #1e1a2e;
-  --card-foreground: #f1edff;
-  --popover: #221d34;
-  --popover-foreground: #f1edff;
+  /* L* 20 and 22. Near-neutral on purpose. */
+  --card: #332c4c;
+  --card-foreground: #f4f0ff;
+  --popover: #373052;
+  --popover-foreground: #f4f0ff;
 
-  /* Lifted a little so they keep their punch against a dark ground */
-  --violet: #9b85ff;
-  --violet-soft: #2f2750;
+  /*
+   * Candy colours, lifted to hold their own on a dark ground, each still
+   * the lightness its hue wants to be — a yellow is meant to read brighter
+   * than a violet, and flattening them all to one value is what makes a
+   * palette look like a spreadsheet. Every one clears 5:1 on the card.
+   *
+   * The -soft pairs are chip backgrounds, sitting ~6 L* above the card so a
+   * macro pill is a pill rather than a smudge.
+   */
+  --violet: #a692ff;
+  --violet-soft: #262233;
   --peach: #ffab73;
-  --peach-soft: #3d2b22;
+  --peach-soft: #2e221a;
   --mint: #45ddaa;
-  --mint-soft: #17372f;
+  --mint-soft: #132921;
   --sky: #6bc7ff;
-  --sky-soft: #172f42;
+  --sky-soft: #19262e;
   --sun: #ffc85a;
-  --sun-soft: #3a2f18;
+  --sun-soft: #2b2415;
   --leaf: #9be063;
-  --leaf-soft: #23361b;
+  --leaf-soft: #1e2716;
+  --berry: #d199e8;
+  --berry-soft: #2a222e;
 
-  --track: #2b2543;
-  --inset: #2a2440;
-  --lip: #100e1b;
-  --muted: #262137;
+  /*
+   * The edge, and the reason this theme was rebuilt.
+   *
+   * A sticker is drawn with a hard offset shadow in --lip. On paper that is
+   * a shadow, but nothing casts a visible shadow onto a near-black page, so
+   * here the lip is *lighter* than the ground: the sticker's side face,
+   * catching the light its top face is catching more of. It lands 6 L* above
+   * the page and 6 below the card, which means the same value reads as a lit
+   * edge out on the page and as an ordinary shadow when a chip rests on a
+   * card. One token, both jobs, no special cases.
+   */
+  --lip: #251c4c;
+  --inset: #433a63; /* L* 27 — panels nested inside a sticker */
+  --track: #262040; /* L* 31 — empty meters and the jar glass */
+  --muted: #3c3459;
   --muted-foreground: var(--ink-soft);
 
   --primary: var(--violet);
-  --primary-foreground: #1b1430;
-  --primary-lip: #6f57d6;
-  --secondary: #282240;
-  --secondary-foreground: #f1edff;
-  --accent: #2b2543;
-  --accent-foreground: #f1edff;
-  --destructive: #ff7a9c;
+  --primary-foreground: #1c1230;
+  --primary-lip: #615597;
+  --secondary: #3c3459;
+  --secondary-foreground: #f4f0ff;
+  --accent: #433a63;
+  --accent-foreground: #f4f0ff;
+  --destructive: #ff8098;
 
-  --border: #322b4c;
-  --input: #3a3258;
-  --ring: #9b85ff;
+  --border: #54497a;
+  --input: #594d81;
+  --ring: var(--violet);
 
-  --shadow-soft: 0 12px 34px -14px rgb(0 0 0 / 0.75);
-  --page-glow-1: #241d43;
-  --page-glow-2: #33262f;
-  --page-glow-3: #16283a;
+  /*
+   * A black drop shadow is invisible against a near-black page, so the depth
+   * comes from the lip and this only has to soften the join. Violet rather
+   * than black, so it reads as the page's own colour deepening.
+   */
+  /* A gleam, not a blob; and a plate that reads as the night behind the
+     glass rather than a smudge on it. */
+  --jar-shine: 0.1;
+  --jar-plate: #1b1338;
+  --jar-plate-opacity: 0.82;
+
+  --shadow-soft: 0 14px 34px -18px rgb(8 4 26 / 0.9);
+  --page-glow-1: #2a1a63;
+  --page-glow-2: #3a1f4e;
+  --page-glow-3: #172a55;
 }
 
 @layer base {
@@ -412,33 +482,39 @@
     background: linear-gradient(180deg, var(--card) 0%, #fdf6ff 100%);
   }
 
+  /*
+   * Tints in the dark carry their own lip as well as their own wash. Every
+   * one of these used to share a single near-black lip, which meant a
+   * tinted sticker had no visible edge at all — the tint was decoration on
+   * a shape that had stopped looking like a sticker.
+   */
   .dark .tint-violet {
-    --lip: #100e1b;
-    background: linear-gradient(180deg, #262040 0%, var(--card) 100%);
+    --lip: #27223d;
+    background: linear-gradient(180deg, #373152 0%, var(--card) 100%);
   }
   .dark .tint-peach {
-    --lip: #100e1b;
-    background: linear-gradient(180deg, #2e2130 0%, var(--card) 100%);
+    --lip: #342216;
+    background: linear-gradient(180deg, #473122 0%, var(--card) 100%);
   }
   .dark .tint-grape {
-    --lip: #100e1b;
-    background: linear-gradient(180deg, #272044 0%, var(--card) 100%);
+    --lip: #27223d;
+    background: linear-gradient(180deg, #373152 0%, var(--card) 100%);
   }
   .dark .tint-mint {
-    --lip: #100e1b;
-    background: linear-gradient(180deg, #1c2f33 0%, var(--card) 100%);
+    --lip: #0b2b20;
+    background: linear-gradient(180deg, #153d2f 0%, var(--card) 100%);
   }
   .dark .tint-sky {
-    --lip: #100e1b;
-    background: linear-gradient(180deg, #1b2a3d 0%, var(--card) 100%);
+    --lip: #142834;
+    background: linear-gradient(180deg, #203948 0%, var(--card) 100%);
   }
   .dark .tint-berry {
-    --lip: #100e1b;
-    background: linear-gradient(180deg, #2c2040 0%, var(--card) 100%);
+    --lip: #2e2133;
+    background: linear-gradient(180deg, #403047 0%, var(--card) 100%);
   }
   .dark .tint-sun {
-    --lip: #100e1b;
-    background: linear-gradient(180deg, #2f2a1f 0%, var(--card) 100%);
+    --lip: #2f240e;
+    background: linear-gradient(180deg, #423418 0%, var(--card) 100%);
   }
 
   /* Small uppercase label — the app's "handwriting" */

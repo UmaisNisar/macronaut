@@ -76,9 +76,19 @@ export function EnergyBubble({
             <circle cx={CX} cy={CY} r={R} />
           </clipPath>
           <radialGradient id={`${uid}-plate`} cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="var(--card)" stopOpacity="0.92" />
-            <stop offset="68%" stopColor="var(--card)" stopOpacity="0.88" />
-            <stop offset="100%" stopColor="var(--card)" stopOpacity="0" />
+            <stop
+              offset="0%"
+              stopColor="var(--jar-plate)"
+              stopOpacity="var(--jar-plate-opacity)"
+            />
+            {/* Fades earlier than it used to, so the plate has no edge of
+                its own to read as a shape sitting on the liquid. */}
+            <stop
+              offset="55%"
+              stopColor="var(--jar-plate)"
+              stopOpacity="calc(var(--jar-plate-opacity) * 0.8)"
+            />
+            <stop offset="100%" stopColor="var(--jar-plate)" stopOpacity="0" />
           </radialGradient>
           <linearGradient id={`${uid}-liquid`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={tint.a} />
@@ -150,14 +160,16 @@ export function EnergyBubble({
             })}
         </g>
 
-        {/* glass shine — always light; it is a highlight, not a surface */}
+        {/* Glass shine. Still white — it is a highlight, not a surface —
+            but far fainter after dark, where 40% white on a near-black jar
+            stopped being a gleam and became a grey thumbprint. */}
         <ellipse
           cx={CX - 34}
           cy={CY - 44}
           rx={16}
           ry={26}
           fill="#ffffff"
-          opacity="0.4"
+          opacity="var(--jar-shine)"
           transform={`rotate(-24 ${CX - 34} ${CY - 44})`}
         />
 

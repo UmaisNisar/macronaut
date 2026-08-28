@@ -38,7 +38,7 @@ export function NavRail() {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "relative flex w-[74px] flex-col items-center gap-1 rounded-2xl py-3 transition-colors",
-                  active ? "text-white" : "text-[var(--ink-soft)] hover:text-[var(--ink)]",
+                  active ? "text-[var(--on-candy)]" : "text-[var(--ink-soft)] hover:text-[var(--ink)]",
                 )}
               >
                 {active && (
@@ -96,7 +96,7 @@ export function NavDock() {
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "relative flex min-h-[54px] flex-col items-center justify-center gap-0.5 rounded-3xl px-1 transition-colors",
-                    active ? "text-white" : "text-[var(--ink-soft)]",
+                    active ? "text-[var(--on-candy)]" : "text-[var(--ink-soft)]",
                   )}
                 >
                   {active && (
