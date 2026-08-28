@@ -355,12 +355,17 @@ export function createSupabaseStore(sb: SupabaseClient): DataStore {
 
     async bumpAiUsage(_userId, dateIso, kind) {
       // The user comes from auth.uid() inside the function, not from us.
-      const { data, error } = await sb.rpc("bump_ai_usage", {
+      const { data, error } = await sb.rpc("bump_ai_usage_totals", {
         p_kind: kind,
         p_date: dateIso,
       });
       if (error) fail("record ai usage", error);
-      return typeof data === "number" ? data : 0;
+      // A set-returning function comes back as an array of one row.
+      const row = Array.isArray(data) ? data[0] : data;
+      return {
+        user: Number(row?.user_count ?? 0),
+        global: Number(row?.global_count ?? 0),
+      };
     },
 
     async savePushSubscription(userId, sub) {

@@ -38,6 +38,42 @@ const nextConfig: NextConfig = {
     // occasional very busy photo that compresses badly.
     serverActions: { bodySizeLimit: "4mb" },
   },
+
+  /*
+   * The headers that should cover everything, including the static files the
+   * proxy deliberately skips. The Content-Security-Policy is not here — it
+   * carries a per-request nonce, so it has to be built in the proxy.
+   *
+   * Vercel already sends Strict-Transport-Security, so it is not repeated.
+   */
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          // A .json or .txt served as text/html is how a stored file becomes
+          // stored XSS. Never let the browser guess.
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          // frame-ancestors already covers this for modern browsers; this is
+          // the same instruction for the ones that only understand the old
+          // header, and costs nothing.
+          { key: "X-Frame-Options", value: "DENY" },
+          // Full URLs of a food diary have no business on other people's
+          // servers. Same-origin requests still get the path.
+          { key: "Referrer-Policy", value: "same-origin" },
+          // The camera is used for barcodes and nothing else needs hardware.
+          {
+            key: "Permissions-Policy",
+            value:
+              "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+          },
+          // Keeps this origin out of other sites' fetches and prerenders.
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

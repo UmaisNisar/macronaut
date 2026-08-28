@@ -7,6 +7,7 @@ import {
   CredentialsInput,
   EditFoodInput,
   RepeatFoodInput,
+  UndoLogInput,
   LogBarcodeInput,
   PushSubscriptionInput,
   ReminderSettingsInput,
@@ -309,7 +310,7 @@ export async function logFoodAction(
 
   const budget = await consumeAiBudget(
     store,
-    profile.id,
+    { id: profile.id, email: profile.email },
     await userToday(),
     "food",
   );
@@ -427,7 +428,7 @@ export async function logFoodPhotoAction(
 
   const budget = await consumeAiBudget(
     store,
-    profile.id,
+    { id: profile.id, email: profile.email },
     await userToday(),
     "photo",
   );
@@ -525,7 +526,12 @@ export async function logBarcodeAction(
   const { profile, store } = ctx;
   const { code, date } = parsed.data;
 
-  const budget = await consumeAiBudget(store, profile.id, await userToday(), "food");
+  const budget = await consumeAiBudget(
+    store,
+    { id: profile.id, email: profile.email },
+    await userToday(),
+    "food",
+  );
   if (!budget.ok) return fail(budget.message);
 
   const found = await lookupBarcode(code);
@@ -662,7 +668,12 @@ export async function reanalyseFoodAction(
     return fail("Momo's AI is not configured, so there is nothing better to try.");
   }
 
-  const budget = await consumeAiBudget(store, profile.id, await userToday(), "food");
+  const budget = await consumeAiBudget(
+    store,
+    { id: profile.id, email: profile.email },
+    await userToday(),
+    "food",
+  );
   if (!budget.ok) return fail(budget.message);
 
   const described =
@@ -723,7 +734,7 @@ export async function reanalyseFoodAction(
 
 export async function repeatFoodAction(
   raw: unknown,
-): Promise<ActionResult<{ day: DailyLog; entries: FoodEntry[] }>> {
+): Promise<ActionResult<{ day: DailyLog; entries: FoodEntry[]; added: FoodEntry[] }>> {
   const ctx = await withProfile();
   if (!ctx.ok) return fail(ctx.error);
 
@@ -736,7 +747,7 @@ export async function repeatFoodAction(
   const source = await store.getFoodEntry(profile.id, sourceId);
   if (!source) return fail("That food is no longer in your log.");
 
-  await store.insertFoodEntries([
+  const added = await store.insertFoodEntries([
     {
       userId: profile.id,
       logDate: date,
@@ -768,7 +779,7 @@ export async function repeatFoodAction(
   await refreshAchievements(store, profile, await userToday());
 
   revalidateApp();
-  return { ok: true, day, entries };
+  return { ok: true, day, entries, added };
 }
 
 export async function updateFoodAction(
@@ -823,6 +834,47 @@ export async function updateFoodAction(
     updated.logDate,
     updated.logDate,
   );
+
+  revalidateApp();
+  return { ok: true, day, entries };
+}
+
+/**
+ * Take back the entries a single log just created.
+ *
+ * Logging is one tap and the model is sometimes wrong, so the cost of a
+ * mistake used to be: notice it, find the item, open it, delete it. This
+ * makes it one tap back. Only ever called with ids the client was just
+ * handed, and the store scopes every delete to the owner, so a guessed id
+ * belonging to someone else deletes nothing.
+ *
+ * Missing ids are not an error. Undo races with the user deleting the same
+ * entry by hand, and both outcomes are the one they asked for.
+ */
+export async function undoLogAction(
+  raw: unknown,
+): Promise<ActionResult<{ day: DailyLog; entries: FoodEntry[] }>> {
+  const ctx = await withProfile();
+  if (!ctx.ok) return fail(ctx.error);
+
+  const parsed = UndoLogInput.safeParse(raw);
+  if (!parsed.success) return fail("That could not be undone.");
+
+  const { profile, store } = ctx;
+  const { ids, date } = parsed.data;
+
+  for (const id of ids) {
+    await store.deleteFoodEntry(profile.id, id);
+  }
+
+  const goals = await store.listGoalSnapshots(profile.id);
+  const day = await recomputeDay(
+    store,
+    profile.id,
+    date,
+    targetsForDate(goals, profile, date),
+  );
+  const entries = await store.listFoodEntries(profile.id, date, date);
 
   revalidateApp();
   return { ok: true, day, entries };
@@ -896,7 +948,7 @@ export async function ensureDailyCoachAction(
 
   const budget = await consumeAiBudget(
     store,
-    profile.id,
+    { id: profile.id, email: profile.email },
     await userToday(),
     "coach",
   );
@@ -1021,7 +1073,7 @@ export async function ensureWeightCoachAction(
 
   const budget = await consumeAiBudget(
     store,
-    profile.id,
+    { id: profile.id, email: profile.email },
     await userToday(),
     "coach",
   );

@@ -150,6 +150,19 @@ async function startServer() {
 }
 
 /**
+ * The calorie total currently on screen.
+ *
+ * Read from the page rather than the database on purpose: what matters is
+ * that the number a person is looking at changed, not that a row moved.
+ */
+async function total(page) {
+  return page.evaluate(() => {
+    const m = document.body.innerText.match(/([\d,]+)\s*\/\s*([\d,]+)/);
+    return m ? Number(m[1].replace(/,/g, "")) : 0;
+  });
+}
+
+/**
  * Walk the onboarding wizard so the rest of the suite has a real profile.
  *
  * Waits on state rather than the clock. Fixed sleeps made this flaky the moment
@@ -338,6 +351,17 @@ try {
       timeout: 60000,
     })
     .catch(() => {});
+
+  // Checked before the reload, because the card only exists until then.
+  check(
+    "the reveal card offers an undo",
+    await page
+      .getByRole("button", { name: /^Undo/ })
+      .first()
+      .isVisible()
+      .catch(() => false),
+  );
+
   await page.reload({ waitUntil: "networkidle" });
   await page.waitForTimeout(1500);
 
@@ -362,6 +386,65 @@ try {
     afterRepeat > afterLog,
     `${afterLog} -> ${afterRepeat}`,
   );
+
+  /* ---------------------------------------------------------------- */
+  section("Undo (a one-tap log needs a one-tap way back)");
+  // Driven through a repeat rather than a fresh description: it exercises
+  // the same undo action and costs no model call, and the free tier has
+  // few enough of those that a test suite should not spend them twice.
+  const beforeUndo = await total(page);
+  await chips.first().click();
+
+  const undoButton = page
+    .locator("[data-sonner-toast] button")
+    .filter({ hasText: /^Undo$/ })
+    .first();
+  const offered = await undoButton
+    .waitFor({ state: "visible", timeout: 15000 })
+    .then(() => true)
+    .catch(() => false);
+  check("logging offers to undo itself", offered);
+
+  // Wait for the number on screen to actually move before undoing it.
+  // Reading it the instant the toast appears catches the page mid-refresh, and
+  // then "undo restored the total" passes because nothing ever changed —
+  // a green tick for a test that checked nothing.
+  await page
+    .waitForFunction(
+      (was) => {
+        const m = document.body.innerText.match(/([\d,]+)\s*\/\s*([\d,]+)/);
+        return m ? Number(m[1].replace(/,/g, "")) > was : false;
+      },
+      beforeUndo,
+      { timeout: 6000 },
+    )
+    .catch(() => {});
+
+  const withExtra = await total(page);
+  const landed = withExtra > beforeUndo;
+  check(
+    "the repeat landed before undoing it",
+    landed,
+    `${beforeUndo} -> ${withExtra}`,
+  );
+
+  if (offered && landed) {
+    await undoButton.click();
+    await page
+      .waitForFunction(() => /Took back/i.test(document.body.innerText), null, {
+        timeout: 15000,
+      })
+      .catch(() => {});
+    await page.reload({ waitUntil: "networkidle" });
+    await page.waitForTimeout(1200);
+
+    const undone = await total(page);
+    check(
+      "undo puts the calories back where they were",
+      undone === beforeUndo,
+      `${withExtra} -> ${undone}, expected ${beforeUndo}`,
+    );
+  }
 
   /* ---------------------------------------------------------------- */
   section("Offline outbox (regressed once: every meal logged twice)");
@@ -710,6 +793,72 @@ try {
     (deskLayout?.hintWidth ?? 0) > 250,
     `${Math.round(deskLayout?.hintWidth ?? 0)}px`,
   );
+
+  /* ---------------------------------------------------------------- */
+  section("Security headers");
+  // A CSP is only worth having if the app still runs under it, and the way it
+  // fails is quiet: one blocked inline script and a feature stops working with
+  // nothing on screen to say why. So this asserts the policy is strict *and*
+  // that walking the app produces no violations.
+  const secCtx = await browser.newContext(phone);
+  const secPage = await secCtx.newPage();
+  const cspViolations = [];
+  secPage.on("console", (m) => {
+    if (/violates the following Content Security Policy/i.test(m.text())) {
+      cspViolations.push(m.text().slice(0, 140));
+    }
+  });
+
+  const headRes = await secPage.goto(`${SITE}/today`, {
+    waitUntil: "domcontentloaded",
+  });
+  const sent = headRes?.headers() ?? {};
+  const csp = sent["content-security-policy"] ?? "";
+
+  check("a Content-Security-Policy is sent", csp.length > 0);
+  check(
+    "it carries a per-request nonce",
+    /'nonce-[a-f0-9]{16,}'/.test(csp),
+    csp.slice(0, 80),
+  );
+  check(
+    "script-src does not allow inline script",
+    csp.includes("script-src") && !/script-src[^;]*'unsafe-inline'/.test(csp),
+    csp.match(/script-src[^;]*/)?.[0] ?? "no script-src",
+  );
+  check(
+    "the page cannot be framed",
+    /frame-ancestors 'none'/.test(csp) && sent["x-frame-options"] === "DENY",
+  );
+  check("content types are not sniffed", sent["x-content-type-options"] === "nosniff");
+  check(
+    "referrers do not leak the path off-site",
+    (sent["referrer-policy"] ?? "").length > 0,
+    sent["referrer-policy"] ?? "missing",
+  );
+
+  // Two nonces from two requests must differ, or it is not a nonce.
+  const second = await secPage.goto(`${SITE}/progress`, {
+    waitUntil: "domcontentloaded",
+  });
+  const csp2 = second?.headers()["content-security-policy"] ?? "";
+  check(
+    "the nonce is fresh on every request",
+    csp2.length > 0 &&
+      csp.match(/'nonce-([a-f0-9]+)'/)?.[1] !==
+        csp2.match(/'nonce-([a-f0-9]+)'/)?.[1],
+  );
+
+  for (const path of ["/today", "/journal", "/insights", "/profile", "/history"]) {
+    await secPage.goto(`${SITE}${path}`, { waitUntil: "networkidle" });
+    await secPage.waitForTimeout(700);
+  }
+  check(
+    "the app runs clean under its own policy",
+    cspViolations.length === 0,
+    cspViolations.slice(0, 2).join(" | "),
+  );
+  await secCtx.close();
 
   /* ---------------------------------------------------------------- */
   section("Service worker and offline page");

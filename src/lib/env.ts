@@ -31,6 +31,32 @@ export const geminiModel =
  *
  * Comma-separated. Set to an empty string to disable fallback entirely.
  */
+/**
+ * A ceiling on model calls across every account, per day.
+ *
+ * Signups are open, which means the daily allowance in AI_DAILY_LIMITS
+ * bounds what one person can spend and nothing at all about what fifty
+ * people can. This is the number that does.
+ *
+ * Set well above real use: a handful of people logging normally will not
+ * come near it, and a script creating accounts will hit it quickly.
+ */
+export const aiGlobalDailyLimit = Number(
+  process.env.MACRONAUT_AI_GLOBAL_DAILY_LIMIT?.trim() || "400",
+);
+
+/**
+ * Accounts served even after the shared ceiling above is reached.
+ *
+ * Comma-separated email addresses. Without this a stranger could lock the
+ * owner out of their own app simply by spending the pool, which trades one
+ * problem for a worse one.
+ */
+export const aiPriorityEmails = (process.env.MACRONAUT_AI_PRIORITY_EMAILS ?? "")
+  .split(",")
+  .map((e) => e.trim())
+  .filter(Boolean);
+
 export const geminiFallbackModels = (
   process.env.GEMINI_FALLBACK_MODELS ??
   "gemini-3.6-flash,gemini-3.5-flash,gemini-2.5-flash-lite,gemini-3.5-flash-lite,gemini-3.1-flash-lite"

@@ -42,6 +42,15 @@ export type FoodCorrection = {
 };
 
 /** One place decides what counts as "the same food". */
+/**
+ * What one recorded call cost, from two angles.
+ *
+ * `user` is this account's running total for the day. `global` is every
+ * account's, for the kinds that actually reach a model — the number that
+ * says whether the service as a whole is being drained.
+ */
+export type AiUsageCounts = { user: number; global: number };
+
 export function foodKey(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -137,7 +146,11 @@ export interface DataStore {
    * Atomic on purpose: read-then-write would let concurrent requests both see
    * the same count and walk straight past the limit.
    */
-  bumpAiUsage(userId: string, dateIso: Iso, kind: AiKind): Promise<number>;
+  bumpAiUsage(
+    userId: string,
+    dateIso: Iso,
+    kind: AiKind,
+  ): Promise<AiUsageCounts>;
 
   /* diagnostics ---------------------------------------------------- */
   /** Best-effort. Reporting a failure must never itself throw. */

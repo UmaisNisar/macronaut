@@ -2,6 +2,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata, Viewport } from "next";
 import { Fredoka, Nunito } from "next/font/google";
+import { headers } from "next/headers";
 
 import { CelebrationProvider } from "@/components/celebrate/celebration";
 import { ThemeProvider } from "@/components/shell/theme-provider";
@@ -57,7 +58,11 @@ export const viewport: Viewport = {
   // Pinch-zoom stays enabled; iOS focus-zoom is handled with 16px inputs.
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Set by the proxy, one per request. Everything Next renders itself is
+  // stamped automatically; this is for the one script it does not own.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html
       lang="en"
@@ -65,7 +70,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
     >
       <body className="min-h-full">
-        <ThemeProvider>
+        <ThemeProvider nonce={nonce}>
           <CelebrationProvider>{children}</CelebrationProvider>
         </ThemeProvider>
         <ServiceWorkerRegistrar />

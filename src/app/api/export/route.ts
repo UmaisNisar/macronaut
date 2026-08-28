@@ -53,7 +53,12 @@ export async function GET(request: Request) {
   const today = await userToday();
 
   // Bounded per account: this rebuilds an entire history on every call.
-  const budget = await consumeAiBudget(store, profile.id, today, "export");
+  const budget = await consumeAiBudget(
+    store,
+    { id: profile.id, email: profile.email },
+    today,
+    "export",
+  );
   if (!budget.ok) {
     return NextResponse.json({ error: budget.message }, { status: 429 });
   }

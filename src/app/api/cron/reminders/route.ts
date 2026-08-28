@@ -23,12 +23,40 @@ import { buildPeriodReport } from "@/server/core";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+/**
+ * Compare without leaking length or position through timing.
+ *
+ * The practical risk of a plain !== over HTTP is small, but this endpoint
+ * holds the service-role client and can notify every device on the service,
+ * so it is not the place to be relaxed about it.
+ */
+function secretMatches(header: string | null, secret: string): boolean {
+  const expected = new TextEncoder().encode(`Bearer ${secret}`);
+  const actual = new TextEncoder().encode(header ?? "");
+  // Fold the length difference in rather than returning early on it.
+  let diff = expected.length ^ actual.length;
+  for (let i = 0; i < expected.length; i++) {
+    diff |= expected[i] ^ (actual[i] ?? 0);
+  }
+  return diff === 0;
+}
+
 export async function GET(request: Request) {
-  // Vercel signs cron invocations; without this the endpoint is a free way to
-  // make someone's phone buzz.
-  const secret = process.env.CRON_SECRET;
-  const auth = request.headers.get("authorization");
-  if (secret && auth !== `Bearer ${secret}`) {
+  /*
+   * Vercel signs cron invocations; without this the endpoint is a free way to
+   * make someone's phone buzz, and to spend model quota writing reports.
+   *
+   * Fails closed. This used to skip the check entirely when CRON_SECRET was
+   * unset, which meant the one deployment most likely to be misconfigured —
+   * a preview, a fresh environment, a variable someone deleted — was also the
+   * one that answered to anybody.
+   */
+  const secret = process.env.CRON_SECRET?.trim();
+  if (!secret) {
+    console.warn("[macronaut] reminder cron refused: CRON_SECRET is not set");
+    return NextResponse.json({ error: "Not configured." }, { status: 503 });
+  }
+  if (!secretMatches(request.headers.get("authorization"), secret)) {
     return NextResponse.json({ error: "Not authorised." }, { status: 401 });
   }
 

@@ -39,7 +39,12 @@ export async function POST(request: Request) {
   const store = await getStore();
 
   // A crash loop on one device should not be able to write all night.
-  const budget = await consumeAiBudget(store, session.userId, await userToday(), "error");
+  const budget = await consumeAiBudget(
+    store,
+    { id: session.userId, email: session.email },
+    await userToday(),
+    "error",
+  );
   if (!budget.ok) return NextResponse.json({ ok: false }, { status: 429 });
 
   await store.recordError(session.userId, {

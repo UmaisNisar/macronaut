@@ -1,5 +1,6 @@
 import "server-only";
 
+import { aiGlobalDailyLimit, aiPriorityEmails } from "@/lib/env";
 import type { AiKind, DataStore } from "@/lib/db/store";
 import type { Iso } from "@/lib/date";
 
@@ -42,6 +43,32 @@ export type BudgetResult =
   | { ok: true; used: number; limit: number }
   | { ok: false; message: string };
 
+/** Kinds that actually reach a model, and so count towards the shared pool. */
+const MODEL_KINDS: ReadonlySet<AiKind> = new Set<AiKind>([
+  "food",
+  "photo",
+  "coach",
+  "report",
+]);
+
+/**
+ * Whose calls are served even when the shared pool is gone.
+ *
+ * A global ceiling turns "a stranger can spend the owner's money" into "a
+ * stranger can lock the owner out", which is a worse trade if it is the whole
+ * answer. Listing the accounts that must always work removes that: everyone
+ * else shares what is left.
+ *
+ * Matched on email rather than id so it can be set without looking a UUID up
+ * in the database, and compared case-insensitively because that is how people
+ * type their own address.
+ */
+function isPriority(email: string | null): boolean {
+  if (!email) return false;
+  const wanted = email.trim().toLowerCase();
+  return aiPriorityEmails.some((e) => e.toLowerCase() === wanted);
+}
+
 /**
  * Record one call and say whether it was within budget.
  *
@@ -52,15 +79,15 @@ export type BudgetResult =
  */
 export async function consumeAiBudget(
   store: DataStore,
-  userId: string,
+  user: { id: string; email: string | null },
   dateIso: Iso,
   kind: AiKind,
 ): Promise<BudgetResult> {
   const limit = AI_DAILY_LIMITS[kind];
 
-  let used: number;
+  let counts: { user: number; global: number };
   try {
-    used = await store.bumpAiUsage(userId, dateIso, kind);
+    counts = await store.bumpAiUsage(user.id, dateIso, kind);
   } catch (error) {
     // Never let the meter itself break logging. Failing open is the right call
     // for a personal app: a broken counter should not stop you eating.
@@ -68,12 +95,34 @@ export async function consumeAiBudget(
     return { ok: true, used: 0, limit };
   }
 
-  if (used > limit) {
+  if (counts.user > limit) {
     return {
       ok: false,
       message: `That is ${limit} ${FRIENDLY[kind]} today, which is the daily limit. It resets tomorrow.`,
     };
   }
 
-  return { ok: true, used, limit };
+  /*
+   * The shared ceiling, checked second so a person who is over their own
+   * allowance is told that rather than being blamed for everyone else.
+   *
+   * Refusing here is not a dead end: food falls through to the built-in
+   * estimator and coaching to templates, so the app keeps working — it just
+   * stops being clever until tomorrow.
+   */
+  if (
+    MODEL_KINDS.has(kind) &&
+    counts.global > aiGlobalDailyLimit &&
+    !isPriority(user.email)
+  ) {
+    return {
+      ok: false,
+      message:
+        "Macronaut has used up its shared AI allowance for today. Your meal " +
+        "still gets logged from the built-in estimates, and the model is back " +
+        "tomorrow.",
+    };
+  }
+
+  return { ok: true, used: counts.user, limit };
 }

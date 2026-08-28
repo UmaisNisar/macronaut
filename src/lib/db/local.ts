@@ -213,10 +213,28 @@ export function createLocalStore(): DataStore {
         );
         if (row) {
           row.count += 1;
-          return row.count;
+        } else {
+          rows.push({ userId, usageDate: dateIso, kind, count: 1 });
         }
-        rows.push({ userId, usageDate: dateIso, kind, count: 1 });
-        return 1;
+
+        // Solo mode has exactly one pilot, so the global total is that
+        // pilot's. Computed the same way regardless, so the two stores
+        // cannot drift in what the number means.
+        const MODEL_KINDS = ["food", "photo", "coach", "report"];
+        return {
+          user:
+            rows.find(
+              (r) =>
+                r.userId === userId &&
+                r.usageDate === dateIso &&
+                r.kind === kind,
+            )?.count ?? 0,
+          global: rows
+            .filter(
+              (r) => r.usageDate === dateIso && MODEL_KINDS.includes(r.kind),
+            )
+            .reduce((a, r) => a + r.count, 0),
+        };
       });
     },
 

@@ -214,6 +214,20 @@ export const RepeatFoodInput = z.object({
 });
 export type RepeatFoodInput = z.infer<typeof RepeatFoodInput>;
 
+/**
+ * Taking back a log that just happened.
+ *
+ * A list, because one sentence can produce several entries and undoing
+ * half a meal would be worse than not offering it. Capped well above any
+ * real meal: a request with hundreds of ids is not a person changing their
+ * mind.
+ */
+export const UndoLogInput = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(50),
+  date: IsoDate,
+});
+export type UndoLogInput = z.infer<typeof UndoLogInput>;
+
 export const LogFoodInput = z.object({
   text: z.string().trim().min(2, "Tell me what you ate.").max(2000),
   date: IsoDate,
