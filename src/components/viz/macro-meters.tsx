@@ -1,10 +1,12 @@
 "use client";
 
+import type React from "react";
+
 import { motion, useReducedMotion } from "motion/react";
 
 import { clamp } from "@/lib/nutrition";
 import { AnimatedNumber } from "@/components/viz/animated-number";
-import { EASE, SPRING } from "@/lib/motion";
+import { SPRING } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 export type MacroKind = "protein" | "carbs" | "fat" | "fiber" | "sugar";
@@ -118,24 +120,30 @@ export function MacroMeters({
                 className="relative h-3.5 overflow-hidden rounded-full"
                 style={{ background: style.soft }}
               >
-                <motion.div
-                  className="relative h-full rounded-full"
-                  style={{
-                    background: over
-                      ? `linear-gradient(90deg, ${style.color}, var(--peach))`
-                      : `linear-gradient(90deg, color-mix(in oklab, ${style.color} 62%, var(--card)), ${style.color})`,
-                  }}
-                  initial={reduce ? false : { width: 0 }}
-                  animate={{ width: `${Math.max(pct * 100, row.value > 0 ? 7 : 0)}%` }}
-                  transition={{
-                    duration: 0.9,
-                    delay: reduce ? 0 : 0.15 + index * 0.09,
-                    ease: EASE.glide,
-                  }}
+                {/*
+                  Scaled, not widened. `width` is a layout property and the
+                  browser re-runs layout for the subtree on every frame of
+                  every bar; a transform never touches layout at all.
+
+                  The gradient looks identical either way: it spans the
+                  element and is scaled with it, exactly as it used to be
+                  scaled by the element being narrower.
+                */}
+                <div
+                  className="meter-fill relative h-full w-full rounded-full"
+                  style={
+                    {
+                      background: over
+                        ? `linear-gradient(90deg, ${style.color}, var(--peach))`
+                        : `linear-gradient(90deg, color-mix(in oklab, ${style.color} 62%, var(--card)), ${style.color})`,
+                      "--fill": Math.max(pct, row.value > 0 ? 0.07 : 0),
+                      "--fill-delay": `${150 + index * 90}ms`,
+                    } as React.CSSProperties
+                  }
                 >
                   {/* gloss */}
                   <span className="absolute inset-x-1 top-[3px] h-[3px] rounded-full bg-white/35" />
-                </motion.div>
+                </div>
               </div>
             </div>
           </div>

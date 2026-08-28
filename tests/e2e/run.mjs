@@ -1012,6 +1012,58 @@ try {
   await secCtx.close();
 
   /* ---------------------------------------------------------------- */
+  section("Meters fill without waiting for JavaScript");
+  /*
+   * The bars used to be animated from an effect, which meant they could not
+   * start until React had hydrated twelve hundred nodes. On a throttled
+   * phone they measured still empty at nine hundred milliseconds, sitting
+   * next to their own numbers, which the server had already rendered.
+   *
+   * Now the whole thing is declarative, so it runs on the first painted
+   * frame. These check the mechanism rather than the look, because the look
+   * is identical either way and only the mechanism can regress.
+   */
+  const rawHtml = await (await fetch(`${SITE}/today`)).text();
+  check(
+    "the fill level is in the server HTML",
+    /--fill:\s*[0-9.]+/.test(rawHtml) && rawHtml.includes("meter-fill"),
+  );
+
+  // Its own context: the contexts opened earlier have been closed by now.
+  const meterCtx = await browser.newContext(phone);
+  const meterPage = await meterCtx.newPage();
+  await meterPage.goto(`${SITE}/today`, { waitUntil: "networkidle" });
+  await meterPage.waitForTimeout(1800);
+
+  const meter = await meterPage.evaluate(() => {
+    const el = document.querySelector(".meter-fill");
+    if (!el) return null;
+    const cs = getComputedStyle(el);
+    const track = el.parentElement;
+    return {
+      animationName: cs.animationName,
+      transform: cs.transform,
+      // The element itself stays full width; only the transform is scaled.
+      fullWidth: Math.abs(el.offsetWidth - track.clientWidth) <= 1,
+      inlineWidth: el.style.width,
+    };
+  });
+  await meterCtx.close();
+  check("there is a meter to look at", Boolean(meter));
+  if (meter) {
+    check(
+      "it is driven by a CSS animation, not a script",
+      meter.animationName === "meter-fill",
+      meter.animationName,
+    );
+    check(
+      "it scales rather than resizing",
+      meter.fullWidth && !meter.inlineWidth && meter.transform.startsWith("matrix"),
+      `width ${meter.inlineWidth || "(none)"} transform ${meter.transform.slice(0, 24)}`,
+    );
+  }
+
+  /* ---------------------------------------------------------------- */
   section("Dark mode (it was one flat value before)");
   // The dark theme's problem was never the hue. Card against page measured
   // 1.09 and the sticker lip 1.03, so the cut-out edge the whole design

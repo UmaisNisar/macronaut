@@ -406,6 +406,46 @@
    * The sticker: the one surface in the app. A card with a solid coloured lip
    * underneath so it reads as a physical cut-out rather than a flat panel.
    */
+  /*
+   * A meter filling up.
+   *
+   * Declarative on purpose: no JavaScript is involved, so it begins on the
+   * very first painted frame rather than waiting for React to hydrate a
+   * twelve-hundred-node page. Driving it from an effect meant that on a
+   * throttled phone the bars still sat empty at nine hundred milliseconds,
+   * next to their own numbers, which had rendered from the server
+   * immediately. Nothing looks more broken than a full label on an empty
+   * bar.
+   *
+   * `backwards` rather than `both`: the bar holds at zero through its
+   * stagger delay, animates, and then hands control back to the base style
+   * — which is the same value, so nothing moves. That handover is what lets
+   * the transition below take over afterwards, so a meter that changes
+   * because you logged something glides instead of jumping.
+   */
+  @keyframes meter-fill {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(var(--fill));
+    }
+  }
+
+  .meter-fill {
+    transform-origin: left;
+    transform: scaleX(var(--fill));
+    transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+    animation: meter-fill 900ms cubic-bezier(0.22, 1, 0.36, 1)
+      var(--fill-delay, 0ms) backwards;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .meter-fill {
+      animation: none;
+    }
+  }
+
   .sticker {
     position: relative;
     background: var(--card);
