@@ -9,10 +9,20 @@ import { reportBoundaryError } from "@/components/shell/error-reporter";
 
 export default function AppError({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  /*
+   * retry(), not reset().
+   *
+   * Next 16 added retry() and the two are not interchangeable: retry()
+   * re-fetches and re-renders the boundary's children, while reset() — which
+   * this used — clears the error state and re-renders *without* re-fetching.
+   * So when a page failed on a shaky connection, "Try again" re-rendered the
+   * same dead payload and appeared to do nothing at all, even once the
+   * connection was back. The docs now say to prefer retry() in most cases.
+   */
+  retry: () => void;
 }) {
   useEffect(() => {
     console.error("Macronaut route error:", error);
@@ -31,7 +41,7 @@ export default function AppError({
       {error.digest ? (
         <p className="label-cute mt-3 text-[0.55rem]">ref {error.digest}</p>
       ) : null}
-      <Button onClick={reset} className="mt-5">
+      <Button onClick={() => retry()} className="mt-5">
         <RotateCw className="size-4" />
         Try again
       </Button>
