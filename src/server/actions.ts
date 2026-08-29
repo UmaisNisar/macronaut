@@ -1298,6 +1298,58 @@ export async function logWeightAction(
     await store.patchProfile(profile.id, { currentWeightKg: round(weightKg, 2) });
   }
 
+  /*
+   * Re-target on the way past.
+   *
+   * BMR is mostly a function of body mass, so the calorie target that
+   * produces a given weekly loss falls as you get lighter. Nothing used to
+   * move it: targets came from a goal snapshot written only at onboarding
+   * and when the plan was saved by hand, so the number stayed pinned to
+   * whatever you weighed on the day you last opened the profile page. It
+   * drifts generous exactly as you succeed, which is the classic stall.
+   *
+   * Only for a reading that is now the newest one — back-filling last
+   * Tuesday should not move today's plan — and only when the recomputed
+   * calories actually differ, so a run of identical weigh-ins does not lay
+   * down a snapshot a day.
+   *
+   * Today forward only. `targetsForDate` picks the snapshot in force on a
+   * given day, so days already logged keep the plan they were scored
+   * against; this writes one effective from today and re-scores today,
+   * exactly as saving the plan by hand does.
+   */
+  const isNewest = !latest || latest.loggedOn <= date;
+  if (isNewest) {
+    const today = await userToday();
+    const current = await store.listGoalSnapshots(profile.id);
+    const inForce = targetsForDate(current, profile, today);
+    const retuned = computeTargets({
+      age: profile.age,
+      gender: profile.gender,
+      heightCm: profile.heightCm,
+      weightKg: round(weightKg, 2),
+      targetWeightKg: profile.targetWeightKg,
+      weeklyLossKg: profile.weeklyLossKg,
+      activityLevel: profile.activityLevel,
+    });
+
+    if (retuned.calories !== inForce.calories) {
+      await store.insertGoalSnapshot({
+        userId: profile.id,
+        effectiveFrom: today,
+        age: profile.age,
+        gender: profile.gender,
+        heightCm: profile.heightCm,
+        weightKg: round(weightKg, 2),
+        targetWeightKg: profile.targetWeightKg,
+        weeklyLossKg: profile.weeklyLossKg,
+        activityLevel: profile.activityLevel,
+        targets: retuned,
+      });
+      await recomputeDay(store, profile.id, today, retuned);
+    }
+  }
+
   const unlockedKeys = await refreshAchievements(
     store,
     { ...profile, currentWeightKg: round(weightKg, 2) },

@@ -60,9 +60,14 @@ export function EnergyBubble({
   const surfaceY = BOTTOM - level * (BOTTOM - TOP);
   const remaining = Math.round(target - calories);
 
+  /*
+   * Tokens, not hex. These were the daylight peaches in both themes, and
+   * after dark the surface colour was a near-white cream that made the jar
+   * the brightest object on the page. Each theme now supplies its own.
+   */
   const tint = over
-    ? { a: "#FFB07A", b: "#FF8A5C", glow: "#FF9A5C" }
-    : { a: "#FFD9A8", b: "#FF9A5C", glow: "#FFB877" };
+    ? { a: "var(--jar-liquid-a-over)", b: "var(--jar-liquid-b-over)" }
+    : { a: "var(--jar-liquid-a)", b: "var(--jar-liquid-b)" };
 
   return (
     <div
@@ -83,12 +88,21 @@ export function EnergyBubble({
               stopColor="var(--jar-plate)"
               stopOpacity="var(--jar-plate-opacity)"
             />
-            {/* Fades earlier than it used to, so the plate has no edge of
-                its own to read as a shape sitting on the liquid. */}
+            {/*
+              Three stops on the way out rather than one. A single mid-stop
+              left a straight ramp whose start was visible as a faint disc
+              edge sitting on the liquid; easing it out gives the plate no
+              border of its own to read as a shape.
+            */}
             <stop
-              offset="55%"
+              offset="42%"
               stopColor="var(--jar-plate)"
-              stopOpacity="calc(var(--jar-plate-opacity) * 0.8)"
+              stopOpacity="calc(var(--jar-plate-opacity) * 0.94)"
+            />
+            <stop
+              offset="70%"
+              stopColor="var(--jar-plate)"
+              stopOpacity="calc(var(--jar-plate-opacity) * 0.6)"
             />
             <stop offset="100%" stopColor="var(--jar-plate)" stopOpacity="0" />
           </radialGradient>
@@ -129,7 +143,7 @@ export function EnergyBubble({
             <motion.path
               d={wavePath(0, 5, 88)}
               fill={`url(#${uid}-liquid)`}
-              stroke="var(--card)"
+              stroke="var(--jar-meniscus)"
               strokeWidth={2.5}
               strokeOpacity={0.65}
               initial={false}
@@ -150,7 +164,7 @@ export function EnergyBubble({
                   cx={x}
                   cy={BOTTOM - 6}
                   r={r}
-                  fill="#fff"
+                  fill="var(--jar-bubble)"
                   opacity={0}
                   className="jar-bubble"
                   style={
@@ -168,8 +182,8 @@ export function EnergyBubble({
         </g>
 
         {/* Glass shine. Still white — it is a highlight, not a surface —
-            but far fainter after dark, where 40% white on a near-black jar
-            stopped being a gleam and became a grey thumbprint. */}
+            but far fainter after dark, where even a tenth of white over the
+            empty jar read as a grey thumbprint rather than a gleam. */}
         <ellipse
           cx={CX - 34}
           cy={CY - 44}
@@ -222,13 +236,13 @@ export function EnergyBubble({
       </svg>
 
       {/* readout */}
-      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+      <div className="jar-readout pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
         {/*
           Three states, not two. Landing on target used to read as "still
           got 40 kcal left", which is technically true and says nothing
           about having arrived where you were aiming.
         */}
-        <span className="label-cute text-[0.65rem]">
+        <span className="label-cute text-[0.65rem] text-[var(--jar-label)]">
           {onTarget ? "On target" : over ? "Over by" : "Still got"}
         </span>
         <span
@@ -247,7 +261,7 @@ export function EnergyBubble({
             <AnimatedNumber value={Math.abs(remaining)} />
           )}
         </span>
-        <span className="mt-1 text-xs font-semibold text-[var(--ink-soft)]">
+        <span className="mt-1 text-xs font-semibold text-[var(--jar-label)]">
           {onTarget
             ? over
               ? `${Math.abs(remaining)} kcal over, still in range`

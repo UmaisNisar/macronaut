@@ -154,6 +154,23 @@
   --jar-shine: 0.4;
   --jar-plate: var(--card);
   --jar-plate-opacity: 0.92;
+  /* The readout sits over glass or over liquid depending on the hour. */
+  --jar-label: var(--ink-soft);
+  --jar-text-shadow: none;
+
+  /*
+   * The liquid itself. `a` is the surface and `b` is the deep end, and the
+   * gradient runs down from the surface rather than down the jar — so `a` is
+   * what you see at every fill level and `b` only arrives once there is depth
+   * for it. That makes `a` the colour that decides how the jar reads.
+   */
+  --jar-liquid-a: #ffd9a8;
+  --jar-liquid-b: #ff9a5c;
+  --jar-liquid-a-over: #ffb07a;
+  --jar-liquid-b-over: #ff8a5c;
+  /* Light catching the surface, and the carbonation rising through it. */
+  --jar-meniscus: #ffffff;
+  --jar-bubble: #ffffff;
 
   --shadow-soft: 0 10px 30px -12px rgb(123 97 255 / 0.28);
   /*
@@ -275,11 +292,53 @@
   --input: #3d3566;
   --ring: var(--violet);
 
-  /* A gleam, not a blob; and a plate that reads as the night behind the
-     glass rather than a smudge on it. */
-  --jar-shine: 0.1;
+  /*
+   * No gleam at all after dark.
+   *
+   * It was tried at 0.4, then 0.1, then 0.06, and the opacity was never the
+   * problem: it is a large soft-edged ellipse floating in the middle of the
+   * glass, and on a flat dark ground that reads as a thumbprint at every
+   * value that is visible at all. In daylight the same shape works because
+   * there is a bright jar around it for it to be a highlight *on*. A
+   * highlight that reads as a smudge is worse than no highlight.
+   */
+  --jar-shine: 0;
   --jar-plate: #171226;
   --jar-plate-opacity: 0.85;
+
+  /*
+   * The jar was the brightest thing on the whole dark page, and not because
+   * it was colourful — because it was pale. It kept the daylight liquid, and
+   * that surface colour (#ffd9a8) measures L* 88.8: a near-white cream,
+   * seventy-four L* above the page, reading as spilt milk rather than as
+   * energy. Since the gradient runs from the surface downward, that cream is
+   * what you see at every fill level; the deep end below it never got a look
+   * in unless the jar was nearly full.
+   *
+   * Amber instead, and saturated rather than light: the surface drops 26 L*
+   * to 63, which still glows against an L* 15 card but stops being a lamp.
+   * Chroma is doing the work that lightness was doing badly.
+   */
+  --jar-liquid-a: #d8853a;
+  --jar-liquid-b: #8a3e19;
+  --jar-liquid-a-over: #f26b3c;
+  --jar-liquid-b-over: #a32e15;
+  /* Warm, because a white meniscus on amber is a fluorescent tube. The old
+     one was --card, which after dark drew a dark line where the light
+     should be. */
+  --jar-meniscus: #ffc98a;
+  --jar-bubble: #ffe3c0;
+  /*
+   * The readout's backdrop changes under it as the jar fills: dark glass at
+   * breakfast, bright amber by dinner. --ink-soft is tuned for a card and
+   * measured 1.1:1 against the liquid, so "STILL GOT" quietly disappeared on
+   * a full day. A brighter label plus a shadow to sit in works on both
+   * grounds — which is the actual requirement, since the ground moves.
+   */
+  --jar-label: #e8e2f7;
+  --jar-text-shadow:
+    0 1px 2px rgb(8 4 18 / 0.9),
+    0 0 12px rgb(8 4 18 / 0.6);
 
   --shadow-soft: 0 14px 30px -18px rgb(6 3 18 / 0.85);
   /* Wallpaper stays wallpaper: deep enough to be colour rather than light.
@@ -511,6 +570,17 @@
     .meter-fill {
       animation: none;
     }
+  }
+
+  /*
+   * The jar's readout. Its backdrop is whatever the jar happens to be doing
+   * — dark glass low down, bright amber once the day fills up — so the text
+   * carries a shadow to sit in rather than relying on a colour that can only
+   * be right for one of them. None in daylight, where the frosted plate is
+   * opaque enough on its own.
+   */
+  .jar-readout {
+    text-shadow: var(--jar-text-shadow);
   }
 
   .sticker {
