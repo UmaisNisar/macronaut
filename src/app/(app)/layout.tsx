@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 
-import { ErrorReporter } from "@/components/shell/error-reporter";
 import { InstallPrompt } from "@/components/shell/install-prompt";
 import { CandyBackground } from "@/components/shell/candy-background";
 import { NavDock, NavRail } from "@/components/shell/nav";
@@ -25,7 +24,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     <div className="relative min-h-svh">
       <CandyBackground />
       <TimezoneSync />
-      <ErrorReporter />
+      
       <InstallPrompt />
       <NavRail />
       <NavDock />

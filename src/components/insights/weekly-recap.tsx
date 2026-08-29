@@ -5,8 +5,9 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { RefreshCw, Sparkles } from "lucide-react";
 
 import type { AiPeriodReport, ReportPeriod } from "@/lib/schemas";
-import { generateReportAction } from "@/server/actions";
+import { generateReportAction, peekReportAction } from "@/server/actions";
 import { Button } from "@/components/ui/button";
+import { Haptic } from "@/components/ui/haptic";
 import { Momo } from "@/components/mascot/momo";
 import { MomoSays } from "@/components/mascot/momo-says";
 import { AnimatedNumber } from "@/components/viz/animated-number";
@@ -129,6 +130,8 @@ export function WeeklyRecap({
   const [stage, setStage] = useState<"idle" | "playing" | "done">("idle");
   const [slide, setSlide] = useState(0);
   const requested = useRef<string | null>(null);
+  /** Whether the cheap lookup has come back yet. */
+  const [checked, setChecked] = useState(false);
 
   const slides = buildSlides(stats, period);
 
@@ -143,14 +146,31 @@ export function WeeklyRecap({
       }
     });
 
+  /*
+   * Opening Insights looks for a recap; it does not write one.
+   *
+   * This used to call generateReportAction on mount, which on the first visit
+   * of a day meant a model call — several seconds of a serverless function,
+   * and one of the day's ten reports spent on somebody who might only be
+   * passing through. Navigating away during it was reported as taking four to
+   * five seconds.
+   *
+   * The lookup is two reads and no model, so landing here is cheap. Writing
+   * one is now something you ask for.
+   */
   useEffect(() => {
     if (requested.current === period) return;
     requested.current = period;
     setReport(null);
+    setError(null);
+    setChecked(false);
     setStage("idle");
     setSlide(0);
-    run(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    startTransition(async () => {
+      const found = await peekReportAction(period);
+      if (found.ok) setReport(found.report);
+      setChecked(true);
+    });
   }, [period]);
 
   const finish = useCallback(() => {
@@ -190,24 +210,42 @@ export function WeeklyRecap({
       <div className="sticker tint-violet p-5 sm:p-6">
         <MomoSays mood="thinking" tone="violet" size={82} loading />
         <p className="label-cute mt-3 text-center">
-          Reading back your last {period.replace("d", "")} days…
+          {checked
+            ? `Reading back your last ${period.replace("d", "")} days…`
+            : "One moment…"}
         </p>
       </div>
     );
   }
 
   if (!report) {
+    // Nothing logged is a different situation from nothing written yet, and
+    // the day count is the only thing that can tell them apart.
+    const nothingLogged = stats.daysLogged === 0;
     return (
       <div className="sticker tint-violet p-5 sm:p-6">
         <MomoSays
           mood="curious"
           tone="violet"
           size={82}
-          title="Nothing to recap yet 🌱"
+          title={nothingLogged ? "Nothing to recap yet 🌱" : "Want your recap? ✨"}
         >
           {error ??
-            "Log a few days and I'll turn them into a proper little recap — wins, wobbles and a mission for next week."}
+            (nothingLogged
+              ? "Log a few days and I'll turn them into a proper little recap — wins, wobbles and a mission for next week."
+              : `I'll read back your last ${period.replace("d", "")} days and write it up — wins, wobbles and a mission for next week.`)}
         </MomoSays>
+
+        {!nothingLogged ? (
+          <div className="mt-4 flex justify-center">
+            <Haptic>
+              <Button size="lg" onClick={() => run(false)} disabled={pending}>
+                <Sparkles className="size-4" />
+                {pending ? "Writing it" : "Write my recap"}
+              </Button>
+            </Haptic>
+          </div>
+        ) : null}
       </div>
     );
   }

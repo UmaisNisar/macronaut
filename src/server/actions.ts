@@ -58,7 +58,7 @@ import {
   recomputeDay,
   refreshAchievements,
   targetsForDate,
-  buildPeriodReport,
+  buildPeriodReport,  readCachedReport,
 } from "@/server/core";
 import { ACHIEVEMENT_BY_KEY } from "@/lib/achievements";
 
@@ -1268,6 +1268,31 @@ export async function deleteWeightAction(
 /* ================================================================== */
 /* Reports                                                             */
 /* ================================================================== */
+
+/**
+ * Hand back a recap only if one has already been written.
+ *
+ * Cheap by construction: a couple of reads and no model call, so opening
+ * Insights cannot sit on a function for seconds or spend the day's report
+ * allowance on somebody who was only passing through.
+ */
+export async function peekReportAction(
+  periodRaw: unknown,
+): Promise<ActionResult<{ report: AiPeriodReport | null }>> {
+  const ctx = await withProfile();
+  if (!ctx.ok) return fail(ctx.error);
+
+  const parsed = ReportPeriod.safeParse(periodRaw);
+  if (!parsed.success) return fail("Unknown report period.");
+
+  const found = await readCachedReport({
+    store: ctx.store,
+    profile: ctx.profile,
+    today: await userToday(),
+    period: parsed.data,
+  });
+  return { ok: true, report: found?.report ?? null };
+}
 
 export async function generateReportAction(
   periodRaw: unknown,

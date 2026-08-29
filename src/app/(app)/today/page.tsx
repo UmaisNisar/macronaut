@@ -46,10 +46,18 @@ export default async function TodayPage() {
     store.listFoodEntries(session.userId, today, today),
     store.listDailyLogs(session.userId, addDays(today, -60), today),
     store.listWeightLogs(session.userId),
-    // The strip scrolls, so the limit is about how far back is still
-    // *your usual* rather than how many fit on screen. Same query either way:
-    // both stores rank the last 300 entries and slice.
-    store.listFrequentFoods(session.userId, 20),
+    /*
+     * Twelve, and the number matters in both directions.
+     *
+     * It was eight, sized for how many fit on screen, which stopped making
+     * sense once the row scrolled. Twenty was the overcorrection: a strip
+     * that long is a scrolling chore rather than a shortcut, and the tail
+     * of it is food you ate once a fortnight ago.
+     *
+     * The ranking is by how often you eat something, so the useful ones are
+     * at the front and the cut only ever removes the rarest.
+     */
+    store.listFrequentFoods(session.userId, 12),
   ]);
 
   const targets = targetsForDate(goals, profile, today);

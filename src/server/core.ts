@@ -250,6 +250,70 @@ export async function refreshAchievements(
  * unchanged period is fetched, not regenerated, so the cron re-running costs
  * nothing.
  */
+/**
+ * The stats and cache key for a period, without writing anything.
+ *
+ * Shared so the read-only path below and the generating path cannot drift
+ * on what counts as the same report.
+ */
+async function reportContext(input: {
+  store: DataStore;
+  profile: Profile;
+  today: Iso;
+  period: ReportPeriod;
+}) {
+  const { store, profile, today, period } = input;
+  const length = PERIOD_LENGTH[period];
+  const start = addDays(today, -(length - 1));
+  const days = await store.listDailyLogs(
+    profile.id,
+    addDays(start, -length),
+    today,
+  );
+  const { current, previous } = periodPair(days, today, length);
+  const signature = createHash("sha1")
+    .update(
+      [
+        period,
+        today,
+        current.daysLogged,
+        current.avgCalories,
+        current.avgProtein,
+        current.onTargetDays,
+        previous.avgCalories,
+      ].join("|"),
+    )
+    .digest("hex")
+    .slice(0, 16);
+  return { length, start, days, current, previous, signature };
+}
+
+/**
+ * The report we already have, or nothing.
+ *
+ * Exists so opening Insights costs a lookup rather than a model call. It
+ * used to generate on mount, which meant the first visit of a day held a
+ * serverless function for several seconds and spent a report from the daily
+ * allowance whether or not anybody opened the recap.
+ */
+export async function readCachedReport(input: {
+  store: DataStore;
+  profile: Profile;
+  today: Iso;
+  period: ReportPeriod;
+}): Promise<{ report: AiPeriodReport; periodStart: Iso; periodEnd: Iso } | null> {
+  const { store, profile, period } = input;
+  const { current, signature } = await reportContext(input);
+  if (current.daysLogged === 0) return null;
+  const cached = await store.getReport(profile.id, period, signature);
+  if (!cached) return null;
+  return {
+    report: cached.report,
+    periodStart: cached.periodStart,
+    periodEnd: cached.periodEnd,
+  };
+}
+
 export async function buildPeriodReport(input: {
   store: DataStore;
   profile: Profile;

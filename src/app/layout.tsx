@@ -8,6 +8,7 @@ import { CelebrationProvider } from "@/components/celebrate/celebration";
 import { ThemeProvider } from "@/components/shell/theme-provider";
 import { AppToaster } from "@/components/shell/app-toaster";
 import { ServiceWorkerRegistrar } from "@/components/shell/service-worker";
+import { ErrorReporter } from "@/components/shell/error-reporter";
 
 import "./globals.css";
 
@@ -73,6 +74,14 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeProvider nonce={nonce}>
           <CelebrationProvider>{children}</CelebrationProvider>
         </ThemeProvider>
+        {/*
+          At the root, not inside (app): a crash on the welcome or
+          onboarding screen is still a crash. Reports from a signed-out
+          visitor are refused by the endpoint, which stays authenticated so
+          it cannot be used to write rows on demand — those show up as
+          server-side rows through instrumentation instead.
+        */}
+        <ErrorReporter />
         <ServiceWorkerRegistrar />
         {/*
           Vercel's own analytics: cookieless, no cross-site identifiers, and no
