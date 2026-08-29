@@ -282,7 +282,7 @@ function FoodSticker({
                 type="button"
                 onClick={redo}
                 disabled={redoing}
-                className="tappable rounded-full bg-[var(--sun-soft)] px-1.5 py-0.5 text-[0.55rem] font-bold text-[#8a6100] disabled:opacity-60"
+                className="tappable rounded-full bg-[var(--sun-soft)] px-1.5 py-0.5 text-[0.55rem] font-bold text-[var(--sun-text)] disabled:opacity-60"
                 title="Guessed offline because Momo's AI was unavailable. Tap to try the AI again."
               >
                 {redoing ? "TRYING…" : "GUESS · RETRY"}

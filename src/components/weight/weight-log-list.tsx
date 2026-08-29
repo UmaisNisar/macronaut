@@ -138,9 +138,9 @@ function WeightRow({
                   ? "var(--peach-soft)"
                   : "var(--muted)",
               color: down
-                ? "#1E9A6E"
+                ? "var(--mint-text)"
                 : up
-                  ? "#D2761F"
+                  ? "var(--peach-text)"
                   : "var(--ink-soft)",
             }}
           >

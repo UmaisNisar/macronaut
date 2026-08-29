@@ -454,7 +454,7 @@ export function OnboardingFlow({ initialName }: { initialName?: string | null })
                     ))}
                   </div>
                   {draft.weeklyLossKg >= 1 ? (
-                    <p className="mt-3 rounded-2xl bg-[var(--sun-soft)] px-3.5 py-2.5 text-xs font-semibold text-[#B4790B]">
+                    <p className="mt-3 rounded-2xl bg-[var(--sun-soft)] px-3.5 py-2.5 text-xs font-semibold text-[var(--sun-text)]">
                       A kilo a week is a lot! It works for some people early on,
                       but it&rsquo;s harder to keep up. You can change this any
                       time.
@@ -573,7 +573,7 @@ export function OnboardingFlow({ initialName }: { initialName?: string | null })
                 </div>
 
                 {plan.targets.deficitClamped ? (
-                  <p className="rounded-2xl bg-[var(--sun-soft)] px-3.5 py-3 text-xs font-semibold text-[#B4790B]">
+                  <p className="rounded-2xl bg-[var(--sun-soft)] px-3.5 py-3 text-xs font-semibold text-[var(--sun-text)]">
                     That pace would push you below a sensible floor, so I nudged
                     the target up to {plan.targets.calories.toLocaleString()} kcal
                     — about {achievableWeeklyLoss(plan.targets)} kg a week

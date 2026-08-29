@@ -130,6 +130,16 @@
   --accent-foreground: #2e2545;
   --destructive: #f4557d;
 
+  /*
+   * Emphatic coloured text that must survive both themes. Weight deltas,
+   * pace warnings and the GUESS·RETRY chip were hard-coded ink-dark greens
+   * and ambers, which vanish on a dark card; components use these instead
+   * and each theme supplies a value that actually reads on its surfaces.
+   */
+  --mint-text: #1e9a6e;
+  --peach-text: #d2761f;
+  --sun-text: #8a6100;
+
   --border: #e7e1ff;
   --input: #ded6ff;
   --ring: #7b61ff;
@@ -169,121 +179,124 @@
 }
 
 /* =====================================================================
-   DARK — the same stickers after sunset.
+   DARK — the same candy, lit at night.
 
-   The old dark theme measured badly in the one way that mattered: the card
-   sat 1.09 against the page and the lip 1.03, so the cut-out edge that is
-   this app's entire visual identity did not exist. Everything was one value
-   and the result was a flat violet soup.
+   Second rebuild, and a change of philosophy. The first dark theme kept the
+   brand violet as a saturated ground and desaturated everything on top of
+   it, and the screenshots said what that means: every tinted card darkened
+   into brown or swamp-green (a darkened pastel IS brown — that is just how
+   colour works), and everything else collapsed into one grey-lavender pill.
 
-   Rebuilt as an elevation stack in CIE L*, because WCAG ratios describe text
-   legibility and say almost nothing about whether two dark surfaces look
-   like different surfaces. Even steps of 3-6 L* read as even steps to the
-   eye; matching the light theme's *ratios* instead pushed every value so
-   light it stopped being a dark theme at all.
+   What makes the light theme feel like candy is chroma on the stickers, not
+   on the wallpaper. So after dark the ground gives its colour up: near-black
+   indigo with the chroma turned right down, and every drop of colour handed
+   to the things that earn it — accents, chips, glazes, the liquid in the
+   jar. Neon needs night to glow.
 
-   The page keeps the candy violet and the cards sit on it as near-neutral
-   cut-outs, exactly as white cards do in daylight. That is what leaves the
-   tints somewhere to go: tinting a card that is already saturated violet
-   does nothing.
+   The elevation stack is still CIE L*, and still what the E2E asserts:
+   page 6 < track 8 < lip 10 < card 15 < popover 17 < inset 20, the track
+   sunk below the card it grooves into. Every text pairing below was checked
+   against WCAG before it was written down, including each candy colour used
+   as text on the card and --on-candy on each candy pill.
    ===================================================================== */
 .dark {
   color-scheme: dark;
 
-  /* L* 8 — the ground. Saturated, because it is the one surface that still
-     carries the brand colour. */
-  --background: #160d44;
-  --foreground: #f4f0ff;
-  --ink: #f4f0ff;
-  --ink-soft: #b3a9d4;
+  /* L* 6 — the ground. Near-neutral, so it has no chroma to steal. */
+  --background: #131022;
+  --foreground: #f2effc;
+  --ink: #f2effc;
+  --ink-soft: #b1aad0;
 
-  /* L* 20 and 22. Near-neutral on purpose. */
-  --card: #332c4c;
-  --card-foreground: #f4f0ff;
-  --popover: #373052;
-  --popover-foreground: #f4f0ff;
-
-  /*
-   * Candy colours, lifted to hold their own on a dark ground, each still
-   * the lightness its hue wants to be — a yellow is meant to read brighter
-   * than a violet, and flattening them all to one value is what makes a
-   * palette look like a spreadsheet. Every one clears 5:1 on the card.
-   *
-   * The -soft pairs are chip backgrounds, sitting ~6 L* above the card so a
-   * macro pill is a pill rather than a smudge.
-   */
-  --violet: #a692ff;
-  --violet-soft: #262233;
-  --peach: #ffab73;
-  --peach-soft: #2e221a;
-  --mint: #45ddaa;
-  --mint-soft: #132921;
-  --sky: #6bc7ff;
-  --sky-soft: #19262e;
-  --sun: #ffc85a;
-  --sun-soft: #2b2415;
-  --leaf: #9be063;
-  --leaf-soft: #1e2716;
-  --berry: #d199e8;
-  --berry-soft: #2a222e;
+  /* L* 15 and 17. The card keeps a whisper of violet so the neutrals feel
+     chosen rather than greyscale. */
+  --card: #262042;
+  --card-foreground: #f2effc;
+  --popover: #2b2449;
+  --popover-foreground: #f2effc;
 
   /*
-   * The edge, and the reason this theme was rebuilt.
+   * Candy at night: a step brighter than daylight, because they carry the
+   * whole theme's colour now. Each clears 4.5:1 as text on the card.
    *
-   * A sticker is drawn with a hard offset shadow in --lip. On paper that is
-   * a shadow, but nothing casts a visible shadow onto a near-black page, so
-   * here the lip is *lighter* than the ground: the sticker's side face,
-   * catching the light its top face is catching more of. It lands 6 L* above
-   * the page and 6 below the card, which means the same value reads as a lit
-   * edge out on the page and as an ordinary shadow when a chip rests on a
-   * card. One token, both jobs, no special cases.
+   * The -soft pairs are where the old theme went greyest — macro pills,
+   * log-again chips and stat insets were all the same grey-violet. Each is
+   * now 20% of its parent hue mixed into a card-family base (mixed in oklab
+   * offline and written as hex, because the E2E reads tokens literally), so
+   * a peach chip finally looks peach at midnight instead of brown, and the
+   * parent colour stays >=4.5:1 as text on it.
    */
-  --lip: #251c4c;
-  --inset: #433a63; /* L* 27 — panels nested inside a sticker */
-  --track: #262040; /* L* 31 — empty meters and the jar glass */
-  --muted: #3c3459;
+  --violet: #af9dff;
+  --violet-soft: #3f3763;
+  --peach: #ffaa70;
+  --peach-soft: #4c3b4e;
+  --mint: #3fe0ab;
+  --mint-soft: #334456;
+  --sky: #67c6ff;
+  --sky-soft: #363e63;
+  --sun: #ffc555;
+  --sun-soft: #4c404d;
+  --leaf: #9fe263;
+  --leaf-soft: #3c454e;
+  --berry: #d6a1ec;
+  --berry-soft: #463860;
+
+  /* Emphatic coloured text hands back the candy colour itself, which is
+     already tuned to read on the card. */
+  --mint-text: var(--mint);
+  --peach-text: var(--peach);
+  --sun-text: var(--sun);
+
+  /*
+   * The edge. Nothing casts a visible shadow onto a near-black page, so the
+   * lip is lighter than the ground — the sticker's side face — and darker
+   * than the card: 4 L* above the page, 5 below the card. One token, both
+   * jobs, no special cases.
+   */
+  --lip: #1c1830;
+  --inset: #312a50; /* L* 20 — panels nested inside a sticker */
+  --track: #181432; /* L* 8 — empty meters groove below the card */
+  --muted: #2c2648;
   --muted-foreground: var(--ink-soft);
 
   --primary: var(--violet);
-  --primary-foreground: #1c1230;
-  --primary-lip: #615597;
-  --secondary: #3c3459;
-  --secondary-foreground: #f4f0ff;
-  --accent: #433a63;
-  --accent-foreground: #f4f0ff;
+  --primary-foreground: #191033;
+  --primary-lip: #7e6ae0;
+  --secondary: #2c2648;
+  --secondary-foreground: #f2effc;
+  --accent: #352e55;
+  --accent-foreground: #f2effc;
   --destructive: #ff8098;
 
-  --border: #54497a;
-  --input: #594d81;
+  /* Glass edges, not wireframes. The old #54497a outlines sat 17 L* above
+     their own fields and drew a grey box around every input on the profile
+     page; these sit close enough to read as a bevel until focus arrives. */
+  --border: #37305c;
+  --input: #3d3566;
   --ring: var(--violet);
 
-  /*
-   * A black drop shadow is invisible against a near-black page, so the depth
-   * comes from the lip and this only has to soften the join. Violet rather
-   * than black, so it reads as the page's own colour deepening.
-   */
   /* A gleam, not a blob; and a plate that reads as the night behind the
      glass rather than a smudge on it. */
   --jar-shine: 0.1;
-  --jar-plate: #1b1338;
-  --jar-plate-opacity: 0.82;
+  --jar-plate: #171226;
+  --jar-plate-opacity: 0.85;
 
-  --shadow-soft: 0 14px 34px -18px rgb(8 4 26 / 0.9);
-  /* Deep enough to be colour rather than light: each lifts the page by
-     about four L*, the same distance the daylight ones sink it. */
-  --blob-1: #4a35a8;
-  --blob-2: #5a3aa5;
-  --blob-3: #2b4f96;
-  --blob-4: #6b4070;
+  --shadow-soft: 0 14px 30px -18px rgb(6 3 18 / 0.85);
+  /* Wallpaper stays wallpaper: deep enough to be colour rather than light.
+     The E2E holds each blob to a lift of <=6 L* over the page; these sit
+     near 3, the same distance the daylight ones sink it. */
+  --blob-1: #3a2f78;
+  --blob-2: #472f74;
+  --blob-3: #243d74;
+  --blob-4: #532e5c;
   --blob-opacity: 0.16;
   /* Emoji carry their own colour and glow against a dark page. */
   --doodle-opacity: 0.12;
 
-  /* The vignette was lifting its corners by ten L*, which is a lamp
-     pointed at the screen rather than depth. */
-  --page-glow-1: #1f1252;
-  --page-glow-2: #281545;
-  --page-glow-3: #14204b;
+  /* Atmosphere at ~2 L* over the ground — tint, not lamplight. */
+  --page-glow-1: #1b1538;
+  --page-glow-2: #201336;
+  --page-glow-3: #151b3d;
 }
 
 @layer base {
@@ -538,6 +551,15 @@
         0 8px 18px -10px rgb(123 97 255 / 0.45);
       background: color-mix(in oklab, var(--violet) 6%, var(--card));
     }
+
+    /* The hover halo is a hard-coded daylight violet; at night it read as a
+       purple lamp under whatever the cursor touched. Depth after dark comes
+       from darkness. */
+    .dark .tappable:hover {
+      box-shadow:
+        0 5px 0 0 var(--lip),
+        0 10px 20px -12px rgb(6 3 18 / 0.9);
+    }
   }
   .tappable:active {
     transform: translateY(1px) scale(0.985);
@@ -606,38 +628,64 @@
   }
 
   /*
-   * Tints in the dark carry their own lip as well as their own wash. Every
-   * one of these used to share a single near-black lip, which meant a
-   * tinted sticker had no visible edge at all — the tint was decoration on
-   * a shape that had stopped looking like a sticker.
+   * Tints after dark are glazes, not darkened pastels. Hand-darkening the
+   * daylight pastels is where the mud came from — the peach card was
+   * literally #473122, a brown — so instead the actual candy hue is mixed
+   * thinly into the card, strongest at the top and fading out, and into the
+   * lip. Mixed in oklab, where 12% of peach is still peach. Every glaze
+   * keeps --ink-soft above 5:1, checked before these numbers were chosen.
+   *
+   * The lip mixes over a literal #1c1830 (the .dark lip) rather than
+   * var(--lip), because a custom property may not reference itself.
    */
-  .dark .tint-violet {
-    --lip: #27223d;
-    background: linear-gradient(180deg, #373152 0%, var(--card) 100%);
+  .dark .tint-violet,
+  .dark .tint-grape {
+    --lip: color-mix(in oklab, var(--violet) 16%, #1c1830);
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--violet) 12%, var(--card)) 0%,
+      color-mix(in oklab, var(--violet) 4%, var(--card)) 100%
+    );
   }
   .dark .tint-peach {
-    --lip: #342216;
-    background: linear-gradient(180deg, #473122 0%, var(--card) 100%);
-  }
-  .dark .tint-grape {
-    --lip: #27223d;
-    background: linear-gradient(180deg, #373152 0%, var(--card) 100%);
+    --lip: color-mix(in oklab, var(--peach) 16%, #1c1830);
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--peach) 12%, var(--card)) 0%,
+      color-mix(in oklab, var(--peach) 4%, var(--card)) 100%
+    );
   }
   .dark .tint-mint {
-    --lip: #0b2b20;
-    background: linear-gradient(180deg, #153d2f 0%, var(--card) 100%);
+    --lip: color-mix(in oklab, var(--mint) 16%, #1c1830);
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--mint) 12%, var(--card)) 0%,
+      color-mix(in oklab, var(--mint) 4%, var(--card)) 100%
+    );
   }
   .dark .tint-sky {
-    --lip: #142834;
-    background: linear-gradient(180deg, #203948 0%, var(--card) 100%);
+    --lip: color-mix(in oklab, var(--sky) 16%, #1c1830);
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--sky) 12%, var(--card)) 0%,
+      color-mix(in oklab, var(--sky) 4%, var(--card)) 100%
+    );
   }
   .dark .tint-berry {
-    --lip: #2e2133;
-    background: linear-gradient(180deg, #403047 0%, var(--card) 100%);
+    --lip: color-mix(in oklab, var(--berry) 16%, #1c1830);
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--berry) 12%, var(--card)) 0%,
+      color-mix(in oklab, var(--berry) 4%, var(--card)) 100%
+    );
   }
   .dark .tint-sun {
-    --lip: #2f240e;
-    background: linear-gradient(180deg, #423418 0%, var(--card) 100%);
+    --lip: color-mix(in oklab, var(--sun) 16%, #1c1830);
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--sun) 12%, var(--card)) 0%,
+      color-mix(in oklab, var(--sun) 4%, var(--card)) 100%
+    );
   }
 
   /* Small uppercase label — the app's "handwriting" */
@@ -759,6 +807,16 @@
    */
   :root {
     --shadow-soft: 0 6px 14px -10px rgb(123 97 255 / 0.3);
+  }
+
+  /*
+   * Restated, not redundant: :root and .dark tie on specificity, and source
+   * order put the rule above last — so a phone in dark mode was getting the
+   * light theme's violet glow under every card. The one place the "white
+   * bright hue lights" complaint was still true.
+   */
+  .dark {
+    --shadow-soft: 0 5px 12px -9px rgb(6 3 18 / 0.8);
   }
 }
 

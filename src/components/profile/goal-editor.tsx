@@ -366,7 +366,7 @@ export function GoalEditor({ profile }: { profile: Profile }) {
             />
 
             {plan.targets.deficitClamped ? (
-              <p className="text-xs leading-relaxed font-semibold text-[#D2761F]">
+              <p className="text-xs leading-relaxed font-semibold text-[var(--peach-text)]">
                 That pace would take intake below a sensible floor, so the target
                 has been lifted. Real pace: about{" "}
                 {achievableWeeklyLoss(plan.targets)} kg a week.
