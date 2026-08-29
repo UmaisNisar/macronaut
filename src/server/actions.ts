@@ -10,6 +10,7 @@ import {
   CheckedFoodItem,
   LogCheckedFoodInput,
   RepeatFoodInput,
+  SwapFoodInput,
   UndoLogInput,
   LogBarcodeInput,
   PushSubscriptionInput,
@@ -367,6 +368,7 @@ export async function logFoodAction(
       // This item's own assumptions first. Anything the model put at the
       // top level applies to the whole entry, so it follows.
       assumptions: [...f.assumptions, ...analysis.assumptions, ...learned.notes],
+      alternatives: f.alternatives,
       rawInput: text,
       source: source === "ai" ? "ai" : "estimator",
     })),
@@ -474,6 +476,7 @@ export async function logFoodPhotoAction(
       sugar: round(f.sugar, 1),
       confidence: f.confidence,
       assumptions: [...f.assumptions, ...read.analysis.assumptions],
+      alternatives: f.alternatives,
       rawInput: note?.trim() ? "photo: " + note.trim() : "photo",
       source: "ai",
     })),
@@ -563,6 +566,7 @@ export async function logBarcodeAction(
         "Nutrition read from the product label via Open Food Facts.",
         ...learned.notes,
       ],
+      alternatives: [],
       rawInput: `barcode ${code}`,
       source: "manual",
     })),
@@ -767,6 +771,7 @@ export async function repeatFoodAction(
       sugar: source.sugar,
       confidence: source.confidence,
       assumptions: source.assumptions,
+      alternatives: source.alternatives,
       rawInput: source.rawInput,
       source: source.source,
     },
@@ -784,6 +789,100 @@ export async function repeatFoodAction(
 
   revalidateApp();
   return { ok: true, day, entries, added };
+}
+
+/**
+ * "No, it was the other one."
+ *
+ * A photo of a part-full glass of something dark came back as coffee when it
+ * was a Coke Zero. That is not a fixable prompt problem — the two look the
+ * same — so the model now commits to a guess and carries its runner-ups, and
+ * this is how you take one.
+ *
+ * No model call: the alternative arrived with its own numbers when the photo
+ * was first read. Correcting a guess should not cost a second one.
+ *
+ * The swapped-in reading keeps the alternatives, with the old headline guess
+ * put back in the list, so a wrong correction is as easy to undo as it was
+ * to make.
+ */
+export async function swapFoodAction(
+  raw: unknown,
+): Promise<ActionResult<{ day: DailyLog; entries: FoodEntry[] }>> {
+  const ctx = await withProfile();
+  if (!ctx.ok) return fail(ctx.error);
+
+  const parsed = SwapFoodInput.safeParse(raw);
+  if (!parsed.success) return fail("That swap could not be read.");
+
+  const { profile, store } = ctx;
+  const { id, index, date } = parsed.data;
+
+  const entry = await store.getFoodEntry(profile.id, id);
+  if (!entry) return fail("That entry no longer exists.");
+
+  const picked = entry.alternatives[index];
+  if (!picked) return fail("That option is no longer offered.");
+
+  const wasCalled = {
+    name: entry.name,
+    emoji: entry.emoji,
+    estimatedQuantity: entry.quantity,
+    calories: entry.calories,
+    protein: entry.protein,
+    carbs: entry.carbs,
+    fat: entry.fat,
+    fiber: entry.fiber,
+    sugar: entry.sugar,
+  };
+
+  const updated = await store.updateFoodEntry(profile.id, id, {
+    name: picked.name,
+    emoji: resolveFoodEmoji(picked.name, picked.emoji),
+    quantity: picked.estimatedQuantity,
+    calories: round(picked.calories),
+    protein: round(picked.protein, 1),
+    carbs: round(picked.carbs, 1),
+    fat: round(picked.fat, 1),
+    fiber: round(picked.fiber, 1),
+    sugar: round(picked.sugar, 1),
+    // You chose this, so it is no longer a guess.
+    confidence: "high",
+    alternatives: [
+      wasCalled,
+      ...entry.alternatives.filter((_, i) => i !== index),
+    ].slice(0, 2),
+  });
+  if (!updated) return fail("That entry no longer exists.");
+
+  // Remember it, the same way a hand edit is remembered.
+  try {
+    await store.saveFoodCorrection(profile.id, {
+      nameKey: foodKey(updated.name),
+      name: updated.name,
+      quantity: updated.quantity,
+      calories: updated.calories,
+      protein: updated.protein,
+      carbs: updated.carbs,
+      fat: updated.fat,
+      fiber: updated.fiber,
+      sugar: updated.sugar,
+    });
+  } catch {
+    // A correction that fails to save is not worth failing the swap over.
+  }
+
+  const goals = await store.listGoalSnapshots(profile.id);
+  const day = await recomputeDay(
+    store,
+    profile.id,
+    date,
+    targetsForDate(goals, profile, date),
+  );
+  const entries = await store.listFoodEntries(profile.id, date, date);
+
+  revalidateApp();
+  return { ok: true, day, entries };
 }
 
 export async function updateFoodAction(
@@ -968,7 +1067,12 @@ export async function logCheckedFoodAction(
   const { date, items } = parsed.data;
 
   const added = await store.insertFoodEntries(
-    items.map((f) => ({ userId: profile.id, logDate: date, ...f })),
+    items.map((f) => ({
+      userId: profile.id,
+      logDate: date,
+      alternatives: [],
+      ...f,
+    })),
   );
 
   const goals = await store.listGoalSnapshots(profile.id);

@@ -135,6 +135,15 @@ function query_<T>(fn: (db: Shape) => T): Promise<T> {
 
 const inRange = (d: Iso, start: Iso, end: Iso) => d >= start && d <= end;
 
+/**
+ * Rows written before alternatives existed have no such field, and the
+ * journal reads `.length` off it. Defaulted here rather than at each of the
+ * half-dozen call sites.
+ */
+function withAlternatives<T extends { alternatives?: unknown }>(row: T): T {
+  return row.alternatives ? row : { ...row, alternatives: [] };
+}
+
 export function createLocalStore(): DataStore {
   return {
     kind: "local",
@@ -201,7 +210,8 @@ export function createLocalStore(): DataStore {
           .filter(
             (e) => e.userId === userId && inRange(e.logDate, startIso, endIso),
           )
-          .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+          .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+          .map(withAlternatives),
       );
     },
 
@@ -303,9 +313,8 @@ export function createLocalStore(): DataStore {
     async getFoodEntry(userId: string, id: string) {
       return query_(
         (db) =>
-          db.foodEntries.find((e) => e.userId === userId && e.id === id) ??
-          null,
-      );
+          db.foodEntries.find((e) => e.userId === userId && e.id === id) ?? null,
+      ).then((row) => (row ? withAlternatives(row) : null));
     },
 
     async listFrequentFoods(userId: string, limit: number) {

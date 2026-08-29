@@ -129,6 +129,7 @@ function toFood(r: Row): FoodEntry {
     sugar: num(r.sugar),
     confidence: r.confidence,
     assumptions: r.assumptions ?? [],
+    alternatives: r.alternatives ?? [],
     rawInput: r.raw_input ?? "",
     source: r.source,
     createdAt: r.created_at,
@@ -151,6 +152,7 @@ function fromFood(e: NewFoodEntry): Row {
     sugar: e.sugar,
     confidence: e.confidence,
     assumptions: e.assumptions,
+    alternatives: e.alternatives ?? [],
     raw_input: e.rawInput,
     source: e.source,
   };
@@ -170,6 +172,7 @@ const FOOD_COLUMN: Record<string, string> = {
   sugar: "sugar",
   confidence: "confidence",
   assumptions: "assumptions",
+  alternatives: "alternatives",
   rawInput: "raw_input",
   source: "source",
 };

@@ -183,6 +183,7 @@ export async function POST() {
       sugar: round(t.sug * scale, 1),
       confidence: "medium" as const,
       assumptions: [],
+      alternatives: [],
       rawInput: `${t.quantity} ${t.name.toLowerCase()}`,
       source: "ai" as const,
     }));

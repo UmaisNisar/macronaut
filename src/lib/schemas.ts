@@ -166,6 +166,33 @@ export const Macros = z.object({
 });
 export type Macros = z.infer<typeof Macros>;
 
+/**
+ * A runner-up identification, carrying its own numbers.
+ *
+ * Some things genuinely cannot be told apart from a photograph. A dark
+ * liquid in a glass is coffee, cola, iced tea or a diet cola, and no amount
+ * of prompting makes that certain. Guessing silently is the worst option;
+ * so is refusing to guess. Offering the runner-up lets the model commit to
+ * an answer and still be corrected in one tap.
+ *
+ * The nutrition travels with the alternative on purpose: swapping to it is
+ * then a local edit rather than a second model call, which would cost
+ * another slice of a twenty-a-day allowance to answer a question already
+ * asked.
+ */
+export const AiFoodAlternative = z.object({
+  name: z.string().min(1).max(120),
+  emoji: z.string().max(8).default("🍽️"),
+  estimatedQuantity: z.string().max(120).default("1 serving"),
+  calories: z.number().min(0).max(8000),
+  protein: z.number().min(0).max(600),
+  carbs: z.number().min(0).max(900),
+  fat: z.number().min(0).max(500),
+  fiber: z.number().min(0).max(200).default(0),
+  sugar: z.number().min(0).max(400).default(0),
+});
+export type AiFoodAlternative = z.infer<typeof AiFoodAlternative>;
+
 export const FoodEntry = z.object({
   id: z.string(),
   userId: z.string(),
@@ -182,6 +209,12 @@ export const FoodEntry = z.object({
   sugar: z.number(),
   confidence: Confidence,
   assumptions: z.array(z.string()),
+  /**
+   * Kept on the row, not just shown once at logging time. You notice the
+   * drink was wrong when you look at the day later, not in the two seconds
+   * the reveal card is on screen.
+   */
+  alternatives: z.array(AiFoodAlternative).default([]),
   rawInput: z.string(),
   source: z.enum(["ai", "estimator", "manual"]),
   createdAt: z.string(),
@@ -279,6 +312,20 @@ export const LogFoodInput = z.object({
 });
 export type LogFoodInput = z.infer<typeof LogFoodInput>;
 
+/**
+ * Switching an entry to one of the runner-ups the model offered.
+ *
+ * Just the index. The numbers come from the row the server already has, so
+ * a client cannot use this to write arbitrary values, and the swap costs
+ * nothing but one update.
+ */
+export const SwapFoodInput = z.object({
+  id: z.string().min(1),
+  index: z.number().int().min(0).max(1),
+  date: IsoDate,
+});
+export type SwapFoodInput = z.infer<typeof SwapFoodInput>;
+
 export const EditFoodInput = z.object({
   id: z.string(),
   name: z.string().trim().min(1).max(120),
@@ -319,6 +366,8 @@ export const AiFoodItem = z.object({
    * Defaulted, because older stored analyses have no such field.
    */
   assumptions: z.array(z.string().max(240)).max(6).default([]),
+  /** At most two, and only when the identification is genuinely uncertain. */
+  alternatives: z.array(AiFoodAlternative).max(2).default([]),
 });
 export type AiFoodItem = z.infer<typeof AiFoodItem>;
 

@@ -168,6 +168,7 @@ export function estimateFromText(input: string): AiFoodAnalysis {
       sugar: r1((food.sug ?? 0) * m),
       confidence: qty.fromGrams ? "medium" : m === 1 ? "low" : "medium",
       assumptions: itemNotes,
+      alternatives: [],
     });
 
   }
@@ -180,6 +181,7 @@ export function estimateFromText(input: string): AiFoodAnalysis {
       meal: carriedMeal ?? "snack",
       estimatedQuantity: "1 serving",
       assumptions: [],
+      alternatives: [],
       calories: 400,
       protein: 18,
       carbs: 45,

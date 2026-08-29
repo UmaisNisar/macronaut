@@ -39,6 +39,7 @@ Rules:
 - Each food carries its OWN assumptions, in its own "assumptions" array. An assumption about the burger does not belong on the drink beside it. Write them as neutral statements rather than in the first person — "Standard restaurant-sized portion assumed." not "I assumed it was a restaurant-sized portion." Do not list an assumption for something the user stated explicitly, and do not restate the obvious. Leave the array empty when there is genuinely nothing to declare.
 - The top-level "assumptions" array is only for things that span the whole entry and belong to no single food. Usually it should be empty.
 - emoji: a single emoji character that best represents the item — the character itself, never its name. "🥣", not "bowl".
+- alternatives: when you are genuinely unsure WHAT something is — not merely unsure of the portion — list at most two other plausible identifications, each with its own full nutrition for the same visible amount. Order them most likely first. Leave the array empty when you are confident, or when the alternatives would have near-identical nutrition; a list of near-identical guesses is noise. Never use it to hedge a portion size: that is what confidence and assumptions are for.
 - If the text contains no food at all, return a single item named "Nothing recognised" with all zero values and confidence "low".
 
 Return JSON only.`;
@@ -69,6 +70,36 @@ export const FOOD_SCHEMA: GeminiSchema = {
           sugar: { type: "NUMBER" },
           confidence: { type: "STRING", enum: ["high", "medium", "low"] },
           assumptions: { type: "ARRAY", items: { type: "STRING" } },
+          alternatives: {
+            type: "ARRAY",
+            description:
+              "Other plausible identifications, each with its own numbers. Empty unless genuinely uncertain.",
+            items: {
+              type: "OBJECT",
+              properties: {
+                name: { type: "STRING" },
+                emoji: { type: "STRING" },
+                estimatedQuantity: { type: "STRING" },
+                calories: { type: "NUMBER" },
+                protein: { type: "NUMBER" },
+                carbs: { type: "NUMBER" },
+                fat: { type: "NUMBER" },
+                fiber: { type: "NUMBER" },
+                sugar: { type: "NUMBER" },
+              },
+              required: [
+                "name",
+                "emoji",
+                "estimatedQuantity",
+                "calories",
+                "protein",
+                "carbs",
+                "fat",
+                "fiber",
+                "sugar",
+              ],
+            },
+          },
         },
         required: [
           "name",
@@ -83,6 +114,7 @@ export const FOOD_SCHEMA: GeminiSchema = {
           "sugar",
           "confidence",
           "assumptions",
+          "alternatives",
         ],
         propertyOrdering: [
           "name",
@@ -97,6 +129,7 @@ export const FOOD_SCHEMA: GeminiSchema = {
           "sugar",
           "confidence",
           "assumptions",
+          "alternatives",
         ],
       },
     },
@@ -251,5 +284,19 @@ READING A PHOTO
 - If the person added a note, believe it over your own reading of the image.
 - Lower your confidence when the shot is blurry, dark, partly out of frame, or
   the food is obscured. A confident wrong number is worse than an honest guess.
+- READ THE PACKAGING. Branding, product names and label text are the single
+  strongest evidence in the frame and beat what the contents look like. A can,
+  bottle, tub or wrapper usually says exactly what it is. If you can read a
+  brand, use it in the name.
+- If a container is only part full, the amount is what is left in it, not a
+  full serving. Say so in the assumptions.
+- Dark liquid in a glass is the hardest thing in this app to call: coffee,
+  cola, diet cola, iced tea and juice all look alike, and the calorie
+  difference between a regular cola and a diet one is the whole answer. When
+  you cannot read a label, commit to your best guess and put the others in
+  alternatives. Do not quietly pick one.
+- The same goes for anything under sauce, in a wrapper, or blended: name your
+  best reading and offer the runner-up rather than presenting a coin flip as
+  a fact.
 - If there is no food in the picture at all, return a single item named
   "nothing recognised".`;

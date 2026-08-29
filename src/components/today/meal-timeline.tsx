@@ -28,6 +28,7 @@ import type { Iso } from "@/lib/date";
 import {
   deleteFoodAction,
   reanalyseFoodAction,
+  swapFoodAction,
   repeatFoodAction,
   updateFoodAction,
 } from "@/server/actions";
@@ -180,6 +181,25 @@ function FoodSticker({
   const [open, setOpen] = useState(false);
   const isTouch = useIsTouch();
 
+  const [swapping, startSwap] = useTransition();
+
+  /**
+   * Take one of the model's other readings. Costs no model call.
+   *
+   * `choice`, not `index`: the row already has an `index` prop and shadowing
+   * it here would read as a bug even while working.
+   */
+  function swap(choice: number) {
+    startSwap(async () => {
+      const result = await swapFoodAction({ id: entry.id, index: choice, date });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   function redo() {
     startRedo(async () => {
       const result = await reanalyseFoodAction(entry.id);
@@ -278,6 +298,39 @@ function FoodSticker({
               <MacroChip label="Fib" value={entry.fiber} color="var(--leaf)" />
             ) : null}
           </div>
+
+          {/*
+            The runner-ups, when the model had any.
+
+            A photo of a part-full glass of something dark came back as coffee
+            when it was a Coke Zero, and no prompt fixes that — the two look
+            identical. So the model commits to an answer and carries what else
+            it considered, and correcting it is one tap rather than opening the
+            editor and retyping four numbers.
+          */}
+          {editable && entry.alternatives.length > 0 ? (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1">
+              <span className="text-[0.6rem] font-bold text-[var(--ink-soft)]">
+                or
+              </span>
+              {entry.alternatives.map((alt, i) => (
+                <button
+                  key={`${alt.name}-${i}`}
+                  type="button"
+                  onClick={() => swap(i)}
+                  disabled={swapping}
+                  className="tappable inline-flex items-center gap-1 rounded-full bg-[var(--inset)] px-2 py-0.5 text-[0.65rem] font-bold text-[var(--ink-soft)] transition-colors hover:text-[var(--ink)] disabled:opacity-50"
+                  title={`Change this to ${alt.name}`}
+                >
+                  <span aria-hidden>{alt.emoji}</span>
+                  <span className="max-w-[8rem] truncate">{alt.name}</span>
+                  <span className="numeral text-[var(--peach)]">
+                    {Math.round(alt.calories)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className="flex shrink-0 items-center gap-0.5">

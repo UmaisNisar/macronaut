@@ -1224,6 +1224,48 @@ try {
   await wideCtx.close();
 
   /* ---------------------------------------------------------------- */
+  section("The jar is still alive");
+  /*
+   * The liquid drifts and bubbles rise. Both had silently stopped — Motion
+   * animations with `repeat: Infinity` that ran once and parked on their
+   * final frame — and nothing noticed for weeks, because a still picture of
+   * a jar looks exactly like a jar.
+   *
+   * Sampling the transform twice is the only way to tell the difference.
+   */
+  const jarCtx = await browser.newContext(phone);
+  const jarPage = await jarCtx.newPage();
+  await jarPage.goto(`${SITE}/today`, { waitUntil: "networkidle" });
+  await jarPage.waitForTimeout(1500);
+
+  const readJar = () =>
+    jarPage.evaluate(() =>
+      [...document.querySelectorAll(".jar-wave")].map(
+        (g) => getComputedStyle(g).transform,
+      ),
+    );
+  const firstJar = await readJar();
+  await jarPage.waitForTimeout(700);
+  const secondJar = await readJar();
+
+  check("the jar has waves to animate", firstJar.length >= 2, `${firstJar.length} found`);
+  check(
+    "the liquid is actually moving",
+    firstJar.length > 0 && JSON.stringify(firstJar) !== JSON.stringify(secondJar),
+    `${firstJar[0]} then ${secondJar[0]}`,
+  );
+  check(
+    "it is a CSS animation, so it cannot stop when a library changes",
+    await jarPage.evaluate(() => {
+      const g = document.querySelector(".jar-wave");
+      return Boolean(
+        g && g.getAnimations().some((a) => a.playState === "running"),
+      );
+    }),
+  );
+  await jarCtx.close();
+
+  /* ---------------------------------------------------------------- */
   section("Meters fill without waiting for JavaScript");
   /*
    * The bars used to be animated from an effect, which meant they could not

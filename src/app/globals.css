@@ -407,6 +407,60 @@
    * underneath so it reads as a physical cut-out rather than a flat panel.
    */
   /*
+   * The liquid in the jar, drifting.
+   *
+   * These were Motion animations with `repeat: Infinity` and a keyframe
+   * array, and they had stopped: every one of them sat frozen on its final
+   * frame, so the surface was a static curve and no bubbles rose. Reduced
+   * motion was off; the animations simply ran once and stayed there.
+   *
+   * Rewritten declaratively rather than diagnosed, for the same reason the
+   * meters were: a CSS animation cannot silently stop, it does not depend on
+   * a library version, and it runs on the compositor instead of costing a
+   * main-thread frame forever on the busiest screen in the app.
+   *
+   * The wave path repeats every `period` units, so translating exactly one
+   * period and looping is seamless.
+   */
+  @keyframes jar-drift {
+    to {
+      transform: translateX(calc(var(--period) * -1px));
+    }
+  }
+
+  .jar-wave {
+    animation: jar-drift var(--drift, 6s) linear infinite;
+  }
+
+  /* Bubbles rise and fade. Translated rather than animating `cy`, which is
+     only animatable as a CSS property in newer engines. */
+  @keyframes jar-bubble {
+    0% {
+      transform: translateY(0);
+      opacity: 0;
+    }
+    50% {
+      opacity: 0.55;
+    }
+    100% {
+      transform: translateY(calc(var(--rise) * -1px));
+      opacity: 0;
+    }
+  }
+
+  .jar-bubble {
+    animation: jar-bubble var(--float, 5s) ease-out infinite;
+    animation-delay: var(--delay, 0s);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .jar-wave,
+    .jar-bubble {
+      animation: none;
+    }
+  }
+
+  /*
    * A meter filling up.
    *
    * Declarative on purpose: no JavaScript is involved, so it begins on the

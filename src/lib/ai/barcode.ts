@@ -117,6 +117,7 @@ export async function lookupBarcode(code: string): Promise<BarcodeLookup> {
       // Straight off the label, so this is the most confident the app ever is.
       confidence: "high",
       assumptions: [],
+    alternatives: [],
     },
   };
 }

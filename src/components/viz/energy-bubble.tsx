@@ -1,5 +1,7 @@
 "use client";
 
+import type React from "react";
+
 import { useId } from "react";
 import { motion, useReducedMotion } from "motion/react";
 
@@ -100,10 +102,14 @@ export function EnergyBubble({
         <circle cx={CX} cy={CY} r={R} fill="var(--track)" />
 
         <g clipPath={`url(#${uid}-jar)`}>
-          {/* back wave */}
-          <motion.g
-            animate={{ x: reduce ? 0 : [0, -110] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+          {/*
+            Back wave. The drift is a CSS animation, not a Motion one: the
+            Motion version had quietly stopped, leaving every wave parked on
+            its last frame and the surface dead still.
+          */}
+          <g
+            className="jar-wave"
+            style={{ "--period": 110, "--drift": "6s" } as React.CSSProperties}
           >
             <motion.path
               d={wavePath(0, 7, 110)}
@@ -113,12 +119,12 @@ export function EnergyBubble({
               animate={{ y: surfaceY + 4 }}
               transition={{ duration: 1.1, ease: EASE.glide }}
             />
-          </motion.g>
+          </g>
 
-          {/* front wave */}
-          <motion.g
-            animate={{ x: reduce ? 0 : [0, -88] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+          {/* front wave, a shorter period so the two never march in step */}
+          <g
+            className="jar-wave"
+            style={{ "--period": 88, "--drift": "4s" } as React.CSSProperties}
           >
             <motion.path
               d={wavePath(0, 5, 88)}
@@ -130,7 +136,7 @@ export function EnergyBubble({
               animate={{ y: surfaceY }}
               transition={{ duration: 1.1, ease: EASE.glide }}
             />
-          </motion.g>
+          </g>
 
           {/* bubbles */}
           {calories > 0 &&
@@ -139,22 +145,23 @@ export function EnergyBubble({
               const x = 48 + i * 30 + (i % 2) * 8;
               const r = 3 + (i % 3);
               return (
-                <motion.circle
+                <circle
                   key={i}
                   cx={x}
+                  cy={BOTTOM - 6}
                   r={r}
                   fill="#fff"
-                  opacity={0.5}
-                  animate={{
-                    cy: [BOTTOM - 6, surfaceY + 8],
-                    opacity: [0, 0.55, 0],
-                  }}
-                  transition={{
-                    duration: 3 + i * 0.6,
-                    repeat: Infinity,
-                    delay: i * 0.7,
-                    ease: "easeOut",
-                  }}
+                  opacity={0}
+                  className="jar-bubble"
+                  style={
+                    {
+                      // Translated rather than animating `cy`, which older
+                      // engines will not animate from CSS.
+                      "--rise": Math.max(0, BOTTOM - 6 - (surfaceY + 8)),
+                      "--float": `${3 + i * 0.6}s`,
+                      "--delay": `${i * 0.7}s`,
+                    } as React.CSSProperties
+                  }
                 />
               );
             })}
