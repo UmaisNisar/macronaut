@@ -94,7 +94,7 @@ export function WeighInBar({
                 {subtitle}
               </span>
             </span>
-            <span className="shrink-0 rounded-full bg-[var(--peach)] px-4 py-2 text-sm font-bold text-white shadow-[0_3px_0_0_rgb(0_0_0/0.15)]">
+            <span className="shrink-0 rounded-full bg-[var(--peach-solid)] px-4 py-2 text-sm font-bold text-white shadow-[0_3px_0_0_rgb(0_0_0/0.15)]">
               Weigh in
             </span>
           </button>

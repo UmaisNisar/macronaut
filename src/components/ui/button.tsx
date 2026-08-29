@@ -20,9 +20,9 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-[var(--violet)] text-white shadow-[0_4px_0_0_var(--primary-lip)] hover:-translate-y-0.5 hover:shadow-[0_6px_0_0_var(--primary-lip)] active:translate-y-[2px] active:shadow-[0_1px_0_0_var(--primary-lip)]",
+          "bg-[var(--violet-solid)] text-white shadow-[0_4px_0_0_var(--primary-lip)] hover:-translate-y-0.5 hover:shadow-[0_6px_0_0_var(--primary-lip)] active:translate-y-[2px] active:shadow-[0_1px_0_0_var(--primary-lip)]",
         mint:
-          "bg-[var(--mint)] text-white shadow-[0_4px_0_0_#22A97F] hover:-translate-y-0.5 hover:shadow-[0_6px_0_0_#22A97F] active:translate-y-[2px] active:shadow-[0_1px_0_0_#22A97F]",
+          "bg-[var(--mint-solid)] text-white shadow-[0_4px_0_0_var(--mint-solid-lip)] hover:-translate-y-0.5 hover:shadow-[0_6px_0_0_var(--mint-solid-lip)] active:translate-y-[2px] active:shadow-[0_1px_0_0_var(--mint-solid-lip)]",
         outline:
           "bg-[var(--card)] text-[var(--ink)] shadow-[0_4px_0_0_var(--lip)] hover:-translate-y-0.5 hover:bg-[var(--muted)] hover:shadow-[0_6px_0_0_var(--lip)] active:translate-y-[2px] active:shadow-[0_1px_0_0_var(--lip)]",
         secondary:

@@ -106,7 +106,7 @@ export default async function InsightsPage(props: PageProps<"/insights">) {
             className={cn(
               "rounded-full px-4 py-2.5 text-sm font-bold transition-transform hover:-translate-y-0.5 active:scale-95",
               p === period
-                ? "bg-[var(--violet)] text-white shadow-[0_4px_0_0_var(--primary-lip)]"
+                ? "bg-[var(--violet-solid)] text-white shadow-[0_4px_0_0_var(--primary-lip)]"
                 : "bg-[var(--inset)] text-[var(--ink-soft)] shadow-[0_4px_0_0_var(--violet-soft)]",
             )}
           >

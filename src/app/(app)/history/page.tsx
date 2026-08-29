@@ -113,7 +113,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
                   className={cn(
                     "rounded-full px-3 py-2 text-xs font-bold transition-transform hover:-translate-y-0.5 active:scale-95",
                     jump.iso === selected
-                      ? "bg-[var(--violet)] text-white shadow-[0_3px_0_0_var(--primary-lip)]"
+                      ? "bg-[var(--violet-solid)] text-white shadow-[0_3px_0_0_var(--primary-lip)]"
                       : "bg-[var(--inset)] text-[var(--ink-soft)] shadow-[0_3px_0_0_var(--violet-soft)]",
                   )}
                 >

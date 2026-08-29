@@ -101,7 +101,7 @@ export function CalendarGrid({
           const base = cn(
             "flex aspect-square flex-col items-center justify-between rounded-2xl p-1.5 transition-colors",
             selected
-              ? "bg-[var(--violet)] text-white shadow-[0_3px_0_0_var(--primary-lip)]"
+              ? "bg-[var(--violet-solid)] text-white shadow-[0_3px_0_0_var(--primary-lip)]"
               : logged
                 ? "shadow-[0_2px_0_0_rgb(0_0_0_/_0.04)]"
                 : "bg-[var(--muted)]",

@@ -438,7 +438,7 @@ export function OnboardingFlow({ initialName }: { initialName?: string | null })
                         className={cn(
                           "rounded-2xl px-3 py-3 text-center transition-transform hover:-translate-y-0.5 active:scale-95",
                           draft.weeklyLossKg === rate
-                            ? "bg-[var(--violet)] text-white shadow-[0_3px_0_0_var(--primary-lip)]"
+                            ? "bg-[var(--violet-solid)] text-white shadow-[0_3px_0_0_var(--primary-lip)]"
                             : "bg-[var(--muted)] text-[var(--ink-soft)]",
                         )}
                       >
@@ -485,7 +485,7 @@ export function OnboardingFlow({ initialName }: { initialName?: string | null })
                     className={cn(
                       "flex items-center justify-between gap-4 rounded-2xl px-4 py-3.5 text-left transition-transform hover:-translate-y-0.5 active:scale-[0.98]",
                       draft.activityLevel === level
-                        ? "bg-[var(--violet)] text-white shadow-[0_3px_0_0_var(--primary-lip)]"
+                        ? "bg-[var(--violet-solid)] text-white shadow-[0_3px_0_0_var(--primary-lip)]"
                         : "bg-[var(--muted)]",
                     )}
                   >
@@ -675,7 +675,7 @@ function Chips({
           className={cn(
             "rounded-full px-4 py-2.5 text-sm font-bold transition-transform hover:-translate-y-0.5 active:scale-95",
             option.value === value
-              ? "bg-[var(--violet)] text-white shadow-[0_3px_0_0_var(--primary-lip)]"
+              ? "bg-[var(--violet-solid)] text-white shadow-[0_3px_0_0_var(--primary-lip)]"
               : "bg-[var(--muted)] text-[var(--ink-soft)]",
           )}
         >

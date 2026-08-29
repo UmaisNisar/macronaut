@@ -96,7 +96,7 @@ export default async function ProfilePage() {
                     </p>
                   </div>
                   {i === 0 ? (
-                    <span className="rounded-full bg-[var(--violet)] px-2.5 py-1 text-[0.65rem] font-bold text-white">
+                    <span className="rounded-full bg-[var(--violet-solid)] px-2.5 py-1 text-[0.65rem] font-bold text-white">
                       active
                     </span>
                   ) : null}

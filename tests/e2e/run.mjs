@@ -1405,6 +1405,68 @@ try {
   );
 
   /*
+   * Every filled control, not just the one that was reported.
+   *
+   * The nav pill above was fixed on its own, and the same mistake was still
+   * live in fifteen other places: a control filled with a candy colour and
+   * labelled in white. Those colours are tuned to be readable AS TEXT on a
+   * card, so after dark they are light -- white on the violet fill measured
+   * 2.31:1, and it failed in daylight too at 4.20. Checking one pill by hand
+   * is what let that spread, so this walks the page instead.
+   *
+   * Only controls with an opaque background of their own are judged; a
+   * transparent or gradient one has no single colour to measure against.
+   */
+  const scanContrast = () =>
+    darkPage.evaluate(() => {
+      const parse = (c) => (c.match(/[0-9.]+/g) || []).map(Number);
+      const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+      const lum = (r) => 0.2126 * lin(r[0]) + 0.7152 * lin(r[1]) + 0.0722 * lin(r[2]);
+      const out = [];
+      for (const el of document.querySelectorAll("button, a, [role='button']")) {
+        const r = el.getBoundingClientRect();
+        if (r.width < 24 || r.height < 16) continue;
+        const cs = getComputedStyle(el);
+        if (cs.visibility === "hidden" || cs.opacity === "0") continue;
+        const bg = parse(cs.backgroundColor);
+        // Opaque fills only: alpha < 1 means the card behind is showing through.
+        if (bg.length < 3 || (bg.length === 4 && bg[3] < 0.99)) continue;
+        if (cs.backgroundImage && cs.backgroundImage !== "none") continue;
+        const text = (el.innerText || "").trim();
+        if (!text) continue;
+        const fg = parse(cs.color);
+        if (fg.length === 4 && fg[3] < 0.5) continue;
+        const a = lum(fg), b = lum(bg);
+        const [hi, lo] = [a, b].sort((x, y) => y - x);
+        const ratio = (hi + 0.05) / (lo + 0.05);
+        if (ratio < 4.5) out.push(`${text.replace(/\s+/g, " ").slice(0, 18)} ${ratio.toFixed(2)}`);
+      }
+      return out;
+    });
+
+  /*
+   * Across the app, not one page.
+   *
+   * Written first as a single scan of /today, which passed -- and still
+   * passed with the bug deliberately put back, because the control that
+   * started all this lives on /insights. A green check that cannot see the
+   * thing it is checking is worse than no check, so it walks the routes.
+   */
+  const lowContrast = [];
+  for (const route of ["/today", "/insights", "/history", "/progress", "/profile"]) {
+    await darkPage.goto(`${SITE}${route}`, { waitUntil: "networkidle" });
+    await darkPage.waitForTimeout(400);
+    for (const hit of await scanContrast()) lowContrast.push(`${route} ${hit}`);
+  }
+  await darkPage.goto(`${SITE}/today`, { waitUntil: "networkidle" });
+
+  check(
+    "no filled control is labelled in a colour you cannot read",
+    lowContrast.length === 0,
+    lowContrast.join(" | "),
+  );
+
+  /*
    * The wallpaper must stay wallpaper.
    *
    * Four blurred blobs drift behind the page, and they were hard-coded pale

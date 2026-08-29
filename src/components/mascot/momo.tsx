@@ -187,12 +187,12 @@ export function Momo({
       >
         <defs>
           <linearGradient id={`${uid}-body`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#E2D8FF" />
-            <stop offset="55%" stopColor="#C4AEFF" />
-            <stop offset="100%" stopColor="#A98BFF" />
+            <stop offset="0%" stopColor="var(--momo-body-1)" />
+            <stop offset="55%" stopColor="var(--momo-body-2)" />
+            <stop offset="100%" stopColor="var(--momo-body-3)" />
           </linearGradient>
           <radialGradient id={`${uid}-shine`} cx="35%" cy="26%" r="45%">
-            <stop offset="0%" stopColor="#fff" stopOpacity="0.85" />
+            <stop offset="0%" stopColor="#fff" stopOpacity="var(--momo-shine)" />
             <stop offset="100%" stopColor="#fff" stopOpacity="0" />
           </radialGradient>
         </defs>
@@ -204,14 +204,10 @@ export function Momo({
             cy="112"
             rx="30"
             ry="6"
-            fill="#B7A6E8"
-            opacity="0.35"
-            initial={{ rx: 30, opacity: 0.35 }}
-            animate={
-              still
-                ? { rx: 30, opacity: 0.35 }
-                : { rx: [30, 25, 30], opacity: [0.35, 0.22, 0.35] }
-            }
+            fill="var(--momo-shadow)"
+            opacity="var(--momo-shadow-opacity)"
+            initial={false}
+            animate={still ? { rx: 30 } : { rx: [30, 25, 30] }}
             transition={{
               duration: bodyDuration,
               repeat: Infinity,
@@ -261,7 +257,7 @@ export function Momo({
           cy="74"
           rx="9.5"
           ry="7"
-          fill="#C6B2FF"
+          fill="var(--momo-body-2)"
           initial={{ rotate: 0, y: 0 }}
           animate={
             !still && (mood === "celebrating" || mood === "excited")
@@ -278,7 +274,7 @@ export function Momo({
           cy="74"
           rx="9.5"
           ry="7"
-          fill="#C6B2FF"
+          fill="var(--momo-body-2)"
           initial={{ rotate: 0, y: 0 }}
           animate={
             !still && (mood === "celebrating" || mood === "excited")

@@ -123,7 +123,44 @@
 
   --primary: var(--violet);
   --primary-foreground: #ffffff;
-  --primary-lip: #6247e0;
+
+  /*
+   * Solid fills, separate from the accent colours above — because one token
+   * cannot do both jobs.
+   *
+   * --violet and friends are tuned to be readable AS TEXT on a card, which
+   * after dark means they have to be light (#af9dff, L* 70). Filling a
+   * button with that and printing white on it measured 2.31:1. It fails in
+   * daylight too, just less: white on #7b61ff is 4.20, under the 4.5 floor.
+   * Fifteen controls across the app were built that way, the primary Button
+   * among them, which is why the selected pill and the CTA both looked
+   * bleached.
+   *
+   * These are the fill versions: deep enough that white clears 4.5:1 in both
+   * themes, with a lip a further ~11-14 L* down so the sticker edge survives.
+   * Decorative violet — progress bars, dots, path markers — deliberately
+   * keeps the bright accent, since nothing is printed on top of it.
+   */
+  --violet-solid: #6a4ef0;
+  --primary-lip: #4f36c4;
+  --mint-solid: #0f7d62;
+  --mint-solid-lip: #0a5a47;
+  --peach-solid: #b85417;
+  --peach-solid-lip: #8d3f10;
+
+  /*
+   * Momo. The body gradient was one set of pale lavenders for both themes,
+   * and its lightest stop (#e2d8ff, L* 88) floated 74 L* above a dark card —
+   * a glowing orb, the same failure the jar had. The ground shadow was a
+   * pale lavender too, which after dark is a puddle of light under a mascot
+   * standing on a dark page.
+   */
+  --momo-body-1: #e2d8ff;
+  --momo-body-2: #c4aeff;
+  --momo-body-3: #a98bff;
+  --momo-shine: 0.85;
+  --momo-shadow: #b7a6e8;
+  --momo-shadow-opacity: 0.35;
   --secondary: #f1eeff;
   --secondary-foreground: #2e2545;
   --accent: #eae5ff;
@@ -278,7 +315,23 @@
 
   --primary: var(--violet);
   --primary-foreground: #191033;
-  --primary-lip: #7e6ae0;
+
+  /* Fills, not accents. See the note in the light block. */
+  --violet-solid: #7059e0;
+  --primary-lip: #4d3aa8;
+  --mint-solid: #157a61;
+  --mint-solid-lip: #0e5644;
+  --peach-solid: #b4571f;
+  --peach-solid-lip: #8a4116;
+
+  /* Momo, dimmed 22 L* so she is a friendly shape rather than a lamp, and
+     given a shadow that actually darkens the ground she stands on. */
+  --momo-body-1: #a794e8;
+  --momo-body-2: #8975cf;
+  --momo-body-3: #7059b3;
+  --momo-shine: 0.3;
+  --momo-shadow: #0d0820;
+  --momo-shadow-opacity: 0.5;
   --secondary: #2c2648;
   --secondary-foreground: #f2effc;
   --accent: #352e55;

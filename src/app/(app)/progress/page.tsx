@@ -254,7 +254,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
                   className={cn(
                     "rounded-full px-2.5 py-1.5 text-xs font-bold transition-transform hover:-translate-y-0.5",
                     r.key === range.key
-                      ? "bg-[var(--violet)] text-white"
+                      ? "bg-[var(--violet-solid)] text-white"
                       : "bg-[var(--muted)] text-[var(--ink-soft)]",
                   )}
                 >
@@ -286,7 +286,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
                   className={cn(
                     "rounded-full px-2.5 py-1.5 text-xs font-bold transition-transform hover:-translate-y-0.5",
                     p.key === period.key
-                      ? "bg-[var(--violet)] text-white"
+                      ? "bg-[var(--violet-solid)] text-white"
                       : "bg-[var(--inset)] text-[var(--ink-soft)]",
                   )}
                 >
