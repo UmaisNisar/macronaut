@@ -34,14 +34,11 @@ export function LogWeightDialog({
   today,
   units,
   currentKg,
-  previousKg,
   trigger,
 }: {
   today: Iso;
   units: UnitSystem;
   currentKg: number;
-  /** Used only to decide whether the moment deserves confetti. */
-  previousKg?: number | null;
   trigger?: React.ReactNode;
 }) {
   const router = useRouter();
@@ -102,8 +99,19 @@ export function LogWeightDialog({
       setPhase("thinking");
       router.refresh();
 
+      /*
+       * The action's answer, not the prop. `previousKg` is whatever the page
+       * rendered with, and after the first weigh-in of a session it is a
+       * reading older than the one you are actually beating — which is how
+       * logging 119.7 twice announced a loss. The server knows the reading
+       * immediately before this date; that is the only honest baseline.
+       *
+       * 0.05 kg of slack because weights round to two decimals and a scale
+       * that reads 50g lighter has not moved.
+       */
+      const baselineKg = result.previousKg;
       const dropped =
-        typeof previousKg === "number" && weightKg < previousKg - 0.05;
+        typeof baselineKg === "number" && weightKg < baselineKg - 0.05;
 
       for (const badge of result.unlocked) {
         celebrate({
@@ -116,7 +124,7 @@ export function LogWeightDialog({
       if (dropped && !result.unlocked.length) {
         celebrate({
           title: "The scale moved! 🎉",
-          detail: `Down ${round(previousKg! - weightKg, 1)} ${unit} since your last reading.`,
+          detail: `Down ${round(baselineKg! - weightKg, 1)} ${unit} since your last reading.`,
           emoji: "📉",
         });
       }

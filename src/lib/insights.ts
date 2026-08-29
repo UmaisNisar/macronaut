@@ -333,6 +333,28 @@ function weightWindow(weights: WeightLog[], startIso: Iso, endIso: Iso) {
   return { first: within[0] ?? null, last: within[within.length - 1] ?? null };
 }
 
+/**
+ * The reading a weigh-in on `iso` should be compared against: the most recent
+ * one strictly *before* that date.
+ *
+ * Strictly before, because a weigh-in is an upsert keyed on its date. Logging
+ * again today replaces today's number rather than adding a second one, so the
+ * thing it moved from is the last reading on an earlier day — never a same-day
+ * reading, which is the number being overwritten.
+ *
+ * This exists because the celebration used to compare against the second-to-
+ * last reading from whenever the page last rendered, and congratulated
+ * somebody for logging 119.7 twice in a row.
+ */
+export function weightBefore(weights: WeightLog[], iso: Iso): WeightLog | null {
+  let found: WeightLog | null = null;
+  for (const w of [...weights].sort((a, b) => a.loggedOn.localeCompare(b.loggedOn))) {
+    if (w.loggedOn < iso) found = w;
+    else break;
+  }
+  return found;
+}
+
 /** Nearest reading at or before `iso`, so gaps in logging do not break deltas. */
 function weightAtOrBefore(weights: WeightLog[], iso: Iso): WeightLog | null {
   let found: WeightLog | null = null;

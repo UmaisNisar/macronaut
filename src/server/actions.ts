@@ -39,7 +39,7 @@ import {
 } from "@/lib/date";
 import { userToday } from "@/lib/server-date";
 import { computeJourney, computeTargets, round } from "@/lib/nutrition";
-import { computeStreaks, weightStats } from "@/lib/insights";
+import { computeStreaks, weightBefore, weightStats } from "@/lib/insights";
 import { analyseFood, analyseFoodPhoto } from "@/lib/ai/food";
 import { consumeAiBudget } from "@/lib/ai/budget";
 import { portionThatFits, verdictFor, type Verdict } from "@/lib/verdict";
@@ -1246,9 +1246,30 @@ export async function ensureDailyCoachAction(
 /* Weight                                                              */
 /* ================================================================== */
 
+/**
+ * `previousKg` is the number this reading should be compared against: the most
+ * recent reading strictly *before* the date being written.
+ *
+ * It is computed here rather than passed in from the page, which is how the
+ * app came to congratulate someone for logging 119.7 twice in a row. The
+ * dialog was handed the second-to-last reading from whenever the page last
+ * rendered, so re-weighing at the same number compared it against the one
+ * before that — a genuine loss, announced as if it had just happened.
+ *
+ * "Strictly before the date" is right for every case, because a weigh-in is an
+ * upsert keyed on its date: re-logging today replaces today's number, so the
+ * thing it moved from is yesterday's, and back-dating compares against
+ * whatever came before that date rather than against a later reading.
+ */
 export async function logWeightAction(
   raw: unknown,
-): Promise<ActionResult<{ id: string; unlocked: { key: string; name: string; emoji: string }[] }>> {
+): Promise<
+  ActionResult<{
+    id: string;
+    previousKg: number | null;
+    unlocked: { key: string; name: string; emoji: string }[];
+  }>
+> {
   const ctx = await withProfile();
   if (!ctx.ok) return fail(ctx.error);
 
@@ -1272,6 +1293,7 @@ export async function logWeightAction(
   // Only the most recent reading drives "current weight".
   const all = await store.listWeightLogs(profile.id);
   const latest = all.at(-1);
+  const before = weightBefore(all, date);
   if (latest && latest.loggedOn === date) {
     await store.patchProfile(profile.id, { currentWeightKg: round(weightKg, 2) });
   }
@@ -1287,6 +1309,7 @@ export async function logWeightAction(
   return {
     ok: true,
     id: row.id,
+    previousKg: before?.weightKg ?? null,
     unlocked: unlockedKeys.flatMap((key) => {
       const def = ACHIEVEMENT_BY_KEY.get(key);
       return def ? [{ key, name: def.name, emoji: def.emoji }] : [];

@@ -5,6 +5,7 @@ import {
   computeStreaks,
   periodPair,
   summarisePeriod,
+  weightBefore,
   weightStats,
 } from "@/lib/insights";
 import { computeTargets } from "@/lib/nutrition";
@@ -160,6 +161,58 @@ describe("weightStats", () => {
     expect(s.latest).toBeNull();
     expect(s.count).toBe(0);
     expect(s.change7).toBeNull();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* The baseline a weigh-in is celebrated against                       */
+/* ------------------------------------------------------------------ */
+
+describe("weightBefore", () => {
+  /*
+   * The bug this exists for: readings of 120.5 then 119.7, then weighing in
+   * at 119.7 again. The dialog was handed the second-to-last reading and
+   * announced "the scale moved, down 0.8 kg" for a number that had not moved
+   * at all.
+   */
+  it("ignores a same-day reading, because logging again replaces it", () => {
+    const before = weightBefore(
+      [weigh("2026-08-20", 120.5), weigh("2026-08-21", 119.7)],
+      "2026-08-21",
+    );
+    expect(before?.weightKg).toBe(120.5);
+    // ...and 119.7 against a 120.5 baseline is not a drop worth confetti,
+    // which is the whole point: the caller compares to *this* number.
+    expect(119.7 < 120.5 - 0.05).toBe(true);
+  });
+
+  it("uses the latest reading when the new one is a fresh day", () => {
+    const before = weightBefore(
+      [weigh("2026-08-20", 120.5), weigh("2026-08-21", 119.7)],
+      "2026-08-22",
+    );
+    expect(before?.weightKg).toBe(119.7);
+  });
+
+  it("looks before the date when a weigh-in is back-dated", () => {
+    const before = weightBefore(
+      [weigh("2026-08-18", 121), weigh("2026-08-20", 120.5), weigh("2026-08-25", 119)],
+      "2026-08-20",
+    );
+    expect(before?.weightKg).toBe(121);
+  });
+
+  it("is null for the very first reading", () => {
+    expect(weightBefore([], "2026-08-21")).toBeNull();
+    expect(weightBefore([weigh("2026-08-21", 119.7)], "2026-08-21")).toBeNull();
+  });
+
+  it("does not depend on the order it is given", () => {
+    const before = weightBefore(
+      [weigh("2026-08-25", 119), weigh("2026-08-18", 121), weigh("2026-08-20", 120.5)],
+      "2026-08-25",
+    );
+    expect(before?.weightKg).toBe(120.5);
   });
 });
 

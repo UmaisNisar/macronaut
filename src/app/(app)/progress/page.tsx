@@ -175,7 +175,6 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
           today={today}
           units={profile.units}
           currentKg={currentKg}
-          previousKg={wStats.previous?.weightKg ?? null}
         />
       </header>
 

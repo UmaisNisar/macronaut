@@ -34,7 +34,6 @@ export function WeighInBar({
         today={today}
         units={units}
         currentKg={currentKg}
-        previousKg={previous?.weightKg ?? null}
         trigger={
           <button
             type="button"
@@ -79,7 +78,6 @@ export function WeighInBar({
         today={today}
         units={units}
         currentKg={currentKg}
-        previousKg={previous?.weightKg ?? null}
         trigger={
           <button
             type="button"
