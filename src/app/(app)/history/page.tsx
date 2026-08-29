@@ -85,8 +85,13 @@ export default async function HistoryPage(props: PageProps<"/history">) {
         </h1>
       </header>
 
-      <div className="grid gap-4 sm:gap-5 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
-        <div className="space-y-4 lg:sticky lg:top-6">
+      {/*
+        grid-cols-[minmax(0,1fr)] on the phone layout: a grid track sizes to
+        its item's min-content unless told it may shrink, and one stubborn
+        child then drags the whole column past the edge of the screen.
+      */}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:gap-5 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
+        <div className="min-w-0 space-y-4 lg:sticky lg:top-6">
           <Sticker>
             <FoodSearch today={today} />
 
@@ -122,7 +127,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
           </Sticker>
         </div>
 
-        <div className="space-y-4 sm:space-y-5">
+        <div className="min-w-0 space-y-4 sm:space-y-5">
           {/* The journal page */}
           <Sticker tint={day.entryCount === 0 ? "plain" : "peach"}>
             <div className="flex flex-wrap items-start justify-between gap-4">

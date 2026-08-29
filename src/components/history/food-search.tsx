@@ -42,14 +42,24 @@ export function FoodSearch({ today }: { today: Iso }) {
   return (
     <div className="mb-4">
       <form onSubmit={run} className="flex gap-2">
-        <div className="field flex flex-1 items-center gap-2 rounded-full bg-[var(--inset)] px-4 py-2.5">
+        {/*
+          min-w-0 on both the field and the input, and neither is optional.
+
+          A flex item will not shrink below its content's minimum, and an
+          input's minimum is its intrinsic size — around twenty characters,
+          whatever `w-full` says. That floor propagated all the way up and
+          made this column five hundred pixels wide inside a three-hundred
+          and fifty-eight pixel grid on a phone, so the card's right-hand
+          side was simply cut off.
+        */}
+        <div className="field flex min-w-0 flex-1 items-center gap-2 rounded-full bg-[var(--inset)] px-4 py-2.5">
           <Search className="size-4 shrink-0 text-[var(--ink-soft)]" aria-hidden />
           <input
             value={term}
             onChange={(e) => setTerm(e.target.value)}
             placeholder="Find a meal you've had before…"
             aria-label="Search your food history"
-            className="w-full bg-transparent text-[1rem] font-medium outline-none placeholder:text-[var(--ink-soft)]/70"
+            className="min-w-0 w-full bg-transparent text-[1rem] font-medium outline-none placeholder:text-[var(--ink-soft)]/70"
           />
           {term ? (
             <button

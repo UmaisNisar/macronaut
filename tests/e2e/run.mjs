@@ -1012,6 +1012,201 @@ try {
   await secCtx.close();
 
   /* ---------------------------------------------------------------- */
+  section("Nothing runs off the side of a phone");
+  /*
+   * The same bug turned up twice, from the same cause: grid and flex items
+   * default to min-width:auto, so a child that cannot wrap refuses to shrink
+   * and drags its container past the edge of the screen.
+   *
+   * It hit the check-first dialog — one long ice cream name made the card
+   * 452px wide inside a 358px dialog, taking the heading, the description and
+   * the buttons off the side with it — and the Journal column, where the
+   * search input's intrinsic width did exactly the same thing.
+   *
+   * The long name is injected rather than logged, so this does not depend on
+   * what a model happens to return on the day it runs.
+   */
+  const wideCtx = await browser.newContext(phone);
+  const widePage = await wideCtx.newPage();
+  const LONG_NAME = "Ben & Jerrys Brownie Batter Core Ice Cream Chocolate Fudge";
+
+  /*
+   * Only content, never chrome.
+   *
+   * A first version of this walked every text node and duly reported the
+   * navigation dock and a "Weigh in" button as overflowing — both of which
+   * carry fixed labels that will never be sixty characters long. Stretching
+   * those tests nothing except the test's own imagination. What genuinely
+   * varies is what the model names a food, and that lives in the page body,
+   * outside the controls.
+   */
+  /*
+   * Renamed through the app's own edit form, not injected into the DOM.
+   *
+   * A first version walked the page and lengthened every word-like run,
+   * which duly flagged the navigation dock, a "Weigh in" button and the
+   * "since Aug 28" note beside a heading — all fixed strings that will never
+   * be sixty characters long. Narrowing the injector until it stopped
+   * complaining would have been fitting the test to the code.
+   *
+   * What actually varies is the name of a food, which a model writes and a
+   * person can edit to anything up to a hundred and twenty characters. So
+   * the test does that, and then looks at every screen the name appears on.
+   */
+  await widePage.goto(`${SITE}/today`, { waitUntil: "networkidle" });
+  await widePage.waitForTimeout(1200);
+
+  const pencil = widePage.locator("button").filter({ has: widePage.locator("svg.lucide-pencil") }).first();
+  const canEdit = await pencil
+    .waitFor({ state: "visible", timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
+  check("an entry can be opened for editing", canEdit);
+
+  if (canEdit) {
+    await pencil.click();
+    const nameField = widePage.locator("#name");
+    await nameField.waitFor({ state: "visible", timeout: 10000 }).catch(() => {});
+    await nameField.fill(LONG_NAME);
+    await widePage.getByRole("button", { name: /save|update|done/i }).first().click();
+    await widePage.waitForTimeout(2500);
+  }
+  const measureOverflow = () =>
+    widePage.evaluate(() => {
+      const root = document.documentElement;
+      const vw = root.clientWidth;
+      // Something an ancestor clips away is not a visible bug.
+      const clipped = (el) => {
+        for (let n = el.parentElement; n; n = n.parentElement) {
+          if (/hidden|clip|auto|scroll/.test(getComputedStyle(n).overflowX)) {
+            return true;
+          }
+        }
+        return false;
+      };
+      let worst = null;
+      for (const el of document.querySelectorAll("body *")) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) continue;
+        const past = Math.round(r.right - vw);
+        if (past > 1 && !clipped(el) && (!worst || past > worst.past)) {
+          worst = {
+            past,
+            tag: el.tagName.toLowerCase(),
+            cls: String(el.className).slice(0, 40),
+          };
+        }
+      }
+      return { over: root.scrollWidth - vw, worst };
+    });
+
+  for (const [path, name] of [
+    ["/today", "Today"],
+    ["/history", "Journal"],
+    ["/progress", "Journey"],
+    ["/insights", "Insights"],
+    ["/profile", "You"],
+  ]) {
+    await widePage.goto(`${SITE}${path}`, { waitUntil: "networkidle" });
+    await widePage.waitForTimeout(1200);
+    const r = await measureOverflow();
+    check(
+      `${name} survives a very long food name`,
+      r.over <= 1 && !r.worst,
+      r.worst
+        ? `${r.worst.tag}.${r.worst.cls} sticks out ${r.worst.past}px`
+        : `page scrolls ${r.over}px`,
+    );
+  }
+
+  // And the dialog the bug was reported in, with a result on screen.
+  await widePage.goto(`${SITE}/today`, { waitUntil: "networkidle" });
+  await widePage.waitForTimeout(900);
+  await widePage.getByRole("button", { name: /Check first/ }).click();
+  await widePage
+    .locator('textarea[aria-label="What are you thinking of eating?"]')
+    .fill("ice cream");
+  await widePage.getByRole("button", { name: /^Check it/ }).click();
+  // Wait for the dialog's own result list. Waiting on the word "kcal" matched
+  // the page *behind* the dialog, so this raced and sometimes renamed nothing.
+  await widePage
+    .locator('[role="dialog"] li')
+    .first()
+    .waitFor({ state: "visible", timeout: 60000 })
+    .catch(() => {});
+
+  /*
+   * The item name in this list comes straight from the model, and the offline
+   * estimator only ever says something short like "Ice Cream" — which is why
+   * an earlier version of this check passed happily with the bug still in
+   * place. Verified by putting the bug back: without the fix on DialogContent
+   * this now fails and the short name did not.
+   */
+  const renamedInDialog = await widePage.evaluate((name) => {
+    const row = document.querySelector('[role="dialog"] li');
+    if (!row) return false;
+    const label = [...row.querySelectorAll("span")].find(
+      (s) => (s.textContent || "").trim().length > 3,
+    );
+    if (!label?.firstChild) return false;
+    label.firstChild.nodeValue = name;
+    return true;
+  }, LONG_NAME);
+  check("the dialog is showing a result to test", renamedInDialog);
+  await widePage.waitForTimeout(400);
+
+  /*
+   * Measured against the dialog's own edge, not the viewport.
+   *
+   * The page-level signal cannot see this one at all: the dialog is
+   * position:fixed so it never widens documentElement.scrollWidth, and body
+   * carries overflow-x:hidden so nothing inside it counts as unclipped
+   * either. Both earlier versions of this check were green with the bug
+   * present. Comparing children against the card that is supposed to contain
+   * them is the thing that actually goes red.
+   */
+  const dialogOverflow = await widePage.evaluate(() => {
+    const dlg = document.querySelector('[role="dialog"]');
+    if (!dlg) return { over: 0, worst: { past: 0, tag: "no dialog", cls: "" } };
+    const edge = dlg.getBoundingClientRect().right;
+    // A child that an ancestor clips is not a visible bug — the quantity
+    // inside a truncating name overhangs on paper and is invisible in fact.
+    // Only walk as far as the dialog: body has overflow-x:hidden, and letting
+    // that count would excuse everything.
+    const clippedInside = (el) => {
+      for (let n = el.parentElement; n && n !== dlg; n = n.parentElement) {
+        if (/hidden|clip|auto|scroll/.test(getComputedStyle(n).overflowX)) {
+          return true;
+        }
+      }
+      return false;
+    };
+    let worst = null;
+    for (const el of dlg.querySelectorAll("*")) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      if (clippedInside(el)) continue;
+      const past = Math.round(r.right - edge);
+      if (past > 1 && (!worst || past > worst.past)) {
+        worst = {
+          past,
+          tag: el.tagName.toLowerCase(),
+          cls: String(el.className).slice(0, 40),
+        };
+      }
+    }
+    return { over: 0, worst };
+  });
+  check(
+    "the check-first dialog survives one too",
+    dialogOverflow.over <= 1 && !dialogOverflow.worst,
+    dialogOverflow.worst
+      ? `${dialogOverflow.worst.tag}.${dialogOverflow.worst.cls} sticks out ${dialogOverflow.worst.past}px`
+      : `page scrolls ${dialogOverflow.over}px`,
+  );
+  await wideCtx.close();
+
+  /* ---------------------------------------------------------------- */
   section("Meters fill without waiting for JavaScript");
   /*
    * The bars used to be animated from an effect, which meant they could not

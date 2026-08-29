@@ -53,7 +53,22 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-[2rem] bg-popover p-6 text-sm text-popover-foreground shadow-[0_20px_60px_-20px_rgb(255_111_165_/_0.5)] duration-100 outline-none sm:max-w-md data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          /*
+           * `grid-cols-[minmax(0,1fr)]` is load-bearing, not tidying.
+           *
+           * This is a grid, and a grid track sizes itself to its widest item's
+           * *min-content*, which for a run of unbreakable text is the whole
+           * string. One long food name — "Ben & Jerry's Brownie Batter Core Ice
+           * Cream" — made the column 452px inside a 358px dialog, and because
+           * every row shares that column, the heading, the description and the
+           * button all stretched with it and ran off the side of the phone.
+           *
+           * minmax(0, 1fr) lets the track shrink below its content, which is
+           * what makes `truncate` and text wrapping work again. Fixed here
+           * rather than in the one dialog that showed it, because any dialog
+           * with a long word in it has the same bug waiting.
+           */
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] grid-cols-[minmax(0,1fr)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-[2rem] bg-popover p-6 text-sm text-popover-foreground shadow-[0_20px_60px_-20px_rgb(255_111_165_/_0.5)] duration-100 outline-none sm:max-w-md data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
