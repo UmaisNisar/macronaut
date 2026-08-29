@@ -3,53 +3,63 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Barcode, Loader2, X } from "lucide-react";
+import { Barcode, ImageUp, Loader2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Haptic } from "@/components/ui/haptic";
 import { logBarcodeAction } from "@/server/actions";
 import { useUndoToast } from "@/components/today/undo";
+import {
+  createBarcodeDecoder,
+  looksLikeBarcode,
+  type BarcodeDecoder,
+} from "@/lib/barcode-reader";
 import type { Iso } from "@/lib/date";
 
 /**
  * Scan a packaged food instead of describing it.
  *
- * Uses the browser's own BarcodeDetector, which is fast and free where it
- * exists. It does not exist everywhere — notably not in Safari — so rather than
- * ship a scanner that silently does nothing on an iPhone, unsupported browsers
- * get a number field. Typing thirteen digits is worse than pointing a camera,
- * but it is a great deal better than a dead button, and it still ends in exact
- * label data rather than a guess.
+ * This used to point the camera only on browsers with a native
+ * BarcodeDetector, and hand everyone else — which in practice means every
+ * iPhone — a numeric field and an apology for it. The camera now runs
+ * everywhere; see lib/barcode-reader for which decoder answers and why.
+ *
+ * Three ways in, in the order they are worth trying:
+ *
+ *   1. Live camera. What anyone means by "scan".
+ *   2. A still photo, from the camera or the library. Holding a phone steady
+ *      enough for a live read is genuinely hard on a curved bottle or in a
+ *      dim cupboard, and a single sharp frame decodes when a hundred shaky
+ *      ones will not. It also covers a refused camera permission.
+ *   3. Typing the number, still there as the floor.
  */
 
-type Detector = {
-  detect: (source: CanvasImageSource) => Promise<{ rawValue: string }[]>;
-};
-
-type DetectorCtor = new (options?: { formats?: string[] }) => Detector;
-
-function detectorSupported(): boolean {
-  return typeof window !== "undefined" && "BarcodeDetector" in window;
-}
+type Phase = "scanning" | "photo" | "manual";
 
 export function BarcodeScanner({ date }: { date: Iso }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [manual, setManual] = useState("");
-  const [supported, setSupported] = useState(false);
+  const [phase, setPhase] = useState<Phase>("scanning");
+  const [hint, setHint] = useState("Starting the camera…");
   const offerUndo = useUndoToast();
 
   const video = useRef<HTMLVideoElement | null>(null);
   const stream = useRef<MediaStream | null>(null);
   const scanning = useRef(false);
+  const decoder = useRef<BarcodeDecoder | null>(null);
 
-  const stop = useCallback(() => {
+  const stopCamera = useCallback(() => {
     scanning.current = false;
     stream.current?.getTracks().forEach((t) => t.stop());
     stream.current = null;
-    setOpen(false);
   }, []);
+
+  const close = useCallback(() => {
+    stopCamera();
+    setOpen(false);
+  }, [stopCamera]);
 
   const submit = useCallback(
     async (code: string) => {
@@ -59,59 +69,79 @@ export function BarcodeScanner({ date }: { date: Iso }) {
       setBusy(false);
       if (!result.ok) {
         toast.error(result.error);
+        // Keep the sheet open so a bad read can be retried without
+        // starting over — a miss here is usually one blurry frame.
+        scanning.current = true;
         return;
       }
       // Replaces the plain confirmation rather than sitting beside it: a
       // scan is easy to fire at the wrong packet, and two toasts saying
       // almost the same thing is worse than one that can be acted on.
       offerUndo(result.added, date);
-      stop();
+      close();
       router.refresh();
     },
-    [busy, date, offerUndo, router, stop],
+    [busy, close, date, offerUndo, router],
   );
 
-  // Detection loop. Kept in a ref rather than state so a frame callback cannot
+  /** Shared by the live loop and the still photo. */
+  const ensureDecoder = useCallback(async () => {
+    if (!decoder.current) decoder.current = await createBarcodeDecoder();
+    return decoder.current;
+  }, []);
+
+  // Detection loop. State lives in refs so a queued frame callback cannot
   // resurrect a scan after the camera has been shut off.
   useEffect(() => {
-    if (!open || !detectorSupported()) return;
+    if (!open || phase !== "scanning") return;
     let raf = 0;
+    let cancelled = false;
 
     const run = async () => {
-      const Ctor = (window as unknown as { BarcodeDetector: DetectorCtor })
-        .BarcodeDetector;
-      const detector = new Ctor({
-        formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"],
-      });
+      let read: BarcodeDecoder;
+      try {
+        read = await ensureDecoder();
+      } catch {
+        setHint("");
+        setPhase("manual");
+        return;
+      }
+      if (cancelled) return;
 
       try {
         const media = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment" },
         });
+        if (cancelled) {
+          media.getTracks().forEach((t) => t.stop());
+          return;
+        }
         stream.current = media;
         if (video.current) {
           video.current.srcObject = media;
           await video.current.play();
         }
       } catch {
-        toast.error("No camera access — type the number instead.");
-        setSupported(false);
+        // Denied, or no camera. A photo still works — the picker can reach
+        // the library even when live capture is refused.
+        setPhase("photo");
         return;
       }
 
+      setHint(
+        read.kind === "native"
+          ? "Point at the barcode"
+          : "Point at the barcode — hold it steady",
+      );
       scanning.current = true;
+
       const tick = async () => {
         if (!scanning.current || !video.current) return;
-        try {
-          const found = await detector.detect(video.current);
-          const code = found[0]?.rawValue;
-          if (code) {
-            scanning.current = false;
-            await submit(code);
-            return;
-          }
-        } catch {
-          // A frame that cannot be decoded is the normal case, not an error.
+        const code = await read.read(video.current);
+        if (code && looksLikeBarcode(code)) {
+          scanning.current = false;
+          await submit(code);
+          return;
         }
         raf = requestAnimationFrame(() => void tick());
       };
@@ -120,12 +150,49 @@ export function BarcodeScanner({ date }: { date: Iso }) {
 
     void run();
     return () => {
+      cancelled = true;
       scanning.current = false;
       cancelAnimationFrame(raf);
-      stream.current?.getTracks().forEach((t) => t.stop());
-      stream.current = null;
+      stopCamera();
     };
-  }, [open, submit]);
+  }, [open, phase, ensureDecoder, stopCamera, submit]);
+
+  /** Decode one still. Bigger and sharper than any live frame. */
+  const readPhoto = useCallback(
+    async (file: File) => {
+      setBusy(true);
+      setHint("Reading the photo…");
+      try {
+        const read = await ensureDecoder();
+        const bitmap = await createImageBitmap(file);
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) throw new Error("no canvas");
+        ctx.drawImage(bitmap, 0, 0);
+        bitmap.close?.();
+
+        const code = await read.read(canvas);
+        if (code && looksLikeBarcode(code)) {
+          setBusy(false);
+          await submit(code);
+          return;
+        }
+        setBusy(false);
+        setHint("");
+        toast("Could not read that one 🔍", {
+          description: "Try filling the frame with the bars, or type it in.",
+        });
+        setPhase("manual");
+      } catch {
+        setBusy(false);
+        setHint("");
+        setPhase("manual");
+      }
+    },
+    [ensureDecoder, submit],
+  );
 
   return (
     <>
@@ -135,7 +202,9 @@ export function BarcodeScanner({ date }: { date: Iso }) {
           variant="outline"
           size="lg"
           onClick={() => {
-            setSupported(detectorSupported());
+            setPhase("scanning");
+            setHint("Starting the camera…");
+            setManual("");
             setOpen(true);
           }}
           aria-label="Log a packaged food by barcode"
@@ -153,7 +222,7 @@ export function BarcodeScanner({ date }: { date: Iso }) {
               <p className="font-bold">Scan a barcode</p>
               <button
                 type="button"
-                onClick={stop}
+                onClick={close}
                 aria-label="Close scanner"
                 className="grid size-9 place-items-center rounded-full text-[var(--ink-soft)] hover:bg-[var(--muted)]"
               >
@@ -161,19 +230,77 @@ export function BarcodeScanner({ date }: { date: Iso }) {
               </button>
             </div>
 
-            {supported ? (
+            {phase === "scanning" ? (
               <>
-                <video
-                  ref={video}
-                  className="aspect-[4/3] w-full rounded-2xl bg-black object-cover"
-                  muted
-                  playsInline
-                />
+                <div className="relative">
+                  <video
+                    ref={video}
+                    className="aspect-[4/3] w-full rounded-2xl bg-black object-cover"
+                    muted
+                    playsInline
+                  />
+                  {/* Shows where the decoder is actually looking — it reads a
+                      band across the middle, not the whole frame. */}
+                  <div
+                    className="pointer-events-none absolute inset-x-4 top-1/2 h-20 -translate-y-1/2 rounded-xl border-2 border-white/70"
+                    aria-hidden
+                  />
+                </div>
                 <p className="mt-2 text-center text-xs font-medium text-[var(--ink-soft)]">
-                  {busy ? "Looking it up…" : "Point at the barcode"}
+                  {busy ? "Looking it up…" : hint}
                 </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    stopCamera();
+                    setPhase("photo");
+                  }}
+                  className="mt-2 w-full text-center text-xs font-semibold text-[var(--violet)] underline-offset-2 hover:underline"
+                >
+                  Not catching it? Take a photo instead
+                </button>
               </>
-            ) : (
+            ) : null}
+
+            {phase === "photo" ? (
+              <div className="text-center">
+                <p className="mb-3 text-xs leading-relaxed font-medium text-[var(--ink-soft)]">
+                  Take a close, straight-on photo of the barcode — fill the
+                  frame with the bars. One sharp picture reads better than a
+                  wobbly camera.
+                </p>
+                <label className="tappable sticker-flat mx-auto flex cursor-pointer items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold">
+                  {busy ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <ImageUp className="size-4" />
+                  )}
+                  {busy ? "Reading…" : "Choose or take a photo"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="sr-only"
+                    disabled={busy}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      // Cleared so picking the same file twice still fires.
+                      e.target.value = "";
+                      if (file) void readPhoto(file);
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setPhase("manual")}
+                  className="mt-3 w-full text-center text-xs font-semibold text-[var(--violet)] underline-offset-2 hover:underline"
+                >
+                  Type the number instead
+                </button>
+              </div>
+            ) : null}
+
+            {phase === "manual" ? (
               <form
                 onSubmit={(event) => {
                   event.preventDefault();
@@ -181,9 +308,8 @@ export function BarcodeScanner({ date }: { date: Iso }) {
                 }}
               >
                 <p className="mb-2 text-xs leading-relaxed font-medium text-[var(--ink-soft)]">
-                  This browser has no barcode reader — Safari is the usual
-                  culprit. Type the number under the bars and you still get the
-                  exact figures off the label.
+                  Type the number under the bars and you still get the exact
+                  figures off the label.
                 </p>
                 <input
                   inputMode="numeric"
@@ -202,8 +328,18 @@ export function BarcodeScanner({ date }: { date: Iso }) {
                   {busy ? <Loader2 className="size-4 animate-spin" /> : null}
                   Look it up
                 </Button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhase("scanning");
+                    setHint("Starting the camera…");
+                  }}
+                  className="mt-3 w-full text-center text-xs font-semibold text-[var(--violet)] underline-offset-2 hover:underline"
+                >
+                  Use the camera instead
+                </button>
               </form>
-            )}
+            ) : null}
           </div>
         </div>
       ) : null}

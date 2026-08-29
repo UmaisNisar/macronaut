@@ -1696,6 +1696,143 @@ try {
       );
     }
 
+    /* ---------------------------------------------------------------- */
+    section("Reading a real barcode without BarcodeDetector");
+    /*
+     * The iPhone case, checked against an actual barcode.
+     *
+     * Safari has no BarcodeDetector, so the app used to hand every iPhone a
+     * numeric keypad and an apology. It now falls back to ZXing, and this
+     * runs the same pipeline that module uses — centre band, RGBA converted
+     * to one grey byte per pixel, HybridBinarizer, 1D reader — over EAN-13
+     * bar patterns generated from the spec.
+     *
+     * It earns its place: written the obvious way, the pipeline fed
+     * ImageData.data straight to RGBLuminanceSource, which reads a
+     * Uint8ClampedArray as luminances already. Every colour channel became
+     * its own pixel. Nothing threw, nothing was logged, and no barcode was
+     * ever read. Only decoding a known code caught it.
+     *
+     * It exercises the decode path rather than the component: a live camera
+     * needs a fake capture device, which is not set up here.
+     */
+    const wkBarcode = await webkitBrowser.newContext();
+    const bcPage = await wkBarcode.newPage();
+    await bcPage.goto("about:blank");
+    let zxingLoaded = true;
+    try {
+      await bcPage.addScriptTag({
+        path: "node_modules/@zxing/library/umd/index.min.js",
+      });
+    } catch {
+      zxingLoaded = false;
+    }
+    check("the ZXing fallback loads in WebKit", zxingLoaded);
+
+    if (zxingLoaded) {
+      check(
+        "WebKit really has no native detector (the reason for all this)",
+        !(await bcPage.evaluate(() => "BarcodeDetector" in window)),
+      );
+
+      const decoded = await bcPage.evaluate(() => {
+        const L = ["0001101","0011001","0010011","0111101","0100011","0110001","0101111","0111011","0110111","0001011"];
+        const G = ["0100111","0110011","0011011","0100001","0011101","0111001","0000101","0010001","0001001","0010111"];
+        const R = ["1110010","1100110","1101100","1000010","1011100","1001110","1010000","1000100","1001000","1110100"];
+        const PARITY = ["LLLLLL","LLGLGG","LLGGLG","LLGGGL","LGLLGG","LGGLLG","LGGGLL","LGLGLG","LGLGGL","LGGLGL"];
+        const modules = (code) => {
+          const d = [...code].map(Number);
+          const par = PARITY[d[0]];
+          let bits = "101";
+          for (let i = 1; i <= 6; i++) bits += (par[i - 1] === "L" ? L : G)[d[i]];
+          bits += "01010";
+          for (let i = 7; i <= 12; i++) bits += R[d[i]];
+          return bits + "101";
+        };
+        const draw = (code) => {
+          const bits = modules(code);
+          const M = 3, QUIET = 12, H = 240;
+          const cv = document.createElement("canvas");
+          cv.width = (bits.length + QUIET * 2) * M;
+          cv.height = H;
+          const g = cv.getContext("2d");
+          g.fillStyle = "#fff";
+          g.fillRect(0, 0, cv.width, cv.height);
+          g.fillStyle = "#000";
+          for (let i = 0; i < bits.length; i++) {
+            if (bits[i] === "1") g.fillRect((QUIET + i) * M, 0, M, H);
+          }
+          return cv;
+        };
+        // The app's pipeline, step for step.
+        const decode = (source) => {
+          const Z = window.ZXing;
+          const w = source.width, h = source.height;
+          const band = Math.max(64, Math.round(h * 0.5));
+          const top = Math.round((h - band) / 2);
+          const c = document.createElement("canvas");
+          c.width = w;
+          c.height = band;
+          const ctx = c.getContext("2d", { willReadFrequently: true });
+          ctx.drawImage(source, 0, top, w, band, 0, 0, w, band);
+          const { data } = ctx.getImageData(0, 0, c.width, c.height);
+          const lum = new Uint8ClampedArray(data.length / 4);
+          for (let i = 0, p = 0; p < lum.length; i += 4, p++) {
+            lum[p] = (data[i] + 2 * data[i + 1] + data[i + 2]) / 4;
+          }
+          const hints = new Map();
+          hints.set(Z.DecodeHintType.TRY_HARDER, true);
+          const reader = new Z.MultiFormatOneDReader(hints);
+          try {
+            return reader
+              .decode(
+                new Z.BinaryBitmap(
+                  new Z.HybridBinarizer(
+                    new Z.RGBLuminanceSource(lum, c.width, c.height),
+                  ),
+                ),
+              )
+              .getText()
+              .trim();
+          } catch {
+            return null;
+          } finally {
+            reader.reset();
+          }
+        };
+        const blank = document.createElement("canvas");
+        blank.width = 400;
+        blank.height = 240;
+        const bg = blank.getContext("2d");
+        bg.fillStyle = "#888";
+        bg.fillRect(0, 0, 400, 240);
+        return {
+          cola: decode(draw("5449000214911")),
+          other: decode(draw("4006381333931")),
+          blank: decode(blank),
+        };
+      });
+
+      check(
+        "an EAN-13 decodes to its exact digits",
+        decoded.cola === "5449000214911",
+        `got ${decoded.cola}`,
+      );
+      check(
+        "and so does a second one",
+        decoded.other === "4006381333931",
+        `got ${decoded.other}`,
+      );
+      // Guards the other direction: a decoder that invents codes is worse
+      // than one that finds none, because it logs the wrong food.
+      check(
+        "a frame with no barcode reads as nothing",
+        decoded.blank === null,
+        `got ${decoded.blank}`,
+      );
+    }
+
+    await wkBarcode.close();
     await wkCtx.close();
     await webkitBrowser.close();
   }
