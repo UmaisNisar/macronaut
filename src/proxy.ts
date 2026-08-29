@@ -24,7 +24,7 @@ function apiOrigin(): string {
   }
 }
 
-function policy(nonce: string, dev: boolean): string {
+function policy(nonce: string, dev: boolean, secure: boolean): string {
   const connect = ["'self'", apiOrigin()].filter(Boolean).join(" ");
 
   return [
@@ -75,7 +75,19 @@ function policy(nonce: string, dev: boolean): string {
     // A form posting a session cookie anywhere but back here is never right.
     "form-action 'self'",
 
-    "upgrade-insecure-requests",
+    /*
+     * Only when the page itself arrived over https.
+     *
+     * On a plain-http origin the directive has nothing useful to do, and it
+     * actively breaks things: Chrome exempts localhost from upgrading, and
+     * WebKit does not. Testing against http://localhost in WebKit, every
+     * stylesheet was upgraded to https, failed with an SSL error, and the
+     * page rendered with no CSS at all — which looked exactly like a
+     * catastrophic Safari layout bug for about twenty minutes.
+     *
+     * Production is https, so nothing changes there.
+     */
+    ...(secure ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
 }
 
@@ -83,7 +95,11 @@ export async function proxy(request: NextRequest) {
   // randomUUID is available in the edge runtime; Buffer is not, so the hex
   // form is used directly rather than base64-encoding it.
   const nonce = crypto.randomUUID().replace(/-/g, "");
-  const csp = policy(nonce, process.env.NODE_ENV === "development");
+  // Vercel terminates TLS upstream, so the header is the honest answer here.
+  const secure =
+    request.headers.get("x-forwarded-proto") === "https" ||
+    request.nextUrl.protocol === "https:";
+  const csp = policy(nonce, process.env.NODE_ENV === "development", secure);
 
   /*
    * Rebuilt on each call rather than captured once: Supabase's setAll writes

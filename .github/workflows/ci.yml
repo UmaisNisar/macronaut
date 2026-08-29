@@ -55,6 +55,14 @@ jobs:
 
       - run: npm ci
 
+      # Chrome is preinstalled on the runner; WebKit is not. The suite runs
+      # its layout checks against both, because the bugs that reached real
+      # users were ones Chrome could not show — a strip that would not
+      # scroll, a dialog off the side of the screen. A missing WebKit fails
+      # the run rather than skipping, so the pass cannot quietly disappear.
+      - name: Install WebKit
+        run: npx playwright install --with-deps webkit
+
       # No build step: the suite makes its own, into its own directory, so
       # that it is built with Supabase keys genuinely absent. The job above
       # already proves an ordinary build works.

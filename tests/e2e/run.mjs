@@ -9,15 +9,23 @@
  * geometry rather than taking a screenshot and hoping.
  *
  * Builds its own production build in solo mode, so no account and no Supabase
- * are needed, and drives the Chrome already installed on the machine rather
- * than downloading a browser. The build is its own because Supabase keys have
- * to be absent when it is made, not merely when it is started.
+ * are needed. The build is its own because Supabase keys have to be absent
+ * when it is made, not merely when it is started.
+ *
+ * Runs in two engines. Most of it drives the Chrome already on the machine;
+ * the layout and overflow checks are then repeated in WebKit, because the
+ * bugs that actually reached a user were the ones Chrome could not show —
+ * a repeat strip that would not scroll because the element blocking it only
+ * renders on iOS, and a dialog that ran off the side of the screen. Both were
+ * reported by the person using the app rather than caught here.
+ *
+ * WebKit needs installing once:  npx playwright install webkit
  *
  *   npm run test:e2e
  */
 import { spawn, spawnSync } from "node:child_process";
 import { readFile, rm } from "node:fs/promises";
-import { chromium } from "playwright-core";
+import { chromium, webkit } from "playwright-core";
 
 const PORT = Number(process.env.E2E_PORT ?? 3399);
 const SITE = `http://localhost:${PORT}`;
@@ -170,6 +178,42 @@ async function total(page) {
   return page.evaluate(() => {
     const m = document.body.innerText.match(/([\d,]+)\s*\/\s*([\d,]+)/);
     return m ? Number(m[1].replace(/,/g, "")) : 0;
+  });
+}
+
+/**
+ * Anything sticking out past the right edge of the screen.
+ *
+ * Engine-agnostic on purpose: this is run against Chrome and against WebKit,
+ * and the whole point of the second pass is that the two do not always agree.
+ */
+async function horizontalOverflow(page) {
+  return page.evaluate(() => {
+    const root = document.documentElement;
+    const vw = root.clientWidth;
+    // Something an ancestor clips away is not a visible bug.
+    const clipped = (el) => {
+      for (let n = el.parentElement; n; n = n.parentElement) {
+        if (/hidden|clip|auto|scroll/.test(getComputedStyle(n).overflowX)) {
+          return true;
+        }
+      }
+      return false;
+    };
+    let worst = null;
+    for (const el of document.querySelectorAll("body *")) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      const past = Math.round(r.right - vw);
+      if (past > 1 && !clipped(el) && (!worst || past > worst.past)) {
+        worst = {
+          past,
+          tag: el.tagName.toLowerCase(),
+          cls: String(el.className).slice(0, 40),
+        };
+      }
+    }
+    return { over: root.scrollWidth - vw, worst };
   });
 }
 
@@ -1071,34 +1115,7 @@ try {
     await widePage.getByRole("button", { name: /save|update|done/i }).first().click();
     await widePage.waitForTimeout(2500);
   }
-  const measureOverflow = () =>
-    widePage.evaluate(() => {
-      const root = document.documentElement;
-      const vw = root.clientWidth;
-      // Something an ancestor clips away is not a visible bug.
-      const clipped = (el) => {
-        for (let n = el.parentElement; n; n = n.parentElement) {
-          if (/hidden|clip|auto|scroll/.test(getComputedStyle(n).overflowX)) {
-            return true;
-          }
-        }
-        return false;
-      };
-      let worst = null;
-      for (const el of document.querySelectorAll("body *")) {
-        const r = el.getBoundingClientRect();
-        if (r.width === 0 || r.height === 0) continue;
-        const past = Math.round(r.right - vw);
-        if (past > 1 && !clipped(el) && (!worst || past > worst.past)) {
-          worst = {
-            past,
-            tag: el.tagName.toLowerCase(),
-            cls: String(el.className).slice(0, 40),
-          };
-        }
-      }
-      return { over: root.scrollWidth - vw, worst };
-    });
+  const measureOverflow = () => horizontalOverflow(widePage);
 
   for (const [path, name] of [
     ["/today", "Today"],
@@ -1403,6 +1420,181 @@ try {
   );
 
   await dctx.close();
+
+  /* ---------------------------------------------------------------- */
+  section("The same geometry in WebKit (the engine an iPhone runs)");
+  /*
+   * Everything above this line runs in Chrome, and that is where the blind
+   * spot has been. Three bugs shipped that Chrome could not show me: the
+   * repeat strip that would not scroll, because the element blocking it only
+   * renders on iOS; a dialog that ran off the side of the screen; and four
+   * white glows over the dark theme. All three were found by the person using
+   * the app, not by this suite.
+   *
+   * WebKit is not Safari on an iPhone — no iOS quirks, no real touch, and the
+   * layout engine is a desktop build. It is the closest thing that runs here,
+   * and it renders text, flexbox and grid the way Safari does, which is where
+   * the overflow bugs actually came from.
+   *
+   * A missing WebKit is a failure rather than a skip. A guard that quietly
+   * does nothing is worse than no guard, because it reads as a green tick.
+   */
+  let webkitBrowser = null;
+  try {
+    webkitBrowser = await webkit.launch();
+    check("WebKit is installed to test against", true);
+  } catch (error) {
+    check(
+      "WebKit is installed to test against",
+      false,
+      `${String(error.message).split("\n")[0]} — run: npx playwright install webkit`,
+    );
+  }
+
+  if (webkitBrowser) {
+    const wkCtx = await webkitBrowser.newContext({
+      viewport: phone.viewport,
+      hasTouch: true,
+      isMobile: true,
+      deviceScaleFactor: 2,
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 26_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Mobile/15E148 Safari/604.1",
+    });
+    const wk = await wkCtx.newPage();
+
+    // The long food name is already in the data — the Chrome pass renamed an
+    // entry through the edit form and that write persisted.
+    for (const [path, name] of [
+      ["/today", "Today"],
+      ["/history", "Journal"],
+      ["/progress", "Journey"],
+      ["/insights", "Insights"],
+      ["/profile", "You"],
+    ]) {
+      await wk.goto(`${SITE}${path}`, { waitUntil: "networkidle" });
+      await wk.waitForTimeout(1200);
+      const r = await horizontalOverflow(wk);
+      check(
+        `${name} fits the screen in WebKit`,
+        r.over <= 1 && !r.worst,
+        r.worst
+          ? `${r.worst.tag}.${r.worst.cls} sticks out ${r.worst.past}px`
+          : `page scrolls ${r.over}px`,
+      );
+    }
+
+    // The strip that would not scroll on a real iPhone. Under this user agent
+    // the app renders the iOS haptic overlay, so this is the arrangement that
+    // was actually broken.
+    await wk.goto(`${SITE}/today`, { waitUntil: "networkidle" });
+    await wk.waitForTimeout(1200);
+    const wkStrip = await wk.evaluate(() => {
+      const el = document.querySelector("[data-no-swipe]");
+      if (!el) return null;
+      const cs = getComputedStyle(el);
+      return {
+        overlays: el.querySelectorAll("input").length,
+        overflowX: cs.overflowX,
+        touchAction: cs.touchAction,
+        scrollable: el.scrollWidth > el.clientWidth + 4,
+      };
+    });
+    check("the repeat strip exists in WebKit", Boolean(wkStrip));
+    if (wkStrip) {
+      check(
+        "nothing in it can swallow a sideways drag, in WebKit too",
+        wkStrip.overlays === 0 && wkStrip.overflowX === "auto",
+        `${wkStrip.overlays} overlay(s), overflow-x:${wkStrip.overflowX}`,
+      );
+    }
+
+    /*
+     * And the dialog the overflow was reported in.
+     *
+     * Forced clicks here, deliberately. A dialog centred with translate(-50%)
+     * lands on fractional pixels, and WebKit reports it as never "stable", so
+     * Playwright's actionability check waits until it times out. Whether the
+     * button is clickable is Chrome's job above; this pass is about geometry,
+     * and it only needs the dialog open with something in it.
+     */
+    await wk.getByRole("button", { name: /Check first/ }).click({ force: true });
+    await wk
+      .locator('textarea[aria-label="What are you thinking of eating?"]')
+      .waitFor({ state: "visible", timeout: 15000 })
+      .catch(() => {});
+    await wk
+      .locator('textarea[aria-label="What are you thinking of eating?"]')
+      .fill("ice cream");
+    await wk.getByRole("button", { name: /^Check it/ }).click({ force: true });
+    const wkResult = await wk
+      .locator('[role="dialog"] li')
+      .first()
+      .waitFor({ state: "visible", timeout: 60000 })
+      .then(() => true)
+      .catch(() => false);
+    check("the check dialog produced a result in WebKit", wkResult);
+
+    if (wkResult) {
+      /*
+       * Found through the textarea, not by querying [role="dialog"] and
+       * hoping. There is more than one dialog in the tree and the first match
+       * was the wrong one, which is how this check sat green while the bug it
+       * exists for was present.
+       */
+      const wkRenamed = await wk.evaluate((name) => {
+        const field = document.querySelector(
+          'textarea[aria-label="What are you thinking of eating?"]',
+        );
+        const dlg = field?.closest('[role="dialog"]');
+        const row = dlg?.querySelector("li");
+        const label = [...(row?.querySelectorAll("span") ?? [])].find(
+          (s) => (s.textContent || "").trim().length > 3,
+        );
+        if (!label?.firstChild) return false;
+        label.firstChild.nodeValue = name;
+        return (dlg?.textContent || "").includes("Brownie Batter Core");
+      }, LONG_NAME);
+      // Without this the measurement below is of a dialog with a short name in
+      // it, which passes for the wrong reason.
+      check("the long name really is in the WebKit dialog", wkRenamed);
+      await wk.waitForTimeout(400);
+
+      const wkDialog = await wk.evaluate(() => {
+        const field = document.querySelector(
+          'textarea[aria-label="What are you thinking of eating?"]',
+        );
+        const dlg = field?.closest('[role="dialog"]');
+        if (!dlg) return null;
+        const edge = dlg.getBoundingClientRect().right;
+        const clippedInside = (el) => {
+          for (let n = el.parentElement; n && n !== dlg; n = n.parentElement) {
+            if (/hidden|clip|auto|scroll/.test(getComputedStyle(n).overflowX)) {
+              return true;
+            }
+          }
+          return false;
+        };
+        let worst = null;
+        for (const el of dlg.querySelectorAll("*")) {
+          const r = el.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0 || clippedInside(el)) continue;
+          const past = Math.round(r.right - edge);
+          if (past > 1 && (!worst || past > worst.past)) {
+            worst = { past, tag: el.tagName.toLowerCase() };
+          }
+        }
+        return worst;
+      });
+      check(
+        "the check dialog holds a long name in WebKit",
+        !wkDialog,
+        wkDialog ? `${wkDialog.tag} sticks out ${wkDialog.past}px` : "",
+      );
+    }
+
+    await wkCtx.close();
+    await webkitBrowser.close();
+  }
 } finally {
   await browser.close();
   killTree(server);
