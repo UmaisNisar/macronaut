@@ -230,7 +230,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
             Today still generates its own note; this panel was never what
             triggered it.
           */}
-          {isToday ? null : (
+          {isToday || day.entryCount === 0 ? null : (
             <CoachPanel
               date={selected}
               initialCoach={day.coach}
@@ -240,14 +240,36 @@ export default async function HistoryPage(props: PageProps<"/history">) {
             />
           )}
 
+          {day.entryCount === 0 ? (
+            /*
+              An empty day used to cost seven hundred pixels: a coach card
+              asking "what did we eat today?" (on a page that might be
+              January), a full-height "Nothing here yet!" card with its own
+              mascot, and then the composer with a third. All three said the
+              same thing. The composer below is the only one that also does
+              something about it, so on an untouched day it is the only one
+              left -- and Today keeps a way back, since it has no composer
+              here.
+            */
+            isToday ? (
+              <Sticker>
+                <p className="text-sm font-semibold text-[var(--ink-soft)]">
+                  Nothing logged yet today.{" "}
+                  <Link
+                    href="/today"
+                    className="font-bold text-[var(--violet)] underline underline-offset-2"
+                  >
+                    Add something on Today
+                  </Link>
+                  .
+                </p>
+              </Sticker>
+            ) : null
+          ) : (
           <Sticker>
             <StickerHeading
               emoji="🍱"
-              title={
-                day.entryCount === 0
-                  ? "Nothing on this page"
-                  : `${day.entryCount} thing${day.entryCount > 1 ? "s" : ""}`
-              }
+              title={`${day.entryCount} thing${day.entryCount > 1 ? "s" : ""}`}
               action={
                 <span className="numeral rounded-full bg-[var(--peach-soft)] px-3 py-1.5 text-sm text-[var(--peach)]">
                   {Math.round(day.totals.calories).toLocaleString()} kcal
@@ -256,6 +278,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
             />
             <MealTimeline entries={entries} date={selected} today={today} />
           </Sticker>
+          )}
 
           {/* Today already has this composer; here it would only be a repeat.
               On an older day it is the one way to backfill a missed meal. */}

@@ -41,7 +41,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       <main
         id="main"
         tabIndex={-1}
-        className="mx-auto w-full max-w-5xl px-4 pt-5 pb-32 sm:px-6 lg:pt-10 lg:pb-16 lg:pl-[132px]"
+        /*
+          pb-32 on a phone clears the dock. Desktop has no dock -- the nav
+          is a rail on the left -- so its bottom padding is only breathing
+          room, and 64px of it was enough to push a page that otherwise
+          fitted into a two-pixel scroll. Matched to the top instead.
+        */
+        className="mx-auto w-full max-w-5xl px-4 pt-5 pb-32 sm:px-6 lg:pt-10 lg:pb-10 lg:pl-[132px]"
       >
         <SwipeNav>
           <PageShell>{children}</PageShell>
