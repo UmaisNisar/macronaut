@@ -27,8 +27,14 @@ import {
   formatWeight,
   round,
 } from "@/lib/nutrition";
-import { buildDaySeries, computeStreaks, weightStats } from "@/lib/insights";
+import {
+  buildDaySeries,
+  computeStreaks,
+  weekBudget,
+  weightStats,
+} from "@/lib/insights";
 import { coachSignature, emptyDay, targetsForDate } from "@/server/core";
+import { WeekBudgetCard } from "@/components/today/week-budget";
 
 export const metadata = { title: "Today" };
 export const dynamic = "force-dynamic";
@@ -61,6 +67,8 @@ export default async function TodayPage() {
   ]);
 
   const targets = targetsForDate(goals, profile, today);
+  // Free: the page already has every log and snapshot it needs.
+  const week = weekBudget(recent, today, targets.calories);
   const day =
     recent.find((d) => d.logDate === today) ??
     emptyDay(profile.id, today, targets);
@@ -187,6 +195,10 @@ export default async function TodayPage() {
             />
           </div>
         </div>
+      </Sticker>
+
+      <Sticker tint="berry">
+        <WeekBudgetCard week={week} />
       </Sticker>
 
       <div>

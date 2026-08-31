@@ -427,6 +427,85 @@ try {
   check("calories appear on the dashboard", afterLog > 0, `${afterLog} kcal`);
 
   /* ---------------------------------------------------------------- */
+  section("The week as one budget");
+  /*
+   * A day's target can only say "you went over"; the week is what people
+   * actually even out across. These assert the arithmetic on the rendered
+   * card, not just that some text exists -- the first version of the bar row
+   * silently collapsed to zero-height because a percentage height was
+   * resolving against a flex parent with no definite height, and the card
+   * still "rendered".
+   */
+  const weekCard = await page.evaluate(() => {
+    const heading = [...document.querySelectorAll("p")].find((n) =>
+      /^This week/.test((n.textContent || "").trim()),
+    );
+    if (!heading) return null;
+    let card = heading;
+    while (card && !/sticker/.test(card.className || "")) card = card.parentElement;
+    if (!card) return null;
+    const text = card.innerText.replace(/\s+/g, " ");
+    const totals = text.match(/([\d,]+) of ([\d,]+) kcal/);
+    const bars = [...card.querySelectorAll("div[title]")].map((b) => {
+      const t = b.getAttribute("title") || "";
+      const m = t.match(/([\d,]+) of ([\d,]+) kcal/);
+      return {
+        height: Math.round(b.getBoundingClientRect().height),
+        calories: m ? Number(m[1].replace(/,/g, "")) : null,
+        target: m ? Number(m[2].replace(/,/g, "")) : null,
+      };
+    });
+    return {
+      text,
+      eaten: totals ? Number(totals[1].replace(/,/g, "")) : null,
+      weekTarget: totals ? Number(totals[2].replace(/,/g, "")) : null,
+      bars,
+      logged: bars.filter((b) => b.calories !== null),
+    };
+  });
+
+  check("the weekly budget card is on Today", Boolean(weekCard));
+  if (weekCard) {
+    check(
+      "the week totals seven days of target, not one",
+      weekCard.weekTarget > weekCard.eaten * 1.5 && weekCard.weekTarget > 5000,
+      `${weekCard.eaten} of ${weekCard.weekTarget}`,
+    );
+    check(
+      "today's calories count toward the week",
+      weekCard.eaten > 0,
+      `${weekCard.eaten} kcal`,
+    );
+    check(
+      "it says what the remaining days can average",
+      /kcal a day|over/.test(weekCard.text),
+      weekCard.text.slice(0, 90),
+    );
+    check("there is one bar per weekday", weekCard.bars.length === 7, `${weekCard.bars.length}`);
+    check("every bar is drawn", weekCard.bars.every((b) => b.height > 0));
+
+    /*
+     * Height must track calories, which is the invariant the first version
+     * broke: a percentage height against a flex parent with no definite
+     * height computed to zero, so the row rendered as labels under nothing
+     * while every "is the card there" check stayed green. Asserting a
+     * minimum height would not do -- a genuinely light day is a short bar --
+     * so this checks the bar against the numbers in its own tooltip.
+     */
+    const BAR_AREA = 64;
+    const bad = weekCard.logged
+      .map((b) => {
+        const expected = Math.max(6, Math.round((b.calories / b.target) * BAR_AREA));
+        return Math.abs(b.height - expected) <= 2
+          ? null
+          : `${b.calories}/${b.target} drew ${b.height}px, expected ~${expected}`;
+      })
+      .filter(Boolean);
+    check("a logged day was found to measure", weekCard.logged.length > 0);
+    check("bar height tracks the calories in it", bad.length === 0, bad.join("; "));
+  }
+
+  /* ---------------------------------------------------------------- */
   section("Repeat a meal");
   const chips = page.locator("[data-no-swipe] button");
   check("a repeat chip appears after logging", (await chips.count()) > 0);

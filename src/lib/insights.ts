@@ -1,5 +1,12 @@
 import type { DailyLog, WeightLog } from "@/lib/schemas";
-import { addDays, diffDays, type Iso, lastNDays } from "@/lib/date";
+import {
+  addDays,
+  diffDays,
+  type Iso,
+  lastNDays,
+  rangeIso,
+  startOfWeek,
+} from "@/lib/date";
 import { isOnTarget, linearFit, mean, round } from "@/lib/nutrition";
 
 /* ------------------------------------------------------------------ */
@@ -491,4 +498,109 @@ export function buildDaySeries(
       logged: (d?.entryCount ?? 0) > 0,
     };
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* The week as one budget                                              */
+/* ------------------------------------------------------------------ */
+
+export type WeekDayPoint = {
+  iso: Iso;
+  calories: number;
+  target: number;
+  logged: boolean;
+  isToday: boolean;
+  isFuture: boolean;
+};
+
+export type WeekBudget = {
+  startIso: Iso;
+  endIso: Iso;
+  days: WeekDayPoint[];
+  /** Sum of all seven days' own targets — never 7x today's. */
+  weekTarget: number;
+  /** Eaten from Monday through today. */
+  eaten: number;
+  /** Still available between now and Sunday night. Negative once overspent. */
+  remaining: number;
+  /** Today through Sunday, inclusive. Always at least 1. */
+  daysLeft: number;
+  /** What `remaining` works out to per day left. Negative when overspent. */
+  perDayLeft: number;
+  /** Settled days only (Monday..yesterday): + means ahead of plan. */
+  balance: number;
+  /** Elapsed days with nothing logged — they make `remaining` look generous. */
+  unloggedPast: number;
+  /** Today's own target, for comparing against perDayLeft. */
+  todayTarget: number;
+};
+
+/**
+ * A week of eating as a single budget rather than seven unrelated days.
+ *
+ * The point is compensation: a heavy Saturday is only a problem if the rest of
+ * the week does not absorb it, and that is a question about the week, which
+ * nothing in the app answered. Daily targets alone can only ever say "you went
+ * over", never "and here is what that means for Thursday".
+ *
+ * Two things this deliberately does not do.
+ *
+ * The weekly target is the sum of each day's *own* target, not seven times
+ * today's. Since a weigh-in now rewrites the plan from that day forward, a
+ * single week can legitimately span two different daily targets, and
+ * multiplying would quietly misstate the week you were actually scored
+ * against.
+ *
+ * `balance` counts only settled days — Monday through yesterday. Today is
+ * half-eaten by definition, so folding its full target into a "how am I
+ * doing" figure would report a comfortable surplus every morning and erase it
+ * by evening. The forward-looking numbers do include today, because there the
+ * partial day is exactly the point.
+ */
+export function weekBudget(
+  days: DailyLog[],
+  todayIsoDate: Iso,
+  fallbackTarget: number,
+): WeekBudget {
+  const startIso = startOfWeek(todayIsoDate);
+  const endIso = addDays(startIso, 6);
+  const byDate = new Map(days.map((d) => [d.logDate, d]));
+
+  const points: WeekDayPoint[] = rangeIso(startIso, endIso).map((iso) => {
+    const d = byDate.get(iso);
+    const delta = diffDays(iso, todayIsoDate);
+    return {
+      iso,
+      calories: d?.totals.calories ?? 0,
+      target: d?.targets.calories ?? fallbackTarget,
+      logged: (d?.entryCount ?? 0) > 0,
+      isToday: delta === 0,
+      isFuture: delta < 0,
+    };
+  });
+
+  const weekTarget = points.reduce((sum, p) => sum + p.target, 0);
+  const elapsed = points.filter((p) => !p.isFuture);
+  const eaten = elapsed.reduce((sum, p) => sum + p.calories, 0);
+
+  const settled = elapsed.filter((p) => !p.isToday);
+  const balance =
+    settled.reduce((sum, p) => sum + p.calories - p.target, 0) || 0;
+
+  const daysLeft = Math.max(1, points.filter((p) => p.isFuture || p.isToday).length);
+  const remaining = weekTarget - eaten;
+
+  return {
+    startIso,
+    endIso,
+    days: points,
+    weekTarget: Math.round(weekTarget),
+    eaten: Math.round(eaten),
+    remaining: Math.round(remaining),
+    daysLeft,
+    perDayLeft: Math.round(remaining / daysLeft),
+    balance: Math.round(balance),
+    unloggedPast: settled.filter((p) => !p.logged).length,
+    todayTarget: Math.round(points.find((p) => p.isToday)?.target ?? fallbackTarget),
+  };
 }
