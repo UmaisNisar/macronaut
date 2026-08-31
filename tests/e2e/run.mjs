@@ -316,12 +316,20 @@ try {
     );
     const link = dock?.querySelector('a[aria-current="page"]');
     if (!link) return null;
-    const pill = link.querySelector("span.absolute");
+    /*
+     * The pill is a single element that lives on the list and slides between
+     * tabs, rather than one mounted inside each active link -- so it is found
+     * on the list and checked for sitting over the active tab. Alignment is
+     * the assertion that replaces "is it inside the right element": a pill
+     * that drifts one tab across still exists, and that bug shipped once.
+     */
+    const pill = dock.querySelector("ul > span");
     const label = [...link.querySelectorAll("span")].find(
-      (s) => !s.classList.contains("absolute") && s.textContent.trim().length > 2,
+      (s) => s.textContent.trim().length > 2,
     );
     const pr = pill?.getBoundingClientRect();
     const lr = label?.getBoundingClientRect();
+    const ar = link.getBoundingClientRect();
     return {
       hasPill: !!pill,
       zIndex: pill ? getComputedStyle(pill).zIndex : null,
@@ -330,6 +338,9 @@ try {
         pr && lr
           ? pr.left <= lr.left && pr.right >= lr.right && pr.top <= lr.top
           : false,
+      offBy: pr
+        ? Math.round(Math.abs(pr.x + pr.width / 2 - (ar.x + ar.width / 2)))
+        : null,
     };
   });
   check("active tab has a pill", !!nav?.hasPill);
@@ -340,6 +351,11 @@ try {
   );
   check("pill is painted, not transparent", !!nav && nav.pillBg !== "rgba(0, 0, 0, 0)", nav?.pillBg ?? "");
   check("pill sits behind the label", nav?.covers === true);
+  check(
+    "the pill is centred on the tab it belongs to",
+    (nav?.offBy ?? 999) <= 2,
+    `${nav?.offBy}px off centre`,
+  );
 
   /* ---------------------------------------------------------------- */
   section("Tapping the tab you are already on");
@@ -1512,7 +1528,8 @@ try {
     // the dock is the one a person can actually see.
     const link = [...document.querySelectorAll('a[aria-current="page"]')].pop();
     if (!link) return null;
-    const pill = link.querySelector("[style*='background']");
+    const nav = link.closest('nav[aria-label="Main"]');
+    const pill = nav?.querySelector("ul > span");
     const label = [...link.querySelectorAll("span")].find(
       (n) => (n.textContent || "").trim().length > 1,
     );
