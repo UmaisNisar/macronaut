@@ -9,9 +9,10 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
-    // The E2E suite builds its own dist so NEXT_PUBLIC_* inlining can be
-    // controlled; it is build output like .next and lints like it too.
-    ".next-e2e/**",
+    // Any sibling dist dir: the E2E suite builds its own so NEXT_PUBLIC_*
+    // inlining can be controlled, and throwaway ones get made for screenshot
+    // runs. They are build output like .next and lint like it too.
+    ".next-*/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

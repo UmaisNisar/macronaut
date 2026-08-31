@@ -14,6 +14,45 @@ function useActive() {
   return (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/**
+ * Tapping the tab you are already on sends you back to the top.
+ *
+ * The convention every phone user already has, and Today is five screens
+ * tall, so the alternative is a long thumb drag back to the composer.
+ * Without this the tap is worse than nothing: Next treats it as a navigation
+ * to the current route and re-renders in place, which looks like a flicker
+ * and leaves you exactly where you were.
+ *
+ * Smooth here and nowhere else. `scroll-behavior: smooth` was deliberately
+ * left off globally in globals.css because it also applies to scroll
+ * restoration and to every router.refresh() the app makes, which had the
+ * page drifting on its own. This is one deliberate scroll, so it opts in --
+ * unless the reader has asked for less motion, in which case it jumps.
+ */
+function useScrollTopOnActive(active: boolean) {
+  return (event: React.MouseEvent) => {
+    if (!active) return;
+    event.preventDefault();
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+  };
+}
+
+/** A tab. Same behaviour in the rail and the dock, so they cannot drift. */
+function NavLink({
+  href,
+  active,
+  children,
+  ...rest
+}: React.ComponentProps<typeof Link> & { active: boolean }) {
+  const onActiveTap = useScrollTopOnActive(active);
+  return (
+    <Link href={href} {...rest} onClick={onActiveTap}>
+      {children}
+    </Link>
+  );
+}
+
 /** Desktop: a floating sticker column. */
 export function NavRail() {
   const isActive = useActive();
@@ -28,8 +67,9 @@ export function NavRail() {
           const active = isActive(item.href);
           return (
             <li key={item.href}>
-              <Link
+              <NavLink
                 href={item.href}
+                active={active}
                 // Dynamic routes only prefetch as far as loading.tsx by
                 // default, so a tab tap still waited on the server for its
                 // data. There are five tabs and one user; fully prefetching
@@ -62,7 +102,7 @@ export function NavRail() {
                 <span className="relative text-[0.65rem] font-bold">
                   {item.label}
                 </span>
-              </Link>
+              </NavLink>
             </li>
           );
         })}
@@ -90,8 +130,9 @@ export function NavDock() {
             const active = isActive(item.href);
             return (
               <li key={item.href} className="flex-1">
-                <Link
+                <NavLink
                   href={item.href}
+                  active={active}
                   prefetch
                   aria-current={active ? "page" : undefined}
                   className={cn(
@@ -122,7 +163,7 @@ export function NavDock() {
                   <span className="relative text-[0.6rem] font-bold">
                     {item.label}
                   </span>
-                </Link>
+                </NavLink>
               </li>
             );
           })}

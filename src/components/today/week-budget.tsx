@@ -120,8 +120,13 @@ export function WeekBudgetCard({ week }: { week: WeekBudget }) {
             ? Math.max(6, Math.round((d.calories / ceiling) * BAR_AREA))
             : 6;
           const hot = d.calories > d.target;
-          return (
-            <div key={d.iso} className="flex flex-1 flex-col items-center gap-1">
+          /*
+             Tappable, because this row replaced the separate two-week strip
+             on Today and that strip was how you opened a past day. A future
+             day has nothing to open.
+          */
+          const bar = (
+            <>
               <div
                 className="flex w-full items-end"
                 style={{ height: BAR_AREA }}
@@ -157,7 +162,22 @@ export function WeekBudgetCard({ week }: { week: WeekBudget }) {
               >
                 {WEEKDAY_INITIALS[i]}
               </span>
+            </>
+          );
+
+          return d.isFuture ? (
+            <div key={d.iso} className="flex flex-1 flex-col items-center gap-1">
+              {bar}
             </div>
+          ) : (
+            <Link
+              key={d.iso}
+              href={`/history?d=${d.iso}`}
+              aria-label={`Open ${shortDayLabel(d.iso)}`}
+              className="flex flex-1 flex-col items-center gap-1 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--violet)]"
+            >
+              {bar}
+            </Link>
           );
         })}
       </div>

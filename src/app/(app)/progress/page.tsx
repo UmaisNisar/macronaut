@@ -5,14 +5,12 @@ import { WeightLogList } from "@/components/weight/weight-log-list";
 import { WeightChart } from "@/components/viz/weight-chart";
 import { JourneyPath } from "@/components/viz/journey-path";
 import { WeekStrip } from "@/components/viz/week-strip";
-import { ProgressRadar } from "@/components/viz/progress-radar";
 import { Magnet, Sticker, StickerHeading, Squiggle } from "@/components/kit";
 import { onboardedProfile, requireUser } from "@/lib/session";
 import { userToday } from "@/lib/server-date";
 import { addDays, type Iso } from "@/lib/date";
 import {
   achievableWeeklyLoss,
-  clamp,
   computeJourney,
   formatWeight,
   formatWeightDelta,
@@ -84,43 +82,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
     .filter((w) => w.loggedOn >= chartFrom)
     .map((w) => ({ iso: w.loggedOn, kg: w.weightKg }));
 
-  const axis = (value: number, target: number) =>
-    clamp(value / Math.max(1, target), 0, 1);
-  const fuelAxis = (stats: typeof current) =>
-    stats.daysLogged === 0
-      ? 0
-      : clamp(
-          1 -
-            Math.abs(stats.avgCalories - stats.avgTarget) /
-              Math.max(1, stats.avgTarget) /
-              0.3,
-          0,
-          1,
-        );
 
-  const radarAxes = [
-    { label: "Calories", current: fuelAxis(current), previous: fuelAxis(previous) },
-    {
-      label: "Protein",
-      current: axis(current.avgProtein, targets.protein),
-      previous: axis(previous.avgProtein, targets.protein),
-    },
-    {
-      label: "Fiber",
-      current: axis(current.avgFiber, targets.fiber),
-      previous: axis(previous.avgFiber, targets.fiber),
-    },
-    {
-      label: "Steady",
-      current: current.consistency,
-      previous: previous.consistency,
-    },
-    {
-      label: "Logging",
-      current: current.totalDays ? current.daysLogged / current.totalDays : 0,
-      previous: previous.totalDays ? previous.daysLogged / previous.totalDays : 0,
-    },
-  ];
 
   const comparisons = [
     {
@@ -184,30 +146,21 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
 
         <Squiggle />
 
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
-          <Magnet
-            label="Start"
-            emoji="🏠"
-            value={formatWeight(journey.startKg, profile.units)}
-            className="bg-[var(--inset)]"
-          />
+        {/*
+          Three, not six.
+
+          Start, Goal and Lost were all restatements: the path graphic above
+          already draws start to goal with the percentage on it, and Lost is
+          just Start minus Now. Six tiles put the same weight on screen eight
+          times before you scrolled. What is left is the three things you
+          cannot read off the picture.
+        */}
+        <div className="grid grid-cols-3 gap-2.5">
           <Magnet
             label="Now"
             emoji="🧍"
             value={formatWeight(journey.currentKg, profile.units)}
             color="var(--violet)"
-          />
-          <Magnet
-            label="Goal"
-            emoji="🎯"
-            value={formatWeight(journey.targetKg, profile.units)}
-            color="var(--mint)"
-          />
-          <Magnet
-            label="Lost"
-            emoji="✨"
-            value={formatWeight(Math.max(0, journey.lostKg), profile.units)}
-            color="var(--sun)"
           />
           <Magnet
             label="To go"
@@ -252,7 +205,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
                   key={r.key}
                   href={`/progress?p=${period.key}&r=${r.key}`}
                   className={cn(
-                    "rounded-full px-2.5 py-1.5 text-xs font-bold transition-transform hover:-translate-y-0.5",
+                    "flex min-h-11 items-center rounded-full px-3.5 text-xs font-bold transition-transform hover:-translate-y-0.5",
                     r.key === range.key
                       ? "bg-[var(--violet-solid)] text-white"
                       : "bg-[var(--muted)] text-[var(--ink-soft)]",
@@ -284,7 +237,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
                   key={p.key}
                   href={`/progress?p=${p.key}&r=${range.key}`}
                   className={cn(
-                    "rounded-full px-2.5 py-1.5 text-xs font-bold transition-transform hover:-translate-y-0.5",
+                    "flex min-h-11 items-center rounded-full px-3.5 text-xs font-bold transition-transform hover:-translate-y-0.5",
                     p.key === period.key
                       ? "bg-[var(--violet-solid)] text-white"
                       : "bg-[var(--inset)] text-[var(--ink-soft)]",
@@ -341,13 +294,23 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
 
         <Squiggle />
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_290px] lg:items-center">
+        {/*
+          The radar is gone. Five unlabelled axes with no scale, sitting
+          directly under a table that gave the same five numbers exactly --
+          it looked like analysis and answered nothing the row above had not.
+        */}
+        <div>
           <div className="overflow-x-auto" data-no-swipe>
-            <table className="w-full min-w-[320px] text-sm">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="label-cute text-left text-[0.55rem]">
                   <th className="pb-2 font-semibold">What</th>
-                  <th className="pb-2 text-right font-semibold">Before</th>
+                  {/* Dropped on a phone: Now and Change together say the
+                      same thing, and keeping it clipped the Change column
+                      clean off the edge of the card. */}
+                  <th className="hidden pb-2 text-right font-semibold sm:table-cell">
+                    Before
+                  </th>
                   <th className="pb-2 text-right font-semibold">Now</th>
                   <th className="pb-2 text-right font-semibold">Change</th>
                 </tr>
@@ -361,7 +324,7 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
                       <td className="py-2.5 font-semibold text-[var(--ink-soft)]">
                         {row.label}
                       </td>
-                      <td className="numeral py-2.5 text-right text-[var(--ink-soft)]">
+                      <td className="numeral hidden py-2.5 text-right text-[var(--ink-soft)] sm:table-cell">
                         {row.before}
                       </td>
                       <td className="numeral py-2.5 text-right">{row.now}</td>
@@ -384,14 +347,6 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
                 })}
               </tbody>
             </table>
-          </div>
-
-          <div>
-            <p className="label-cute mb-1 text-center">Your shape</p>
-            <p className="mb-1 text-center text-xs font-medium text-[var(--ink-soft)]">
-              Solid is now, dotted is before
-            </p>
-            <ProgressRadar axes={radarAxes} />
           </div>
         </div>
 

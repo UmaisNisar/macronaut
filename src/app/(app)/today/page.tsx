@@ -11,12 +11,15 @@ import { TargetReached } from "@/components/today/target-reached";
 import { WeighInBar } from "@/components/weight/weigh-in-bar";
 import { EnergyBubble } from "@/components/viz/energy-bubble";
 import { MacroMeters } from "@/components/viz/macro-meters";
-import { WeekStrip } from "@/components/viz/week-strip";
 import { ScoreDial } from "@/components/viz/score-dial";
-import { Momo } from "@/components/mascot/momo";
 import { MomoGreeter } from "@/components/mascot/momo-greeter";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
-import { Magnet, StatusBadge, Sticker, StickerHeading } from "@/components/kit";
+import {
+  Squiggle,
+  StatusBadge,
+  Sticker,
+  StickerHeading,
+} from "@/components/kit";
 import { Button } from "@/components/ui/button";
 import { onboardedProfile, requireUser } from "@/lib/session";
 import { userToday } from "@/lib/server-date";
@@ -25,14 +28,8 @@ import {
   achievableWeeklyLoss,
   computeJourney,
   formatWeight,
-  round,
 } from "@/lib/nutrition";
-import {
-  buildDaySeries,
-  computeStreaks,
-  weekBudget,
-  weightStats,
-} from "@/lib/insights";
+import { computeStreaks, weekBudget, weightStats } from "@/lib/insights";
 import { coachSignature, emptyDay, targetsForDate } from "@/server/core";
 import { WeekBudgetCard } from "@/components/today/week-budget";
 
@@ -84,8 +81,6 @@ export default async function TodayPage() {
     weeklyLossKg: achievableWeeklyLoss(targets) || profile.weeklyLossKg,
     fromIsoDate: today,
   });
-
-  const series = buildDaySeries(recent, today, 14, targets.calories);
   const yesterday = recent.find((d) => d.logDate === addDays(today, -1));
   const deltaVsYesterday =
     yesterday && yesterday.entryCount > 0 && day.entryCount > 0
@@ -197,10 +192,6 @@ export default async function TodayPage() {
         </div>
       </Sticker>
 
-      <Sticker tint="berry">
-        <WeekBudgetCard week={week} />
-      </Sticker>
-
       <div>
         <OfflineBanner />
         <EstimateNotice entries={entries} />
@@ -238,91 +229,53 @@ export default async function TodayPage() {
         <MealTimeline entries={entries} date={today} today={today} />
       </Sticker>
 
-      <div className="grid gap-4 sm:gap-5 lg:grid-cols-2">
-        <Sticker tint="sky" tilt={-0.5}>
-          <StickerHeading
-            emoji="📊"
-            title="Your last 2 weeks"
-            hint="Tap a day to open it"
-          />
-          <WeekStrip series={series} />
-        </Sticker>
+      {/*
+        One progress card, not four.
+        
+        This was a two-week bar strip, a journey card, a three-stat footer and
+        the week budget, stacked -- two of them bar charts of recent days
+        sitting a few hundred pixels apart. On the screen whose job is logging
+        a meal, that is four dashboards below the meal.
 
-        <Sticker tint="mint" tilt={0.5}>
-          <StickerHeading emoji="🚀" title="Journey so far" />
-          <div className="flex items-center gap-4">
-            <Momo mood="proud" size={72} bare />
-            <div className="min-w-0 flex-1">
-              <p className="numeral text-3xl leading-none text-[var(--mint)]">
+        What stays is the week, because it is the only one that changes what
+        you eat today, plus a single line of journey with a way through to the
+        rest. Streaks live on Insights, weight history on Journey, and past
+        days are a tap on the bars above or the Journal calendar.
+      */}
+      <Sticker tint="berry">
+        <WeekBudgetCard week={week} />
+
+        <Squiggle />
+
+        {/* No Momo here. She is already the greeter at the top of this page
+            and again beside the coach note; a third copy was decoration
+            squeezing the line it sat next to into two wrapped fragments. */}
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="label-cute">Journey</p>
+            <p className="mt-0.5 text-sm font-semibold">
+              <span className="numeral text-[var(--mint)]">
                 {Math.round(journey.percent * 100)}%
-              </p>
-              <p className="mt-1 text-sm font-semibold text-[var(--ink-soft)]">
-                {formatWeight(journey.remainingKg, profile.units)} to go
-              </p>
-              <div className="mt-2.5 h-3 overflow-hidden rounded-full bg-[var(--inset)]">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-[var(--sky)] to-[var(--mint)]"
-                  style={{ width: `${Math.max(4, journey.percent * 100)}%` }}
-                />
-              </div>
+              </span>{" "}
+              <span className="text-[var(--ink-soft)]">
+                there · {formatWeight(journey.remainingKg, profile.units)} to go
+              </span>
+            </p>
+            <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-[var(--inset)]">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[var(--sky)] to-[var(--mint)]"
+                style={{ width: `${Math.max(4, journey.percent * 100)}%` }}
+              />
             </div>
           </div>
-
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            <Magnet
-              label="Start"
-              value={formatWeight(journey.startKg, profile.units)}
-              className="bg-[var(--inset)]"
-            />
-            <Magnet
-              label="Now"
-              value={formatWeight(journey.currentKg, profile.units)}
-              color="var(--mint)"
-            />
-            <Magnet
-              label="Goal"
-              value={formatWeight(journey.targetKg, profile.units)}
-              className="bg-[var(--inset)]"
-            />
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button
-              variant="ghost"
-              nativeButton={false}
-              render={<Link href="/progress" />}
-            >
-              See the map →
-            </Button>
-          </div>
-        </Sticker>
-      </div>
-
-      <Sticker tint="sun" inset={false} className="px-5 py-4">
-        <div className="flex items-center gap-4">
-          <span className="text-2xl" aria-hidden>
-            🏅
-          </span>
-          <div className="grid flex-1 grid-cols-3 gap-3 text-center">
-            <div>
-              <p className="numeral text-xl leading-none">
-                {streaks.totalDaysLogged}
-              </p>
-              <p className="label-cute mt-1 text-[0.5rem]">days logged</p>
-            </div>
-            <div>
-              <p className="numeral text-xl leading-none">
-                {streaks.longestLogging}
-              </p>
-              <p className="label-cute mt-1 text-[0.5rem]">best streak</p>
-            </div>
-            <div>
-              <p className="numeral text-xl leading-none">
-                {round(Math.max(0, journey.lostKg), 1)}
-              </p>
-              <p className="label-cute mt-1 text-[0.5rem]">kg lost</p>
-            </div>
-          </div>
+          <Button
+            variant="ghost"
+            nativeButton={false}
+            className="shrink-0"
+            render={<Link href="/progress" />}
+          >
+            Map →
+          </Button>
         </div>
       </Sticker>
     </div>

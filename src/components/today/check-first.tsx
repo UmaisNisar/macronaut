@@ -110,7 +110,7 @@ export function CheckFirst({ date }: { date: Iso }) {
         render={
           <button
             type="button"
-            className="tappable inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[var(--inset)] px-3 py-1.5 text-xs font-bold text-[var(--ink-soft)] transition-colors hover:text-[var(--ink)]"
+            className="tappable inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-[var(--inset)] px-3.5 text-xs font-bold text-[var(--ink-soft)] transition-colors hover:text-[var(--ink)]"
           >
             <Search className="size-3.5" />
             Check first

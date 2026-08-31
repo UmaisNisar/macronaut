@@ -111,7 +111,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
                   key={jump.label}
                   href={`/history?d=${jump.iso}&m=${jump.iso}`}
                   className={cn(
-                    "rounded-full px-3 py-2 text-xs font-bold transition-transform hover:-translate-y-0.5 active:scale-95",
+                    "flex min-h-11 items-center rounded-full px-3.5 text-xs font-bold transition-transform hover:-translate-y-0.5 active:scale-95",
                     jump.iso === selected
                       ? "bg-[var(--violet-solid)] text-white shadow-[0_3px_0_0_var(--primary-lip)]"
                       : "bg-[var(--inset)] text-[var(--ink-soft)] shadow-[0_3px_0_0_var(--violet-soft)]",
@@ -186,7 +186,9 @@ export default async function HistoryPage(props: PageProps<"/history">) {
               />
             </div>
 
-            {day.entryCount > 0 ? (
+            {/* Today draws these already, a screen away. On an older day this
+                is the only place to see how the macros landed. */}
+            {day.entryCount > 0 && !isToday ? (
               <>
                 <Squiggle />
                 <MacroMeters
@@ -219,13 +221,24 @@ export default async function HistoryPage(props: PageProps<"/history">) {
             ) : null}
           </Sticker>
 
-          <CoachPanel
-            date={selected}
-            initialCoach={day.coach}
-            stale={coachIsStale}
-            hasEntries={day.entryCount > 0}
-            autoGenerate={isToday}
-          />
+          {/*
+            Not on today. Momo's note for today is already on the Today
+            screen, word for word, and repeating it here made the journal a
+            copy of a screen one tap away. On an older day it is the only
+            surviving record of what was said, so it stays.
+
+            Today still generates its own note; this panel was never what
+            triggered it.
+          */}
+          {isToday ? null : (
+            <CoachPanel
+              date={selected}
+              initialCoach={day.coach}
+              stale={coachIsStale}
+              hasEntries={day.entryCount > 0}
+              autoGenerate={false}
+            />
+          )}
 
           <Sticker>
             <StickerHeading

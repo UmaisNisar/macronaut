@@ -342,6 +342,51 @@ try {
   check("pill sits behind the label", nav?.covers === true);
 
   /* ---------------------------------------------------------------- */
+  section("Tapping the tab you are already on");
+  /*
+   * Today is four and a half screens tall, so the way back to the composer
+   * is the tab you are standing on. Both halves matter and the second is the
+   * one that breaks quietly: the active tab must scroll rather than
+   * navigate, and every other tab must still navigate rather than scroll.
+   */
+  await page.evaluate(() => window.scrollTo(0, 2000));
+  await page.waitForTimeout(400);
+  const scrolledTo = await page.evaluate(() => Math.round(window.scrollY));
+  check("the page can be scrolled down at all", scrolledTo > 500, `${scrolledTo}px`);
+
+  await page.evaluate(() => {
+    const active = [...document.querySelectorAll('a[aria-current="page"]')];
+    active[active.length - 1]?.click();
+  });
+  await page.waitForTimeout(1200);
+  const afterActiveTap = await page.evaluate(() => ({
+    y: Math.round(window.scrollY),
+    path: location.pathname,
+  }));
+  check(
+    "tapping the active tab returns to the top",
+    afterActiveTap.y === 0,
+    `${afterActiveTap.y}px`,
+  );
+  check(
+    "and stays on the same screen",
+    /\/today/.test(afterActiveTap.path),
+    afterActiveTap.path,
+  );
+
+  // The half that would break silently: preventDefault on the wrong link.
+  await page.evaluate(() => {
+    const other = [...document.querySelectorAll("nav a")].filter(
+      (a) => a.getAttribute("aria-current") !== "page",
+    );
+    other[other.length - 1]?.click();
+  });
+  await page.waitForTimeout(2500);
+  const moved = await page.evaluate(() => location.pathname);
+  check("other tabs still navigate", !/\/today$/.test(moved), moved);
+  await page.goto(`${SITE}/today`, { waitUntil: "networkidle" });
+
+  /* ---------------------------------------------------------------- */
   section("Composer layout on a phone (regressed once: button wrapped)");
   const mobileLayout = await page.evaluate(() => {
     const look = [...document.querySelectorAll("button")].find((b) =>

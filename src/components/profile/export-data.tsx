@@ -17,21 +17,21 @@ export function ExportData() {
       <div className="flex flex-wrap gap-2">
         <a
           href="/api/export?what=all"
-          className="sticker-flat tappable rounded-full px-3.5 py-2 text-xs font-bold"
+          className="sticker-flat tappable inline-flex min-h-11 items-center gap-1 rounded-full px-4 text-xs font-bold"
           download
         >
           <span aria-hidden>📦</span> Everything (JSON)
         </a>
         <a
           href="/api/export?what=food"
-          className="sticker-flat tappable rounded-full px-3.5 py-2 text-xs font-bold"
+          className="sticker-flat tappable inline-flex min-h-11 items-center gap-1 rounded-full px-4 text-xs font-bold"
           download
         >
           <span aria-hidden>🍽️</span> Food log (CSV)
         </a>
         <a
           href="/api/export?what=weight"
-          className="sticker-flat tappable rounded-full px-3.5 py-2 text-xs font-bold"
+          className="sticker-flat tappable inline-flex min-h-11 items-center gap-1 rounded-full px-4 text-xs font-bold"
           download
         >
           <span aria-hidden>⚖️</span> Weight log (CSV)

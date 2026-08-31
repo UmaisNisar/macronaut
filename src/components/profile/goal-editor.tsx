@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Save } from "lucide-react";
+import { ChevronDown, Loader2, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,83 +153,117 @@ export function GoalEditor({ profile }: { profile: Profile }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
       <div className="space-y-5">
+        {/*
+          Folded away by default.
+
+          Name, age, units, sex and height were nine always-open controls at
+          the top of the screen, and none of them change: you set your height
+          once. They pushed the two fields people actually revisit -- current
+          weight and the target -- below the fold, so the page opened on
+          settings nobody came for.
+
+          A native <details> rather than state: it is keyboard and screen
+          reader accessible for free, survives without JavaScript, and the
+          browser handles the toggle.
+        */}
+        <details className="group">
+          <summary className="tappable flex list-none items-center justify-between gap-3 rounded-2xl bg-[var(--inset)] px-4 py-3 [&::-webkit-details-marker]:hidden">
+            <span className="text-sm font-bold">About you</span>
+            <span className="flex items-center gap-2 text-xs font-semibold text-[var(--ink-soft)]">
+              <span>
+                {profile.age} &middot;{" "}
+                {units === "metric"
+                  ? `${round(resolvedHeightCm, 0)} cm`
+                  : `${feet}′${inches}″`}
+              </span>
+              <ChevronDown
+                className="size-4 transition-transform group-open:rotate-180"
+                aria-hidden
+              />
+            </span>
+          </summary>
+
+          <div className="space-y-5 pt-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="displayName">Name</Label>
+              <Input
+                id="displayName"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Commander"
+                maxLength={60}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="age">Age</Label>
+              <Input
+                id="age"
+                inputMode="numeric"
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <Group label="Units">
+            <Chips
+              options={[
+                { value: "metric", label: "Metric" },
+                { value: "imperial", label: "Imperial" },
+              ]}
+              value={units}
+              onChange={(v) => switchUnits(v as UnitSystem)}
+            />
+          </Group>
+
+          <Group label="Sex used for BMR">
+            <Chips
+              options={GENDERS.map((g) => ({
+                value: g,
+                label: g === "other" ? "Prefer not to say" : g === "male" ? "Male" : "Female",
+              }))}
+              value={gender}
+              onChange={(v) => setGender(v as Gender)}
+            />
+          </Group>
+          <div className="max-w-xs">
+            <div className="space-y-1.5">
+              <Label htmlFor="height">Height</Label>
+              {units === "metric" ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="height"
+                    inputMode="decimal"
+                    value={heightCm}
+                    onChange={(e) => setHeightCm(numeric(e.target.value))}
+                  />
+                  <span className="label-cute">cm</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    id="height"
+                    inputMode="numeric"
+                    value={feet}
+                    onChange={(e) => setFeet(e.target.value)}
+                  />
+                  <span className="label-cute">ft</span>
+                  <Input
+                    inputMode="numeric"
+                    value={inches}
+                    onChange={(e) => setInches(e.target.value)}
+                    aria-label="Inches"
+                  />
+                  <span className="label-cute">in</span>
+                </div>
+              )}
+            </div>
+          </div>
+          </div>
+        </details>
+
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="displayName">Name</Label>
-            <Input
-              id="displayName"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Commander"
-              maxLength={60}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="age">Age</Label>
-            <Input
-              id="age"
-              inputMode="numeric"
-              value={age}
-              onChange={(e) => setAge(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <Group label="Units">
-          <Chips
-            options={[
-              { value: "metric", label: "Metric" },
-              { value: "imperial", label: "Imperial" },
-            ]}
-            value={units}
-            onChange={(v) => switchUnits(v as UnitSystem)}
-          />
-        </Group>
-
-        <Group label="Sex used for BMR">
-          <Chips
-            options={GENDERS.map((g) => ({
-              value: g,
-              label: g === "other" ? "Prefer not to say" : g === "male" ? "Male" : "Female",
-            }))}
-            value={gender}
-            onChange={(v) => setGender(v as Gender)}
-          />
-        </Group>
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="height">Height</Label>
-            {units === "metric" ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  id="height"
-                  inputMode="decimal"
-                  value={heightCm}
-                  onChange={(e) => setHeightCm(numeric(e.target.value))}
-                />
-                <span className="label-cute">cm</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5">
-                <Input
-                  id="height"
-                  inputMode="numeric"
-                  value={feet}
-                  onChange={(e) => setFeet(e.target.value)}
-                />
-                <span className="label-cute">ft</span>
-                <Input
-                  inputMode="numeric"
-                  value={inches}
-                  onChange={(e) => setInches(e.target.value)}
-                  aria-label="Inches"
-                />
-                <span className="label-cute">in</span>
-              </div>
-            )}
-          </div>
-
           <div className="space-y-1.5">
             <Label htmlFor="weight">Current weight</Label>
             <div className="flex items-center gap-2">
@@ -421,7 +455,7 @@ function Chips({
           onClick={() => onChange(option.value)}
           aria-pressed={option.value === value}
           className={cn(
-            "rounded-full px-3.5 py-2 text-sm font-bold transition-transform hover:-translate-y-0.5 active:scale-95",
+            "flex min-h-11 items-center rounded-full px-4 text-sm font-bold transition-transform hover:-translate-y-0.5 active:scale-95",
             option.value === value
               ? "bg-[var(--violet-solid)] text-white shadow-[0_3px_0_0_var(--primary-lip)]"
               : "bg-[var(--inset)] text-[var(--ink-soft)] shadow-[0_3px_0_0_var(--lip)]",
