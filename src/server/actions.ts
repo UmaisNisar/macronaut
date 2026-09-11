@@ -297,6 +297,59 @@ async function applyCorrections(
   return { foods: applied, notes };
 }
 
+/**
+ * Saving a meal must not take the whole screen down.
+ *
+ * Twice in the log a Supabase insert came back `Gateway Timeout`, the store
+ * threw, the throw escaped the Server Action, and the route error boundary
+ * replaced Today with the error page — for a meal that was still sitting in
+ * the composer, one tap from working. The client had already reported it as
+ * React #441 two seconds earlier: the same incident, seen from the browser.
+ *
+ * A failed write is turned into an ordinary `{ ok: false }` instead, which
+ * the composer shows as a toast and, importantly, leaves the typed text
+ * where it is.
+ *
+ * Not retried here, deliberately. A 504 means the gateway stopped waiting,
+ * not that the database stopped working, so the row may exist; replaying it
+ * would serve someone two dinners. Reads retry at the fetch layer, where
+ * replaying is free. See lib/supabase/resilient-fetch.
+ */
+/** What the composer shows when a save is refused. Kept in one place so the
+ *  six places that write food cannot drift into six different apologies. */
+const SAVE_FAILED =
+  "That did not save — the database took too long to answer. Your text is still here, so try again.";
+
+/**
+ * Returns null instead of throwing, so callers must decide.
+ *
+ * Deliberately not a thrown error: a throw out of a Server Action reaches the
+ * route error boundary, and that is the bug being fixed. `null` makes the type
+ * checker point at every place that writes food and demand an answer.
+ */
+async function saveEntries(
+  store: DataStore,
+  userId: string,
+  rows: Parameters<DataStore["insertFoodEntries"]>[0],
+) {
+  try {
+    return await store.insertFoodEntries(rows);
+  } catch (error) {
+    // onRequestError will not see this now that it is caught, so log it here
+    // or the next occurrence becomes invisible.
+    await store
+      .recordError(userId, {
+        source: "server",
+        kind: "action",
+        message: `save food: ${error instanceof Error ? error.message : String(error)}`,
+        detail: error instanceof Error ? (error.stack ?? null) : null,
+        path: "/today",
+      })
+      .catch(() => {});
+    return null;
+  }
+}
+
 export async function logFoodAction(
   raw: unknown,
 ): Promise<ActionResult<LogFoodPayload>> {
@@ -350,7 +403,7 @@ export async function logFoodAction(
 
   const learned = await applyCorrections(store, profile.id, usable);
 
-  const added = await store.insertFoodEntries(
+  const added = await saveEntries(store, profile.id, 
     learned.foods.map((f) => ({
       userId: profile.id,
       logDate: date,
@@ -373,6 +426,10 @@ export async function logFoodAction(
       source: source === "ai" ? "ai" : "estimator",
     })),
   );
+
+  // A refused write must not reach the route error boundary; the
+  // composer shows this and keeps what was typed.
+  if (!added) return fail(SAVE_FAILED);
 
   const goals = await store.listGoalSnapshots(profile.id);
   const day = await recomputeDay(
@@ -460,7 +517,7 @@ export async function logFoodPhotoAction(
     );
   }
 
-  const added = await store.insertFoodEntries(
+  const added = await saveEntries(store, profile.id, 
     usable.map((f) => ({
       userId: profile.id,
       logDate: date,
@@ -481,6 +538,10 @@ export async function logFoodPhotoAction(
       source: "ai",
     })),
   );
+
+  // A refused write must not reach the route error boundary; the
+  // composer shows this and keeps what was typed.
+  if (!added) return fail(SAVE_FAILED);
 
   const goals = await store.listGoalSnapshots(profile.id);
   const day = await recomputeDay(
@@ -547,7 +608,7 @@ export async function logBarcodeAction(
   const f = found.food;
   const learned = await applyCorrections(store, profile.id, [f]);
 
-  const added = await store.insertFoodEntries(
+  const added = await saveEntries(store, profile.id, 
     learned.foods.map((item) => ({
       userId: profile.id,
       logDate: date,
@@ -571,6 +632,10 @@ export async function logBarcodeAction(
       source: "manual",
     })),
   );
+
+  // A refused write must not reach the route error boundary; the
+  // composer shows this and keeps what was typed.
+  if (!added) return fail(SAVE_FAILED);
 
   const goals = await store.listGoalSnapshots(profile.id);
   const day = await recomputeDay(
@@ -755,7 +820,7 @@ export async function repeatFoodAction(
   const source = await store.getFoodEntry(profile.id, sourceId);
   if (!source) return fail("That food is no longer in your log.");
 
-  const added = await store.insertFoodEntries([
+  const added = await saveEntries(store, profile.id, [
     {
       userId: profile.id,
       logDate: date,
@@ -776,6 +841,10 @@ export async function repeatFoodAction(
       source: source.source,
     },
   ]);
+
+  // A refused write must not reach the route error boundary; the
+  // composer shows this and keeps what was typed.
+  if (!added) return fail(SAVE_FAILED);
 
   const goals = await store.listGoalSnapshots(profile.id);
   const day = await recomputeDay(
@@ -1066,7 +1135,7 @@ export async function logCheckedFoodAction(
   const { profile, store } = ctx;
   const { date, items } = parsed.data;
 
-  const added = await store.insertFoodEntries(
+  const added = await saveEntries(store, profile.id, 
     items.map((f) => ({
       userId: profile.id,
       logDate: date,
@@ -1074,6 +1143,10 @@ export async function logCheckedFoodAction(
       ...f,
     })),
   );
+
+  // A refused write must not reach the route error boundary; the
+  // composer shows this and keeps what was typed.
+  if (!added) return fail(SAVE_FAILED);
 
   const goals = await store.listGoalSnapshots(profile.id);
   const day = await recomputeDay(

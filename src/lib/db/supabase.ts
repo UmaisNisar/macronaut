@@ -396,10 +396,14 @@ export function createSupabaseStore(sb: SupabaseClient): DataStore {
     async listReminderCandidates() {
       // Reads across accounts, so it is only ever called from the cron route
       // with the service key — the anon client's RLS would return nothing.
+      // !inner so the database drops profiles with no subscription rather
+      // than returning them for the filter below to throw away. Nothing to
+      // notify is the common case, and this is the query that kept timing
+      // out at the gateway.
       const { data, error } = await sb
         .from("profiles")
         .select(
-          "id, display_name, reminder_hour, time_zone, push_subscriptions(endpoint, p256dh, auth)",
+          "id, display_name, reminder_hour, time_zone, push_subscriptions!inner(endpoint, p256dh, auth)",
         )
         .not("reminder_hour", "is", null)
         .not("time_zone", "is", null);

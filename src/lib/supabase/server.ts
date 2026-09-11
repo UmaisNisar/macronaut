@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 import { isSupabaseConfigured, supabaseAnonKey, supabaseUrl } from "@/lib/env";
+import { createResilientFetch } from "@/lib/supabase/resilient-fetch";
 
 /**
  * Request-scoped Supabase client. Returns null in solo mode so callers can
@@ -13,6 +14,9 @@ export async function getSupabaseServerClient() {
   const cookieStore = await cookies();
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
+    // Reads retry through transient Supabase failures; writes deliberately do
+    // not. See resilient-fetch for what the error log said about both.
+    global: { fetch: createResilientFetch() },
     cookies: {
       getAll() {
         return cookieStore.getAll();

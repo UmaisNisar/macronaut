@@ -2,6 +2,8 @@ import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
 
+import { createResilientFetch } from "@/lib/supabase/resilient-fetch";
+
 import { supabaseUrl } from "@/lib/env";
 
 /**
@@ -17,6 +19,9 @@ export function createSupabaseAdminClient() {
   if (!supabaseUrl || !key) return null;
 
   return createClient(supabaseUrl, key, {
+    // The hourly reminder cron runs through this client, and it is where most
+    // of the logged Gateway Timeouts landed.
+    global: { fetch: createResilientFetch() },
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
