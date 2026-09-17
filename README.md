@@ -373,6 +373,10 @@ narrower than its own label.
 
 ---
 
+## Licence
+
+[MIT](LICENSE) — use it, change it, run your own copy.
+
 <sub>Calorie and macro figures are estimates. They're good for spotting trends over weeks, not
 for clinical decisions — talk to a professional before making big changes, especially with a
 health condition.</sub>
