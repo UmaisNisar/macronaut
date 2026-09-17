@@ -29,9 +29,9 @@ export default function PrivacyPage() {
           </header>
 
           <p className="mt-5 text-sm leading-relaxed font-medium text-[var(--ink-soft)]">
-            Macronaut is a personal project with open source code. It keeps what
-            it needs to track your meals and your progress, shows no ads, and
-            sells nothing.
+            Macronaut is a personal project, built in the open. It keeps what it
+            needs to track your meals and your progress, shows no ads, and sells
+            nothing.
           </p>
 
           <Section title="What is kept">

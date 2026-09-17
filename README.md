@@ -373,9 +373,14 @@ narrower than its own label.
 
 ---
 
-## Licence
+## Copyright
 
-[MIT](LICENSE) — use it, change it, run your own copy.
+Copyright 2026 Umais Nisar. All rights reserved.
+
+The source is public so it can be read — that is what a portfolio is for. It is **not** open
+source, and no licence is granted: please don't copy it, republish it, build on it, or run it
+as a service. Cloning it to try it out locally is fine. For anything else,
+[ask](https://github.com/UmaisNisar/macronaut/issues).
 
 <sub>Calorie and macro figures are estimates. They're good for spotting trends over weeks, not
 for clinical decisions — talk to a professional before making big changes, especially with a
