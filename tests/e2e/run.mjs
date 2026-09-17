@@ -19,7 +19,7 @@
  * renders on iOS, and a dialog that ran off the side of the screen. Both were
  * reported by the person using the app rather than caught here.
  *
- * WebKit needs installing once:  npx playwright install webkit
+ * WebKit needs installing once:  npx playwright-core install webkit
  *
  *   npm run test:e2e
  */
@@ -1745,7 +1745,7 @@ try {
     check(
       "WebKit is installed to test against",
       false,
-      `${String(error.message).split("\n")[0]} — run: npx playwright install webkit`,
+      `${String(error.message).split("\n")[0]} — run: npx playwright-core install webkit`,
     );
   }
 

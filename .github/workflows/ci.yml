@@ -60,8 +60,13 @@ jobs:
       # users were ones Chrome could not show — a strip that would not
       # scroll, a dialog off the side of the screen. A missing WebKit fails
       # the run rather than skipping, so the pass cannot quietly disappear.
+      #
+      # Through the installed playwright-core, never `npx playwright`: that
+      # fetches the newest release, whose WebKit build has a different
+      # revision number from the one this project's playwright-core looks
+      # for, so the download succeeded and the launch then failed.
       - name: Install WebKit
-        run: npx playwright install --with-deps webkit
+        run: npx playwright-core install --with-deps webkit
 
       # No build step: the suite makes its own, into its own directory, so
       # that it is built with Supabase keys genuinely absent. The job above

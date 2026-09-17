@@ -364,7 +364,7 @@ npm run lint
 The end-to-end suite builds its own solo-mode copy of the app, so it runs without keys or
 network, then drives it in **Chrome and WebKit** — WebKit being the engine every iPhone
 browser uses. It launches your installed Google Chrome rather than a bundled Chromium, and
-needs WebKit installed once with `npx playwright install webkit`.
+needs WebKit installed once with `npx playwright-core install webkit`.
 
 Beyond flows, it guards things that are easy to break without noticing: contrast on every
 filled control in dark mode, that animations are still running, that the navigation pill
