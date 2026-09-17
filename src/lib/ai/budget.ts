@@ -1,15 +1,16 @@
 import "server-only";
 
-import { aiGlobalDailyLimit, aiPriorityEmails } from "@/lib/env";
+import { aiGlobalDailyLimit } from "@/lib/env";
+import { isPriority, type AiAccess } from "@/lib/ai/access";
 import type { AiKind, DataStore } from "@/lib/db/store";
 import type { Iso } from "@/lib/date";
 
 /**
  * A daily ceiling on model calls, per account.
  *
- * Signups are open, so anyone who finds the URL can create an account and start
- * spending the project owner's Gemini quota. Row-level security already stops
- * them seeing anyone else's data; this stops them running up a bill.
+ * Most calls now go out on the person's own Gemini key, so this is less about
+ * money than about the deployment itself: every call still holds a function
+ * and writes rows, and signups are open.
  *
  * The numbers are set well above real use — logging fifteen things a day and
  * photographing five of them stays comfortably inside them — so a person who
@@ -28,6 +29,9 @@ export const AI_DAILY_LIMITS: Record<AiKind, number> = {
   // Generous, because a genuine crash loop should still be recorded — just not
   // ten thousand times.
   error: 100,
+  // A person checks their key once or twice. Anyone checking dozens is
+  // testing keys that are not theirs.
+  key: 10,
 };
 
 const FRIENDLY: Record<AiKind, string> = {
@@ -37,6 +41,7 @@ const FRIENDLY: Record<AiKind, string> = {
   report: "reports",
   export: "exports",
   error: "error reports",
+  key: "key checks",
 };
 
 export type BudgetResult =
@@ -52,24 +57,6 @@ const MODEL_KINDS: ReadonlySet<AiKind> = new Set<AiKind>([
 ]);
 
 /**
- * Whose calls are served even when the shared pool is gone.
- *
- * A global ceiling turns "a stranger can spend the owner's money" into "a
- * stranger can lock the owner out", which is a worse trade if it is the whole
- * answer. Listing the accounts that must always work removes that: everyone
- * else shares what is left.
- *
- * Matched on email rather than id so it can be set without looking a UUID up
- * in the database, and compared case-insensitively because that is how people
- * type their own address.
- */
-function isPriority(email: string | null): boolean {
-  if (!email) return false;
-  const wanted = email.trim().toLowerCase();
-  return aiPriorityEmails.some((e) => e.toLowerCase() === wanted);
-}
-
-/**
  * Record one call and say whether it was within budget.
  *
  * Counted before the model runs, not after, so a failing or slow call cannot be
@@ -82,6 +69,8 @@ export async function consumeAiBudget(
   user: { id: string; email: string | null },
   dateIso: Iso,
   kind: AiKind,
+  /** Which key the call will go out on; only the server's is pooled. */
+  keySource: AiAccess["source"] = "server",
 ): Promise<BudgetResult> {
   const limit = AI_DAILY_LIMITS[kind];
 
@@ -104,13 +93,16 @@ export async function consumeAiBudget(
 
   /*
    * The shared ceiling, checked second so a person who is over their own
-   * allowance is told that rather than being blamed for everyone else.
+   * allowance is told that rather than being blamed for everyone else. It
+   * only guards the server's key: a call on someone's own key spends nothing
+   * of the owner's.
    *
    * Refusing here is not a dead end: food falls through to the built-in
    * estimator and coaching to templates, so the app keeps working — it just
    * stops being clever until tomorrow.
    */
   if (
+    keySource === "server" &&
     MODEL_KINDS.has(kind) &&
     counts.global > aiGlobalDailyLimit &&
     !isPriority(user.email)
@@ -118,9 +110,8 @@ export async function consumeAiBudget(
     return {
       ok: false,
       message:
-        "Macronaut has used up its shared AI allowance for today. Your meal " +
-        "still gets logged from the built-in estimates, and the model is back " +
-        "tomorrow.",
+        "Macronaut has used up its shared AI allowance for today. Add your " +
+        "own free Gemini key in You to keep going, or try again tomorrow.",
     };
   }
 

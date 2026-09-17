@@ -22,7 +22,11 @@ import type {
   ProfileSeed,
 } from "@/lib/db/store";
 import { rankFrequentFoods } from "@/lib/db/store";
-import type { ErrorReport, FoodCorrection } from "@/lib/db/store";
+import type {
+  ErrorReport,
+  FoodCorrection,
+  StoredAiKey,
+} from "@/lib/db/store";
 
 type Shape = {
   version: 1;
@@ -36,6 +40,7 @@ type Shape = {
   /** Optional so files written before AI budgeting still load. */
   aiUsage?: AiUsageRow[];
   corrections?: (FoodCorrection & { userId: string })[];
+  aiKeys?: (StoredAiKey & { userId: string })[];
 };
 
 type AiUsageRow = {
@@ -302,6 +307,31 @@ export function createLocalStore(): DataStore {
       });
     },
 
+    async getAiKey(userId: string) {
+      return query_((db) => {
+        const row = db.aiKeys?.find((k) => k.userId === userId);
+        return row
+          ? { sealed: row.sealed, hint: row.hint, updatedAt: row.updatedAt }
+          : null;
+      });
+    },
+
+    async saveAiKey(userId: string, key: Omit<StoredAiKey, "updatedAt">) {
+      await mutate((db) => {
+        const rest = (db.aiKeys ?? []).filter((k) => k.userId !== userId);
+        db.aiKeys = [
+          ...rest,
+          { ...key, userId, updatedAt: new Date().toISOString() },
+        ];
+      });
+    },
+
+    async deleteAiKey(userId: string) {
+      await mutate((db) => {
+        db.aiKeys = (db.aiKeys ?? []).filter((k) => k.userId !== userId);
+      });
+    },
+
     async recordError(userId: string, report: ErrorReport) {
       // Solo mode has no dashboard to read these in, so the console is the
       // honest destination rather than growing the JSON file forever.
@@ -509,6 +539,7 @@ export function createLocalStore(): DataStore {
         db.weightLogs = db.weightLogs.filter((w) => w.userId !== userId);
         db.achievements = db.achievements.filter((a) => a.userId !== userId);
         db.reports = db.reports.filter((r) => r.userId !== userId);
+        db.aiKeys = (db.aiKeys ?? []).filter((k) => k.userId !== userId);
       });
     },
   };

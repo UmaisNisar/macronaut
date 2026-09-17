@@ -29,6 +29,7 @@ import {
   type Profile,
 } from "@/lib/schemas";
 import { getSession, getStore } from "@/lib/session";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import {
@@ -48,7 +49,9 @@ import { resolveFoodEmoji } from "@/lib/food-emoji";
 import { lookupBarcode } from "@/lib/ai/barcode";
 import type { DataStore } from "@/lib/db/store";
 import type { AiFoodItem } from "@/lib/schemas";
-import { isGeminiConfigured } from "@/lib/env";
+import { resolveAiAccess, type AiAccess } from "@/lib/ai/access";
+import { checkGeminiKey } from "@/lib/ai/gemini";
+import { canStoreKeys, keyHint, sealKey } from "@/lib/ai/key-vault";
 import {
   writeDailyNote,
   writeWeightNote,
@@ -95,6 +98,14 @@ async function withProfile(): Promise<
   const profile = await store.getProfile(session.userId);
   if (!profile) return { ok: false, error: "Finish onboarding first." };
   return { ok: true, profile, store };
+}
+
+/** Whose key a call goes out on, for the person already loaded. */
+function aiAccess(ctx: { profile: Profile; store: DataStore }): Promise<AiAccess> {
+  return resolveAiAccess(ctx.store, {
+    id: ctx.profile.id,
+    email: ctx.profile.email,
+  });
 }
 
 async function safeDate(value: unknown): Promise<Iso> {
@@ -251,6 +262,11 @@ export type LogFoodPayload = {
   added: FoodEntry[];
   assumptions: string[];
   source: "ai" | "estimator";
+  /**
+   * Why an estimate was used, when it was: no key saved, or Google refusing
+   * the one that is. Lets the composer point at the fix instead of shrugging.
+   */
+  keyIssue: "missing" | "refused" | null;
   unlocked: { key: string; name: string; emoji: string }[];
 };
 
@@ -366,20 +382,25 @@ export async function logFoodAction(
   const { profile, store } = ctx;
   const { text, date } = parsed.data;
 
+  const ai = await aiAccess(ctx);
   const budget = await consumeAiBudget(
     store,
     { id: profile.id, email: profile.email },
     await userToday(),
     "food",
+    ai.source,
   );
   if (!budget.ok) return fail(budget.message);
 
-  const { analysis, source, fallbackReason } = await analyseFood(text);
+  const { analysis, source, fallbackReason, keyRefused } = await analyseFood(
+    text,
+    ai.apiKey,
+  );
 
-  // Falling back is by design, but when a key IS configured it means the model
+  // Falling back is by design, but when there IS a key it means the model
   // call actually failed — the exact silent degradation that used to be
   // invisible outside a development console.
-  if (source === "estimator" && isGeminiConfigured) {
+  if (source === "estimator" && ai.apiKey) {
     void store.recordError(profile.id, {
       source: "server",
       kind: "ai-fallback",
@@ -450,6 +471,7 @@ export async function logFoodAction(
     added,
     assumptions: analysis.assumptions,
     source,
+    keyIssue: !ai.apiKey ? "missing" : keyRefused ? "refused" : null,
     unlocked: unlockedKeys.flatMap((key) => {
       const def = ACHIEVEMENT_BY_KEY.get(key);
       return def ? [{ key, name: def.name, emoji: def.emoji }] : [];
@@ -489,15 +511,26 @@ export async function logFoodPhotoAction(
   const { profile, store } = ctx;
   const { imageBase64, mimeType, date, note } = parsed.data;
 
+  const ai = await aiAccess(ctx);
+  // Nothing to meter when there is nothing to call.
+  if (!ai.apiKey) {
+    return fail("Reading photos needs a Gemini key. Add your free one in You.");
+  }
+
   const budget = await consumeAiBudget(
     store,
     { id: profile.id, email: profile.email },
     await userToday(),
     "photo",
+    ai.source,
   );
   if (!budget.ok) return fail(budget.message);
 
-  const read = await analyseFoodPhoto({ data: imageBase64, mimeType }, note);
+  const read = await analyseFoodPhoto(
+    { data: imageBase64, mimeType },
+    note,
+    ai.apiKey,
+  );
   if (!read.ok) {
     void store.recordError(profile.id, {
       source: "server",
@@ -566,6 +599,7 @@ export async function logFoodPhotoAction(
     added,
     assumptions: read.analysis.assumptions,
     source: "ai",
+    keyIssue: null,
     unlocked: unlockedKeys.flatMap((key) => {
       const def = ACHIEVEMENT_BY_KEY.get(key);
       return def ? [{ key, name: def.name, emoji: def.emoji }] : [];
@@ -737,8 +771,11 @@ export async function reanalyseFoodAction(
   const existing = await store.getFoodEntry(profile.id, entryId);
   if (!existing) return fail("That entry no longer exists.");
 
-  if (!isGeminiConfigured) {
-    return fail("Momo's AI is not configured, so there is nothing better to try.");
+  const ai = await aiAccess(ctx);
+  if (!ai.apiKey) {
+    return fail(
+      "A better reading needs a Gemini key. Add your free one in You, then try again.",
+    );
   }
 
   const budget = await consumeAiBudget(
@@ -746,6 +783,7 @@ export async function reanalyseFoodAction(
     { id: profile.id, email: profile.email },
     await userToday(),
     "food",
+    ai.source,
   );
   if (!budget.ok) return fail(budget.message);
 
@@ -754,7 +792,10 @@ export async function reanalyseFoodAction(
       ? `${existing.name}, ${existing.quantity} (from: "${existing.rawInput}")`
       : `${existing.name}, ${existing.quantity}`;
 
-  const { analysis, source, fallbackReason } = await analyseFood(described);
+  const { analysis, source, fallbackReason, keyRefused } = await analyseFood(
+    described,
+    ai.apiKey,
+  );
 
   if (source !== "ai") {
     void store.recordError(profile.id, {
@@ -765,7 +806,9 @@ export async function reanalyseFoodAction(
       path: "/today",
     });
     return fail(
-      "Momo's AI still cannot be reached — it is usually a daily limit. Try again later.",
+      keyRefused
+        ? "Google refused your Gemini key. Check it in You, then try again."
+        : "Momo's AI still cannot be reached — it is usually a daily limit. Try again later.",
     );
   }
 
@@ -1050,15 +1093,17 @@ export async function checkFoodAction(
   const { profile, store } = ctx;
   const { text, date } = parsed.data;
 
+  const ai = await aiAccess(ctx);
   const budget = await consumeAiBudget(
     store,
     { id: profile.id, email: profile.email },
     await userToday(),
     "food",
+    ai.source,
   );
   if (!budget.ok) return fail(budget.message);
 
-  const { analysis, source } = await analyseFood(text);
+  const { analysis, source } = await analyseFood(text, ai.apiKey);
   const usable = analysis.foods.filter((f) => !/^nothing/i.test(f.name.trim()));
   if (!usable.length) {
     return fail(
@@ -1269,11 +1314,13 @@ export async function ensureDailyCoachAction(
     date,
   );
 
+  const ai = await aiAccess(ctx);
   const budget = await consumeAiBudget(
     store,
     { id: profile.id, email: profile.email },
     await userToday(),
     "coach",
+    ai.source,
   );
   if (!budget.ok) return fail(budget.message);
 
@@ -1297,7 +1344,7 @@ export async function ensureDailyCoachAction(
     weightNoteKg: weights.at(-1)?.weightKg ?? null,
     targetWeightKg: profile.targetWeightKg,
     weeklyLossKg: profile.weeklyLossKg,
-  });
+  }, ai.apiKey);
 
   const saved = await store.upsertDailyLog(profile.id, date, {
     targets: day.targets,
@@ -1469,11 +1516,13 @@ export async function ensureWeightCoachAction(
 
   const previous = index > 0 ? all[index - 1] : null;
 
+  const ai = await aiAccess(ctx);
   const budget = await consumeAiBudget(
     store,
     { id: profile.id, email: profile.email },
     await userToday(),
     "coach",
+    ai.source,
   );
   if (!budget.ok) return fail(budget.message);
 
@@ -1489,7 +1538,7 @@ export async function ensureWeightCoachAction(
     weeklyLossKg: profile.weeklyLossKg,
     totalReadings: upTo.length,
     percentToGoal: journey.percent,
-  });
+  }, ai.apiKey);
 
   await store.setWeightCoach(profile.id, id, note);
   revalidatePath("/progress");
@@ -1575,6 +1624,91 @@ export async function generateReportAction(
 }
 
 /* ================================================================== */
+/* Your own Gemini key                                                 */
+/* ================================================================== */
+
+export type AiKeyStatus = {
+  /** Whose key calls go out on right now. */
+  source: AiAccess["source"];
+  /** Last four characters of the saved key, if there is one. */
+  hint: string | null;
+};
+
+/**
+ * Check a pasted key with Google, then keep it — encrypted — for this account.
+ *
+ * Works before onboarding finishes: the key belongs to the sign-in, not the
+ * profile, so asking for it can be one of the onboarding steps.
+ */
+export async function saveAiKeyAction(
+  raw: unknown,
+): Promise<ActionResult<AiKeyStatus>> {
+  const session = await getSession();
+  if (!session) return fail("Your session expired. Sign in again.");
+
+  const key = typeof raw === "string" ? raw.trim() : "";
+  if (!key) return fail("Paste your key first.");
+  // Google's keys are 39 characters with no spaces. Anything far from that is
+  // a paste of the wrong thing, and is not worth a round trip to find out.
+  if (key.length < 30 || key.length > 200 || /\s/.test(key)) {
+    return fail(
+      "That does not look like a Gemini key. It is one long string starting with AIza.",
+    );
+  }
+
+  if (!canStoreKeys()) {
+    return fail(
+      "Saving keys is not set up on this server yet (MACRONAUT_ENCRYPTION_KEY is missing).",
+    );
+  }
+
+  const store = await getStore();
+  const budget = await consumeAiBudget(
+    store,
+    { id: session.userId, email: session.email },
+    await userToday(),
+    "key",
+  );
+  if (!budget.ok) return fail(budget.message);
+
+  const check = await checkGeminiKey(key);
+  if (!check.ok) return fail(check.message);
+
+  try {
+    await store.saveAiKey(session.userId, {
+      sealed: await sealKey(key, session.userId),
+      hint: keyHint(key),
+    });
+  } catch (error) {
+    console.warn("[macronaut] could not save a Gemini key:", error);
+    return fail("The key works, but it could not be saved just now. Try again.");
+  }
+
+  revalidateApp();
+  return { ok: true, source: "own", hint: keyHint(key) };
+}
+
+export async function removeAiKeyAction(): Promise<ActionResult<AiKeyStatus>> {
+  const session = await getSession();
+  if (!session) return fail("Your session expired. Sign in again.");
+
+  const store = await getStore();
+  try {
+    await store.deleteAiKey(session.userId);
+  } catch (error) {
+    console.warn("[macronaut] could not remove a Gemini key:", error);
+    return fail("The key could not be removed just now. Try again.");
+  }
+
+  const after = await resolveAiAccess(store, {
+    id: session.userId,
+    email: session.email,
+  });
+  revalidateApp();
+  return { ok: true, source: after.source, hint: null };
+}
+
+/* ================================================================== */
 /* Auth (Supabase mode only)                                           */
 /* ================================================================== */
 
@@ -1622,6 +1756,40 @@ export async function signOutAction(): Promise<void> {
   await sb?.auth.signOut();
   revalidateApp();
   redirect("/welcome");
+}
+
+/**
+ * Remove the account itself, not just what is in it.
+ *
+ * Every table hangs off the auth user by a cascading foreign key, but the data
+ * is wiped through the ordinary store first so it goes even if the auth call
+ * fails. Deleting the auth user needs the service-role client — nobody can
+ * delete their own through RLS — and the id comes from the verified session,
+ * never from the request.
+ */
+export async function deleteAccountAction(): Promise<ActionResult<{ done: true }>> {
+  if (!isSupabaseConfigured) return fail("Solo mode has no account to delete.");
+  const session = await getSession();
+  if (!session) return fail("Your session expired. Sign in again.");
+
+  const admin = createSupabaseAdminClient();
+  if (!admin) return fail("Account deletion is not set up on this server yet.");
+
+  const store = await getStore();
+  await store.wipeUser(session.userId);
+
+  const { error } = await admin.auth.admin.deleteUser(session.userId);
+  if (error) {
+    console.warn("[macronaut] could not delete an auth user:", error.message);
+    return fail(
+      "Your data is gone, but the sign-in could not be removed. Try again.",
+    );
+  }
+
+  const sb = await getSupabaseServerClient();
+  await sb?.auth.signOut().catch(() => undefined);
+  revalidateApp();
+  return { ok: true, done: true };
 }
 
 export async function resetAccountAction(): Promise<ActionResult<{ done: true }>> {

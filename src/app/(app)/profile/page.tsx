@@ -8,12 +8,13 @@ import { SignOutButton } from "@/components/profile/sign-out-button";
 import { GoalEditor } from "@/components/profile/goal-editor";
 import { MomoGreeter } from "@/components/mascot/momo-greeter";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
+import { AiKeyForm } from "@/components/ai/ai-key-form";
+import { resolveAiAccess } from "@/lib/ai/access";
 import { Sticker, StickerHeading, Squiggle } from "@/components/kit";
 import { onboardedProfile, requireUser } from "@/lib/session";
 import { userToday } from "@/lib/server-date";
 import {
   geminiModel,
-  isGeminiConfigured,
   isPushConfigured,
   isSupabaseConfigured,
   vapid,
@@ -32,10 +33,11 @@ export default async function ProfilePage() {
   const today = await userToday();
   // These were awaited one after the other, which is two crossings to
   // Montreal for two independent lists.
-  const [profile, errors, goals] = await Promise.all([
+  const [profile, errors, goals, ai] = await Promise.all([
     profilePromise,
     store.listErrors(session.userId, 10),
     store.listGoalSnapshots(session.userId),
+    resolveAiAccess(store, { id: session.userId, email: session.email }),
   ]);
   const history = [...goals].reverse().slice(0, 6);
 
@@ -68,6 +70,33 @@ export default async function ProfilePage() {
         />
         <GoalEditor profile={profile} />
       </Sticker>
+
+      <div id="ai" className="scroll-mt-24">
+        <Sticker tint="mint">
+          <StickerHeading
+            emoji="🧠"
+            title="Momo's AI"
+            hint={
+              ai.source === "none"
+                ? "Off — food is guessed from a built-in table"
+                : `On — ${geminiModel}`
+            }
+          />
+          {ai.source === "none" && ai.hint ? (
+            <p className="mb-3 rounded-2xl bg-[var(--sun-soft)] px-3.5 py-3 text-xs font-semibold text-[var(--sun-text)]">
+              The key ending in {ai.hint} can no longer be read on this server.
+              Paste it again to switch the AI back on.
+            </p>
+          ) : null}
+          <AiKeyForm
+            compact={ai.source !== "none"}
+            initial={{
+              source: ai.source,
+              hint: ai.source === "own" ? ai.hint : null,
+            }}
+          />
+        </Sticker>
+      </div>
 
       <div className="grid gap-4 sm:gap-5 lg:grid-cols-2 lg:items-start">
         <Sticker tint="violet" tilt={-0.5}>
@@ -125,12 +154,6 @@ export default async function ProfilePage() {
               onText="Connected — your data syncs across devices"
               offText="Solo mode — stored on this machine only"
             />
-            <StatusRow
-              on={isGeminiConfigured}
-              label="Gemini"
-              onText={`Connected — ${geminiModel}`}
-              offText="Offline estimator and template coaching"
-            />
           </ul>
 
           {isPushConfigured && isSupabaseConfigured ? (
@@ -161,7 +184,10 @@ export default async function ProfilePage() {
 
       <Sticker tint="sun">
         <StickerHeading emoji="🧹" title="Data" />
-        <DangerZone showSeed={process.env.NODE_ENV !== "production"} />
+        <DangerZone
+          showSeed={process.env.NODE_ENV !== "production"}
+          canDeleteAccount={isSupabaseConfigured}
+        />
       </Sticker>
     </div>
   );

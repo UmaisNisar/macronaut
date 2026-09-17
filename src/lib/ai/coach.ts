@@ -18,7 +18,6 @@ import {
   WEIGHT_COACH_SYSTEM,
   WEIGHT_SCHEMA,
 } from "@/lib/ai/prompts";
-import { isGeminiConfigured } from "@/lib/env";
 import { round } from "@/lib/nutrition";
 import type { PeriodStats } from "@/lib/insights";
 
@@ -165,12 +164,14 @@ function dailyTemplate(c: DailyCoachContext): AiCoachNote {
 
 export async function writeDailyNote(
   c: DailyCoachContext,
+  apiKey: string | null,
 ): Promise<Sourced<AiCoachNote>> {
-  if (!isGeminiConfigured) {
+  if (!apiKey) {
     return { note: dailyTemplate(c), source: "template" };
   }
 
   const result = await generateJson({
+    apiKey,
     system: DAILY_COACH_SYSTEM,
     prompt: dailyPrompt(c),
     schema: COACH_SCHEMA,
@@ -276,12 +277,14 @@ function weightTemplate(c: WeightCoachContext): AiWeightNote {
 
 export async function writeWeightNote(
   c: WeightCoachContext,
+  apiKey: string | null,
 ): Promise<Sourced<AiWeightNote>> {
-  if (!isGeminiConfigured) {
+  if (!apiKey) {
     return { note: weightTemplate(c), source: "template" };
   }
 
   const result = await generateJson({
+    apiKey,
     system: WEIGHT_COACH_SYSTEM,
     prompt: weightPrompt(c),
     schema: WEIGHT_SCHEMA,
@@ -409,12 +412,14 @@ function reportTemplate(c: ReportContext): AiPeriodReport {
 
 export async function writePeriodReport(
   c: ReportContext,
+  apiKey: string | null,
 ): Promise<{ report: AiPeriodReport; source: "ai" | "template" }> {
-  if (!isGeminiConfigured) {
+  if (!apiKey) {
     return { report: reportTemplate(c), source: "template" };
   }
 
   const result = await generateJson({
+    apiKey,
     system: REPORT_SYSTEM,
     prompt: reportPrompt(c),
     schema: REPORT_SCHEMA,

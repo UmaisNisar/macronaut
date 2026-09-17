@@ -35,6 +35,8 @@ import { todayIso } from "@/lib/date";
 import { completeOnboardingAction } from "@/server/actions";
 import { EASE, SPRING } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { AiKeyForm } from "@/components/ai/ai-key-form";
+import type { AiKeyStatus } from "@/server/actions";
 
 type Draft = {
   displayName: string;
@@ -82,6 +84,14 @@ const STEPS = [
     mood: "idle" as Mood,
   },
   {
+    key: "ai",
+    emoji: "🧠",
+    title: "Switch on my AI",
+    blurb:
+      "I read your meals with Google's Gemini. Bring your own free key and the AI is all yours.",
+    mood: "curious" as Mood,
+  },
+  {
     key: "plan",
     emoji: "✨",
     title: "Here's your plan!",
@@ -95,7 +105,22 @@ const numeric = (v: string) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-export function OnboardingFlow({ initialName }: { initialName?: string | null }) {
+export function OnboardingFlow({
+  initialName,
+  initialAi,
+}: {
+  initialName?: string | null;
+  initialAi: AiKeyStatus;
+}) {
+  // Only ask when there is something to ask for: an account already running
+  // on the server's key (solo mode, the owner) has nothing to add here. Fixed
+  // at mount, so saving a key does not pull the step out from under you.
+  const [steps] = useState(() =>
+    initialAi.source === "server"
+      ? STEPS.filter((s) => s.key !== "ai")
+      : [...STEPS],
+  );
+  const [ai, setAi] = useState(initialAi);
   const router = useRouter();
   const { celebrate } = useCelebration();
   const [step, setStep] = useState(0);
@@ -183,7 +208,7 @@ export function OnboardingFlow({ initialName }: { initialName?: string | null })
       return;
     }
     setDirection(next > step ? 1 : -1);
-    setStep(clamp(next, 0, STEPS.length - 1));
+    setStep(clamp(next, 0, steps.length - 1));
   }
 
   function launch() {
@@ -219,13 +244,14 @@ export function OnboardingFlow({ initialName }: { initialName?: string | null })
   }
 
   const unit = draft.units === "metric" ? "kg" : "lb";
-  const current = STEPS[step];
+  const current = steps[step];
+  const skippable = current.key === "ai" && ai.source === "none";
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:py-14">
       {/* progress dots */}
       <ol className="mb-6 flex items-center justify-center gap-2">
-        {STEPS.map((s, i) => (
+        {steps.map((s, i) => (
           <li key={s.key}>
             <button
               type="button"
@@ -475,7 +501,7 @@ export function OnboardingFlow({ initialName }: { initialName?: string | null })
               </div>
             )}
 
-            {step === 3 && (
+            {current.key === "move" && (
               <div className="grid gap-2.5">
                 {ACTIVITY_LEVELS.map((level) => (
                   <button
@@ -519,7 +545,20 @@ export function OnboardingFlow({ initialName }: { initialName?: string | null })
               </div>
             )}
 
-            {step === 4 && plan && (
+            {current.key === "ai" && (
+              <div className="space-y-4">
+                <AiKeyForm initial={ai} onChange={setAi} />
+                {ai.source === "none" ? (
+                  <p className="rounded-2xl bg-[var(--sun-soft)] px-3.5 py-3 text-xs leading-relaxed font-semibold text-[var(--sun-text)]">
+                    You can skip this. Without a key I guess from a built-in
+                    food table — rougher numbers, and no photo logging. Add one
+                    any time from the You tab.
+                  </p>
+                ) : null}
+              </div>
+            )}
+
+            {current.key === "plan" && plan && (
               <div className="space-y-4">
                 <div className="rounded-3xl bg-[var(--peach-soft)] px-5 py-4 text-center">
                   <p className="label-cute">Your daily energy</p>
@@ -602,9 +641,14 @@ export function OnboardingFlow({ initialName }: { initialName?: string | null })
             Back
           </Button>
 
-          {step < STEPS.length - 1 ? (
-            <Button type="button" size="lg" onClick={() => go(step + 1)}>
-              Next
+          {step < steps.length - 1 ? (
+            <Button
+              type="button"
+              size="lg"
+              variant={skippable ? "outline" : "default"}
+              onClick={() => go(step + 1)}
+            >
+              {skippable ? "Skip for now" : "Next"}
               <ArrowRight className="size-4" />
             </Button>
           ) : (

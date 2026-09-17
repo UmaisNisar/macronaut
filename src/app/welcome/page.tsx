@@ -125,6 +125,18 @@ export default async function WelcomePage(props: PageProps<"/welcome">) {
             <p className="mt-4 px-2 text-center text-xs leading-relaxed font-medium text-[var(--ink-soft)]">
               Momo gives estimates, not medical advice — great for spotting
               trends, not for clinical decisions.
+              {isSupabaseConfigured ? (
+                <>
+                  {" "}
+                  The AI runs on your own free Gemini key, added during setup.
+                </>
+              ) : null}{" "}
+              <Link
+                href="/privacy"
+                className="font-bold text-[var(--violet)] underline underline-offset-4"
+              >
+                Privacy
+              </Link>
             </p>
           </div>
         </div>

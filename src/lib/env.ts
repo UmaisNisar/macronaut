@@ -65,7 +65,27 @@ export const geminiFallbackModels = (
   .map((m) => m.trim())
   .filter(Boolean);
 
+/** Whether this deployment holds a Gemini key of its own. */
 export const isGeminiConfigured = Boolean(geminiApiKey);
+
+/**
+ * Who the server's own key is for.
+ *
+ * On a public deployment every account brings its own key, and the one in
+ * GEMINI_API_KEY is kept for the accounts in MACRONAUT_AI_PRIORITY_EMAILS —
+ * the owner. Set this to "true" to share it with everyone instead, which is
+ * what a private deployment for friends might want. Solo mode always uses it:
+ * there is only one person, and it is their machine.
+ */
+export const shareServerAiKey =
+  process.env.MACRONAUT_SHARE_SERVER_KEY?.trim().toLowerCase() === "true";
+
+/**
+ * Encrypts the Gemini keys people save. Any long random string; changing it
+ * makes every saved key unreadable, so each person would need to add theirs
+ * again. Optional in solo mode, where one is generated beside the data file.
+ */
+export const aiKeySecret = process.env.MACRONAUT_ENCRYPTION_KEY?.trim() || "";
 
 /** Stable id for the single pilot in solo mode. */
 export const SOLO_USER_ID = "solo-pilot";

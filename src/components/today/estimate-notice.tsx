@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import type { FoodEntry } from "@/lib/schemas";
 
 /**
@@ -6,11 +8,42 @@ import type { FoodEntry } from "@/lib/schemas";
  *
  * Previously the only signal was a toast that vanished, so the difference
  * between a good reading and a keyword guess looked like the app being
- * randomly unreliable. It is not random — it means the model could not be
- * reached, usually a rate limit — and saying so is the difference between a
- * known limitation and a broken app.
+ * randomly unreliable. It is not random, and there are two quite different
+ * reasons: no key saved, which the person can fix in a minute, or the model
+ * could not be reached, usually a rate limit. Saying which is the difference
+ * between a known limitation and a broken app.
  */
-export function EstimateNotice({ entries }: { entries: FoodEntry[] }) {
+export function EstimateNotice({
+  entries,
+  hasAi,
+}: {
+  entries: FoodEntry[];
+  hasAi: boolean;
+}) {
+  if (!hasAi) {
+    return (
+      <Link
+        href="/profile#ai"
+        className="sticker-flat tappable mb-3 flex items-center gap-3 px-4 py-3"
+      >
+        <span className="text-xl leading-none" aria-hidden>
+          🧠
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm leading-tight font-bold">
+            Momo is guessing from a food table
+          </span>
+          <span className="mt-0.5 block text-xs leading-relaxed font-medium text-[var(--ink-soft)]">
+            Add your free Gemini key for real readings and photo logging.
+          </span>
+        </span>
+        <span className="text-sm font-bold text-[var(--violet)]" aria-hidden>
+          Add →
+        </span>
+      </Link>
+    );
+  }
+
   const guessed = entries.filter((e) => e.source === "estimator");
   if (!guessed.length) return null;
 

@@ -32,6 +32,7 @@ import {
 import { computeStreaks, weekBudget, weightStats } from "@/lib/insights";
 import { coachSignature, emptyDay, targetsForDate } from "@/server/core";
 import { WeekBudgetCard } from "@/components/today/week-budget";
+import { resolveAiAccess } from "@/lib/ai/access";
 
 export const metadata = { title: "Today" };
 export const dynamic = "force-dynamic";
@@ -43,7 +44,7 @@ export default async function TodayPage() {
   // The profile goes in the same batch as everything else. It used to be
   // awaited first, which put a whole Montreal round trip in front of the
   // queries that were only ever waiting on the user id.
-  const [profile, goals, entries, recent, weights, frequent] = await Promise.all([
+  const [profile, goals, entries, recent, weights, frequent, ai] = await Promise.all([
     onboardedProfile(),
     store.listGoalSnapshots(session.userId),
     store.listFoodEntries(session.userId, today, today),
@@ -61,6 +62,7 @@ export default async function TodayPage() {
      * at the front and the cut only ever removes the rarest.
      */
     store.listFrequentFoods(session.userId, 12),
+    resolveAiAccess(store, { id: session.userId, email: session.email }),
   ]);
 
   const targets = targetsForDate(goals, profile, today);
@@ -194,7 +196,7 @@ export default async function TodayPage() {
 
       <div>
         <OfflineBanner />
-        <EstimateNotice entries={entries} />
+        <EstimateNotice entries={entries} hasAi={ai.source !== "none"} />
         <OfflineOutbox />
         <QuickRepeat foods={frequent} date={today} />
         <FoodComposer

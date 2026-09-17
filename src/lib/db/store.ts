@@ -23,7 +23,18 @@ export type AiKind =
   | "coach"
   | "report"
   | "export"
-  | "error";
+  | "error"
+  // Checking a Gemini key someone pasted, so the check cannot be used to test
+  // a list of stolen ones.
+  | "key";
+
+/** A person's own Gemini key, as stored: encrypted, plus a hint to show. */
+export type StoredAiKey = {
+  sealed: string;
+  /** Last four characters, so the screen can say which key is saved. */
+  hint: string;
+  updatedAt: string;
+};
 
 /** What this person's version of a food actually is. */
 export type FoodCorrection = {
@@ -151,6 +162,11 @@ export interface DataStore {
     dateIso: Iso,
     kind: AiKind,
   ): Promise<AiUsageCounts>;
+
+  /* own ai key ----------------------------------------------------- */
+  getAiKey(userId: string): Promise<StoredAiKey | null>;
+  saveAiKey(userId: string, key: Omit<StoredAiKey, "updatedAt">): Promise<void>;
+  deleteAiKey(userId: string): Promise<void>;
 
   /* diagnostics ---------------------------------------------------- */
   /** Best-effort. Reporting a failure must never itself throw. */

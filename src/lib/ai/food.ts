@@ -8,13 +8,14 @@ import {
   FOOD_SYSTEM,
 } from "@/lib/ai/prompts";
 import { estimateFromText } from "@/lib/ai/estimator";
-import { isGeminiConfigured } from "@/lib/env";
 
 export type FoodAnalysisResult = {
   analysis: AiFoodAnalysis;
   source: "ai" | "estimator";
   /** Set when we silently fell back, so the UI can be upfront about it. */
   fallbackReason?: string;
+  /** Google refused the key itself — worth telling the person, not just logging. */
+  keyRefused?: boolean;
 };
 
 /**
@@ -50,15 +51,20 @@ function reconcile(analysis: AiFoodAnalysis): {
  */
 export async function analyseFoodPhoto(
   image: { data: string; mimeType: string },
-  note?: string,
+  note: string | undefined,
+  apiKey: string | null,
 ): Promise<
   { ok: true; analysis: AiFoodAnalysis } | { ok: false; reason: string }
 > {
-  if (!isGeminiConfigured) {
-    return { ok: false, reason: "Photo logging needs the AI to be configured." };
+  if (!apiKey) {
+    return {
+      ok: false,
+      reason: "Reading photos needs a Gemini key. Add your free one in You.",
+    };
   }
 
   const result = await generateJson({
+    apiKey,
     system: FOOD_PHOTO_SYSTEM,
     prompt: note?.trim()
       ? `Identify everything edible in this photo. The person adds: "${note.trim()}"`
@@ -81,8 +87,8 @@ export async function analyseFoodPhoto(
     return {
       ok: false,
       reason:
-        result.reason === "unconfigured"
-          ? "Photo logging needs the AI to be configured."
+        result.reason === "key"
+          ? "Google refused your Gemini key, so the photo could not be read. Check the key in You."
           : "That photo could not be read. Try again, or type what you ate.",
     };
   }
@@ -97,8 +103,11 @@ export async function analyseFoodPhoto(
   return { ok: true, analysis };
 }
 
-export async function analyseFood(text: string): Promise<FoodAnalysisResult> {
-  if (!isGeminiConfigured) {
+export async function analyseFood(
+  text: string,
+  apiKey: string | null,
+): Promise<FoodAnalysisResult> {
+  if (!apiKey) {
     return {
       analysis: estimateFromText(text),
       source: "estimator",
@@ -107,6 +116,7 @@ export async function analyseFood(text: string): Promise<FoodAnalysisResult> {
   }
 
   const result = await generateJson({
+    apiKey,
     system: FOOD_SYSTEM,
     prompt: `Meal description:\n"""\n${text.trim()}\n"""`,
     schema: FOOD_SCHEMA,
@@ -126,6 +136,7 @@ export async function analyseFood(text: string): Promise<FoodAnalysisResult> {
       analysis: estimateFromText(text),
       source: "estimator",
       fallbackReason: result.detail,
+      keyRefused: result.reason === "key",
     };
   }
 

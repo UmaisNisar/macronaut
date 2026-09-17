@@ -232,9 +232,11 @@ async function onboard(page) {
   const heading = () =>
     page.evaluate(() => document.querySelector("h2,h1")?.textContent ?? "");
 
+  const headings = [];
   for (let i = 0; i < 10; i++) {
     if (await go.isVisible().catch(() => false)) break;
-    const next = page.getByRole("button", { name: /^Next/ });
+    // The AI key step offers a skip instead of Next when no key is saved.
+    const next = page.getByRole("button", { name: /^(Next|Skip for now)/ });
     await next.waitFor({ state: "visible", timeout: 15000 }).catch(() => {});
     if (!(await next.isVisible().catch(() => false))) break;
 
@@ -242,6 +244,7 @@ async function onboard(page) {
     // React has not hydrated yet does nothing and looks identical to a click
     // that worked, which is how this silently stalled on step one.
     const before = await heading();
+    headings.push(before);
     await next.click();
     await page
       .waitForFunction(
@@ -283,6 +286,7 @@ async function onboard(page) {
     .catch(() => {});
   await page.keyboard.press("Escape").catch(() => {});
   await page.waitForTimeout(800);
+  return { headings };
 }
 
 const phone = {
@@ -304,9 +308,58 @@ try {
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(e.message));
 
-  await onboard(page);
+  const walked = await onboard(page);
   check("onboarding lands on Today", /\/today/.test(page.url()), page.url());
   check("no uncaught page errors", pageErrors.length === 0, pageErrors.join("; "));
+
+  /* ---------------------------------------------------------------- */
+  section("Bring your own Gemini key");
+  // This build has no server key, so the account is exactly a stranger on a
+  // public deployment: it must be asked for a key, and be able to skip.
+  check(
+    "onboarding asks for a Gemini key when there is none",
+    walked.headings.some((h) => /Switch on my AI/i.test(h)),
+    JSON.stringify(walked.headings),
+  );
+  check(
+    "Today says the AI is off and links to the fix",
+    await page
+      .locator('a[href="/profile#ai"]')
+      .first()
+      .isVisible()
+      .catch(() => false),
+  );
+
+  await page.goto(`${SITE}/profile#ai`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(800);
+  const keyField = page.locator("#gemini-key");
+  check(
+    "the key field is a password field, so it is not shown on screen",
+    (await keyField.getAttribute("type").catch(() => null)) === "password",
+  );
+  // A malformed paste is caught before any request to Google.
+  await keyField.fill("not a key");
+  await page.getByRole("button", { name: /Check and save/ }).click();
+  await page
+    .waitForFunction(() => /does not look like a Gemini key/i.test(document.body.innerText), null, {
+      timeout: 15000,
+    })
+    .catch(() => {});
+  check(
+    "a malformed key is refused with a reason",
+    /does not look like a Gemini key/i.test(await page.evaluate(() => document.body.innerText)),
+  );
+
+  const privacy = await fetch(`${SITE}/privacy`);
+  const privacyText = await privacy.text();
+  check(
+    "the privacy page is public and describes the key",
+    privacy.status === 200 && /Your Gemini key/.test(privacyText),
+    String(privacy.status),
+  );
+
+  await page.goto(`${SITE}/today`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(1200);
 
   /* ---------------------------------------------------------------- */
   section("Nav dock (regressed once: white label on white pill)");

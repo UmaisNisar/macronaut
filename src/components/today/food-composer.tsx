@@ -145,7 +145,13 @@ export function FoodComposer({
     setReveal(result.added);
     router.refresh();
 
-    if (result.source === "estimator") {
+    if (result.keyIssue === "refused") {
+      toast.error("Google refused your Gemini key", {
+        description: "Guessed this one instead. Check the key in You.",
+      });
+    } else if (result.source === "estimator" && result.keyIssue !== "missing") {
+      // No key is already explained by the card above the composer; a toast
+      // on every single log would just be nagging.
       toast("Guessed this one offline", {
         description: "Tap any item to fix the numbers.",
       });

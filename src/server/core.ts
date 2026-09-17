@@ -27,6 +27,7 @@ import {
 } from "@/lib/insights";
 import { writePeriodReport } from "@/lib/ai/coach";
 import { consumeAiBudget } from "@/lib/ai/budget";
+import { resolveAiAccess } from "@/lib/ai/access";
 import type { AiPeriodReport, ReportPeriod } from "@/lib/schemas";
 
 /** Days in each reporting window. */
@@ -370,12 +371,9 @@ export async function buildPeriodReport(input: {
     }
   }
 
-  const budget = await consumeAiBudget(
-    store,
-    { id: profile.id, email: profile.email },
-    today,
-    "report",
-  );
+  const user = { id: profile.id, email: profile.email };
+  const ai = await resolveAiAccess(store, user);
+  const budget = await consumeAiBudget(store, user, today, "report", ai.source);
   if (!budget.ok) return { ok: false, error: budget.message };
 
   const weights = await store.listWeightLogs(profile.id);
@@ -392,7 +390,7 @@ export async function buildPeriodReport(input: {
     weightEnd: inWindow.at(-1) ? round(inWindow.at(-1)!.weightKg, 1) : null,
     targetWeightKg: round(profile.targetWeightKg, 1),
     weeklyLossKg: profile.weeklyLossKg,
-  });
+  }, ai.apiKey);
 
   await store.saveReport({
     userId: profile.id,

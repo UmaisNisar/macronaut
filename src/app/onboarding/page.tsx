@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import { CandyBackground } from "@/components/shell/candy-background";
 import { getSession, getStore } from "@/lib/session";
+import { resolveAiAccess } from "@/lib/ai/access";
 
 // Decides where to send the user from live session state — never prerender.
 export const dynamic = "force-dynamic";
@@ -14,7 +15,10 @@ export default async function OnboardingPage() {
   if (!session) redirect("/welcome");
 
   const store = await getStore();
-  const profile = await store.getProfile(session.userId);
+  const [profile, ai] = await Promise.all([
+    store.getProfile(session.userId),
+    resolveAiAccess(store, { id: session.userId, email: session.email }),
+  ]);
 
   return (
     <div className="relative min-h-svh">
@@ -28,6 +32,10 @@ export default async function OnboardingPage() {
             session.email?.split("@")[0] ??
             null
           }
+          initialAi={{
+            source: ai.source,
+            hint: ai.source === "own" ? ai.hint : null,
+          }}
         />
       </main>
     </div>

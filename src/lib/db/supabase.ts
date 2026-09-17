@@ -499,6 +499,36 @@ export function createSupabaseStore(sb: SupabaseClient): DataStore {
       if (error) fail("save correction", error);
     },
 
+    async getAiKey(userId) {
+      const { data, error } = await sb
+        .from("ai_keys")
+        .select("sealed, hint, updated_at")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (error) fail("load ai key", error);
+      return data
+        ? { sealed: data.sealed, hint: data.hint, updatedAt: data.updated_at }
+        : null;
+    },
+
+    async saveAiKey(userId, key) {
+      const { error } = await sb.from("ai_keys").upsert(
+        {
+          user_id: userId,
+          sealed: key.sealed,
+          hint: key.hint,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      );
+      if (error) fail("save ai key", error);
+    },
+
+    async deleteAiKey(userId) {
+      const { error } = await sb.from("ai_keys").delete().eq("user_id", userId);
+      if (error) fail("delete ai key", error);
+    },
+
     async recordError(_userId, report) {
       const { error } = await sb.rpc("record_error", {
         p_source: report.source,
@@ -720,6 +750,7 @@ export function createSupabaseStore(sb: SupabaseClient): DataStore {
         "food_entries",
         "daily_logs",
         "goal_snapshots",
+        "ai_keys",
       ]) {
         const { error } = await sb.from(table).delete().eq("user_id", userId);
         if (error) fail(`wipe ${table}`, error);

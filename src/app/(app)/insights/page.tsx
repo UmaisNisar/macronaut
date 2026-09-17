@@ -17,7 +17,7 @@ import {
   topSugarSources,
   weightStats,
 } from "@/lib/insights";
-import { isGeminiConfigured } from "@/lib/env";
+import { resolveAiAccess } from "@/lib/ai/access";
 import { targetsForDate } from "@/server/core";
 import { REPORT_PERIODS, type ReportPeriod } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
@@ -44,7 +44,7 @@ export default async function InsightsPage(props: PageProps<"/insights">) {
     : "7d";
   const { days: length } = PERIOD_META[period];
 
-  const [profile, goals, days, weights, achievements, windowEntries] =
+  const [profile, goals, days, weights, achievements, windowEntries, ai] =
     await Promise.all([
       profilePromise,
       store.listGoalSnapshots(session.userId),
@@ -54,7 +54,9 @@ export default async function InsightsPage(props: PageProps<"/insights">) {
       // Only this window's entries: the breakdown below is the one thing on
       // the page that needs individual foods rather than daily totals.
       store.listFoodEntries(session.userId, addDays(today, -(length - 1)), today),
+      resolveAiAccess(store, { id: session.userId, email: session.email }),
     ]);
+  const hasAi = ai.source !== "none";
 
   const targets = targetsForDate(goals, profile, today);
   const { current, previous } = periodPair(days, today, length);
@@ -214,14 +216,17 @@ export default async function InsightsPage(props: PageProps<"/insights">) {
             ))}
           </div>
 
-          {!isGeminiConfigured ? (
+          {!hasAi ? (
             <p className="mt-4 rounded-2xl bg-[var(--inset)] px-3.5 py-3 text-xs leading-relaxed font-medium text-[var(--ink-soft)]">
-              No Gemini key set, so Momo writes recaps from built-in templates.
-              They use your real numbers, but the model version reads much
-              better — add{" "}
-              <code className="rounded bg-[var(--muted)] px-1 py-0.5">
-                GEMINI_API_KEY
-              </code>{" "}
+              No Gemini key yet, so Momo writes recaps from built-in templates.
+              They use your real numbers, but the AI version reads much
+              better —{" "}
+              <Link
+                href="/profile#ai"
+                className="font-bold text-[var(--violet)] underline underline-offset-4"
+              >
+                add your free key
+              </Link>{" "}
               to switch it on.
             </p>
           ) : null}

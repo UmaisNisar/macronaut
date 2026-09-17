@@ -115,7 +115,7 @@ still works:
 | Not configured | What you get instead |
 | --- | --- |
 | Supabase | **Solo mode** — one local user, no sign-in, data in a JSON file |
-| Gemini | A built-in food estimator and template coaching |
+| Gemini | A built-in food estimator and template coaching, until someone adds their own key |
 | Push keys | Everything except reminders |
 
 Add keys later and the same app upgrades in place.
@@ -157,14 +157,28 @@ cp .env.example .env.local
 
 | Variable | Needed for |
 | --- | --- |
-| `GEMINI_API_KEY` | Real AI food analysis, photos and coaching. [Get a free key](https://aistudio.google.com/apikey). |
+| `GEMINI_API_KEY` | The server's own AI key. In solo mode it powers everything; with accounts it only serves the emails in `MACRONAUT_AI_PRIORITY_EMAILS` (see below). [Get a free key](https://aistudio.google.com/apikey). |
+| `MACRONAUT_ENCRYPTION_KEY` | Encrypts the Gemini keys people save. Required with accounts; any long random string (`openssl rand -base64 32`). Changing it means everyone re-adds their key. |
+| `MACRONAUT_AI_PRIORITY_EMAILS` | Accounts allowed to use the server's key — usually just yours |
+| `MACRONAUT_SHARE_SERVER_KEY` | Set to `true` to let every account use the server's key (a private deployment for friends) |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Accounts and a real database |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-side error logging and the reminder job (never sent to the browser) |
+| `SUPABASE_SERVICE_ROLE_KEY` | The reminder job and account deletion (never sent to the browser) |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Push reminders |
 | `CRON_SECRET` | Protects the reminder endpoint |
-| `MACRONAUT_AI_GLOBAL_DAILY_LIMIT` | Optional cap on AI calls per day across all accounts (default 400) |
+| `MACRONAUT_AI_GLOBAL_DAILY_LIMIT` | Optional cap on calls made on the server's key per day (default 400) |
 
 Everything else in `.env.example` is optional and documented there.
+
+### Everyone brings their own Gemini key
+
+With accounts switched on, the deployment's Gemini key is **not** shared with strangers.
+Onboarding asks each person for their own free key from Google AI Studio, checks it with
+Google, and stores it encrypted (AES-256-GCM, bound to their account). Their meals, photos and
+notes then run on their quota, not yours. People can skip the step — the app falls back to
+its built-in estimator — and add, replace or remove the key later under **You → Momo's AI**.
+
+Your own account keeps using the server's key if its email is in
+`MACRONAUT_AI_PRIORITY_EMAILS`.
 
 ### Supabase
 
@@ -296,8 +310,12 @@ the daily debrief, weigh-in context, and period reports.
   that are well out.
 - Context sent to the model is small: aggregates and a day-by-day skeleton, never your full
   history. Reports are cached against a signature of the numbers they were written from.
-- Per-account daily limits for each kind of call, plus a global ceiling, so an open sign-up
-  page can't spend the whole quota.
+- Each account's calls go out on its own saved key. The server's key is kept for solo mode
+  and the accounts you name, with a global ceiling in case you choose to share it.
+- A key Google refuses stops the model chain at once and tells the person, instead of trying
+  five models with the same broken key.
+- Per-account daily limits for each kind of call, including checking a pasted key, so the
+  check can't be used to test stolen ones.
 </details>
 
 <details>
@@ -320,8 +338,13 @@ depending on which side it fell. Nothing in the app tells you that you failed.
 <summary><b>Security and reliability</b></summary>
 
 - A strict Content Security Policy with a fresh nonce per request, issued from `proxy.ts`.
-- Row-level security on every table; the service-role key is used only on the server for the
-  reminder job and error logging.
+- Row-level security on every table; the service-role key is used only on the server, for the
+  reminder job and for deleting an account.
+- Saved Gemini keys are encrypted with a secret that exists only in the deployment's
+  environment, sent to Google in a header rather than a URL, and never returned to the page —
+  only their last four characters.
+- A plain-language [privacy page](src/app/privacy/page.tsx), data export, and a real
+  *Delete my account* that removes the sign-in as well as the data.
 - The reminder endpoint fails closed without its secret, and the demo-data route refuses to
   run in production.
 - Server and client errors land in the app's own database table rather than a third-party

@@ -2,12 +2,7 @@ import "server-only";
 
 import type { ZodType } from "zod";
 
-import {
-  geminiApiKey,
-  geminiFallbackModels,
-  geminiModel,
-  isGeminiConfigured,
-} from "@/lib/env";
+import { geminiFallbackModels, geminiModel } from "@/lib/env";
 
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
@@ -24,6 +19,8 @@ export type GeminiSchema = {
 };
 
 export type GenerateOptions<T> = {
+  /** The key this call is spent on — see resolveAiAccess. Null means no model. */
+  apiKey: string | null;
   system: string;
   prompt: string;
   schema: GeminiSchema;
@@ -39,7 +36,24 @@ export type GenerateOptions<T> = {
 
 export type GenerateResult<T> =
   | { ok: true; data: T }
-  | { ok: false; reason: "unconfigured" | "network" | "api" | "invalid"; detail: string };
+  | {
+      ok: false;
+      /** `key`: Google refused the key itself, so no other model will help. */
+      reason: "unconfigured" | "key" | "network" | "api" | "invalid";
+      detail: string;
+    };
+
+/**
+ * Google's ways of saying the key is the problem: wrong, expired, deleted,
+ * restricted away from this API, or on a project with the API switched off.
+ * Not a bare PERMISSION_DENIED: one model can refuse a key the others accept.
+ */
+const KEY_REFUSED =
+  /API_KEY_INVALID|API key not valid|API key expired|API_KEY_SERVICE_BLOCKED|SERVICE_DISABLED/i;
+
+export function isKeyRefusal(status: number, body: string): boolean {
+  return (status === 400 || status === 401 || status === 403) && KEY_REFUSED.test(body);
+}
 
 function extractText(payload: unknown): string {
   const candidates = (payload as { candidates?: unknown[] })?.candidates;
@@ -67,8 +81,9 @@ function stripFence(text: string): string {
 export async function generateJson<T>(
   options: GenerateOptions<T>,
 ): Promise<GenerateResult<T>> {
-  if (!isGeminiConfigured) {
-    return { ok: false, reason: "unconfigured", detail: "No GEMINI_API_KEY set" };
+  const { apiKey } = options;
+  if (!apiKey) {
+    return { ok: false, reason: "unconfigured", detail: "No Gemini key for this account" };
   }
 
   const {
@@ -155,7 +170,7 @@ export async function generateJson<T>(
             method: "POST",
             headers: {
               "content-type": "application/json",
-              "x-goog-api-key": geminiApiKey,
+              "x-goog-api-key": apiKey,
             },
             body,
             signal: AbortSignal.timeout(timeoutMs),
@@ -164,7 +179,13 @@ export async function generateJson<T>(
         );
 
         if (!response.ok) {
-          lastDetail = `${model}: ${response.status} ${(await response.text()).slice(0, 400)}`;
+          const text = (await response.text()).slice(0, 400);
+          lastDetail = `${model}: ${response.status} ${text}`;
+          // The key is shared by every model in the chain, so walking down it
+          // would only collect the same refusal five more times.
+          if (isKeyRefusal(response.status, text)) {
+            return { ok: false, reason: "key", detail: lastDetail };
+          }
           // A daily quota does not refill in the second it takes to retry, so
           // 429 moves straight to the next model instead of burning a retry.
           if (response.status === 429) break;
@@ -218,5 +239,52 @@ export async function generateJson<T>(
     ok: false,
     reason: lastDetail.startsWith("Unparseable") ? "invalid" : "network",
     detail: lastDetail || "Gemini request failed",
+  };
+}
+
+export type KeyCheck =
+  | { ok: true }
+  | { ok: false; reason: "invalid" | "unreachable"; message: string };
+
+/**
+ * Whether a pasted key works, without spending any of its quota.
+ *
+ * Listing models is free and needs the same permission generation does, so a
+ * key that passes this will work for logging.
+ */
+export async function checkGeminiKey(apiKey: string): Promise<KeyCheck> {
+  let response: Response;
+  try {
+    response = await fetch(`${ENDPOINT}?pageSize=1`, {
+      headers: { "x-goog-api-key": apiKey },
+      signal: AbortSignal.timeout(10_000),
+      cache: "no-store",
+    });
+  } catch {
+    return {
+      ok: false,
+      reason: "unreachable",
+      message: "Google could not be reached just now. Try again in a moment.",
+    };
+  }
+
+  if (response.ok) return { ok: true };
+
+  const body = (await response.text()).slice(0, 600);
+  // Rate-limited means Google recognised the key; it is simply busy.
+  if (response.status === 429) return { ok: true };
+  if (isKeyRefusal(response.status, body)) {
+    return {
+      ok: false,
+      reason: "invalid",
+      message: /SERVICE_DISABLED|has not been used/i.test(body)
+        ? "That key belongs to a project without the Gemini API switched on. Create the key in Google AI Studio instead."
+        : "Google did not accept that key. Copy it again from AI Studio — the whole thing, starting with AIza.",
+    };
+  }
+  return {
+    ok: false,
+    reason: "unreachable",
+    message: `Google answered with an error (${response.status}). Try again in a moment.`,
   };
 }
