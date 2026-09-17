@@ -1,337 +1,355 @@
-# Macronaut
+<p align="center">
+  <img src="docs/screenshots/hero.webp" alt="Macronaut on a phone: the journey road, Today's energy jar in light mode, and the same screen in dark mode" width="100%">
+</p>
 
-**Mission control for your body.** Type what you ate in plain English; an LLM turns it
-into calories and macros, and the app keeps the long record — meals, weight, goals,
-trends — so you can answer the only question that matters:
+<h1 align="center">Macronaut</h1>
 
-> Am I actually improving?
+<p align="center">
+  <b>Tell it what you ate. It does the maths — and answers the only question that matters:<br>
+  <i>am I actually improving?</i></b>
+</p>
 
-Not a MyFitnessPal clone. A bright, candy-coloured little world with a mascot called
-**Momo** living in it, in light and dark — hand-drawn SVG everywhere, and an AI coach that is honest without
-ever being a scold.
+<p align="center">
+  <a href="https://macronaut-lemon.vercel.app"><b>Open the app</b></a>
+  &nbsp;·&nbsp;
+  <a href="#run-it-in-a-minute">Run it locally</a>
+  &nbsp;·&nbsp;
+  <a href="#how-its-built">How it's built</a>
+</p>
+
+<p align="center">
+  <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs">
+  <img alt="React 19" src="https://img.shields.io/badge/React-19-149eca?logo=react&logoColor=white">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white">
+  <img alt="Tailwind CSS 4" src="https://img.shields.io/badge/Tailwind-4-38bdf8?logo=tailwindcss&logoColor=white">
+  <img alt="Supabase" src="https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth-3ecf8e?logo=supabase&logoColor=white">
+  <img alt="Gemini" src="https://img.shields.io/badge/Gemini-AI-8e75ff?logo=googlegemini&logoColor=white">
+  <img alt="PWA" src="https://img.shields.io/badge/PWA-installable-5a0fc8">
+</p>
 
 ---
 
-## Quick start
+Macronaut is an AI calorie and macro tracker you can install on your phone. You describe a
+meal in plain English, snap a photo or scan a barcode, and it keeps the long record — food,
+weight, goals and trends — so the numbers add up to an answer rather than a spreadsheet.
+
+It is deliberately not another logging chore. It is a bright little world with a mascot
+called **Momo**, an AI coach that is honest without ever scolding, and a score that dents on
+a heavy day but never flattens it.
+
+## Log a meal the way you'd say it
+
+<p align="center">
+  <img src="docs/screenshots/logging.webp" alt="Typing 'chicken shawarma wrap with garlic sauce and a mango lassi' returns two itemised foods with calories, an energy and protein summary, and a reaction from Momo" width="100%">
+</p>
+
+- **Type it.** Portions, brands and "a handful of" are all fine. Each food comes back
+  itemised with calories, protein, carbs, fat, fiber and sugar, plus any assumptions made.
+- **Photograph it.** Momo reads packaging before guessing. When a photo is genuinely
+  ambiguous — a part-full glass of something dark could be cola or coffee — it commits to
+  its best guess and keeps the runner-ups as one-tap swaps, with no second AI call.
+- **Scan a barcode.** Exact label data from [Open Food Facts](https://world.openfoodfacts.org).
+  Uses the browser's native `BarcodeDetector` where it exists and a bundled ZXing decoder
+  everywhere else, so iPhones get a real scanner rather than a number pad.
+- **Check first.** Ask what something would do to your day before you commit to it.
+- **Fix anything.** Edit any number, undo a log, repeat a favourite in one tap. Corrections
+  are remembered and applied next time.
+
+## Today, at a glance
+
+<p align="center">
+  <img src="docs/screenshots/today-desktop-dark.webp" alt="Today in dark mode on desktop: the energy jar on target, a score of 92, macro meters for protein, carbs, fat, fiber and sugar, and quick-repeat chips" width="100%">
+</p>
+
+The energy jar fills as you eat and sloshes while it does. Meters track protein, carbs, fat,
+fiber and sugar against your plan, and each day gets a score out of 100 with a debrief
+from Momo underneath. Light and dark are both designed, not inverted.
+
+## A week is one budget, not seven verdicts
+
+<img src="docs/screenshots/week-budget.webp" alt="This week: 1,863 kcal a day for the 5 days left, with bars for Monday to Wednesday" width="340" align="right">
+
+A heavy Saturday is only a problem if the rest of the week doesn't absorb it, and a daily
+target can't tell you that. So Today also shows the week as a single budget — and turns
+what's left into the number you actually act on: **what the remaining days can average**.
+
+It sums each day's *own* target rather than multiplying today's, because a weigh-in can
+change your plan mid-week. Days you didn't log are flagged instead of quietly counted as
+zero calories.
+
+<br clear="right">
+
+## Is it working?
+
+<p align="center">
+  <img src="docs/screenshots/journey-insights.webp" alt="Journey: a road from 98.4 kg to 82 kg with Momo 18% of the way, pace, and a falling trend line. Insights: averages, days logged and time in the calorie band for the week" width="100%">
+</p>
+
+- **Journey** draws your weight as a road with Momo standing where you are, a trend line,
+  and an arrival estimate based on the pace your readings actually show.
+- **Insights** compares this week, fortnight or month against the one before, and writes
+  an AI recap: wins, wobbles and one mission for next week.
+- **Weigh-ins re-target your plan.** The intake that produces a given weekly loss falls as
+  you get lighter, so each new reading quietly updates your targets from that day forward.
+- Streaks, a sticker book of achievements, and where your sugar actually came from.
+
+## Every day, kept
+
+<p align="center">
+  <img src="docs/screenshots/journal-desktop.webp" alt="The food journal: a calendar with each day marked great, solid or over, beside today's six logged foods grouped by meal" width="100%">
+</p>
+
+A calendar marks how each day went. Reopen any past day and it is scored against **the plan
+that was in force then** — changing your goal today never rewrites what last month meant.
+Search everything you've ever logged, and backfill a missed meal on any day.
+
+## Runs with zero configuration
+
+<p align="center">
+  <img src="docs/screenshots/welcome-desktop.webp" alt="The landing page in solo mode: 'Tell me what you ate. I'll do the maths and cheer you on.' with a 'No account needed' panel" width="100%">
+</p>
+
+Clone it and run it with no keys at all. Every missing service degrades to something that
+still works:
+
+| Not configured | What you get instead |
+| --- | --- |
+| Supabase | **Solo mode** — one local user, no sign-in, data in a JSON file |
+| Gemini | A built-in food estimator and template coaching |
+| Push keys | Everything except reminders |
+
+Add keys later and the same app upgrades in place.
+
+## And also
+
+- **Installable PWA** with its own icon, launcher shortcuts and an offline screen.
+- **Offline outbox.** Log without signal and the meal is held in IndexedDB until you're back.
+- **Swipe between tabs** on touch devices; tap the tab you're on to jump back to the top.
+- **Daily reminders** by web push, sent at the hour you choose in *your* time zone.
+- **Export everything** as JSON, or your food and weight logs as CSV.
+- **Respects reduced motion** — every animation settles to a resting pose.
+
+---
+
+## Run it in a minute
+
+Requires Node 20.9 or newer.
 
 ```bash
+git clone https://github.com/UmaisNisar/macronaut.git
+cd macronaut
 npm install
 npm run dev
 ```
 
-Open <http://localhost:3000>. **It works with zero configuration** — and this checkout
-already has Gemini and Supabase wired up in `.env.local`.
+Open <http://localhost:3000>. With no environment variables it starts in solo mode.
 
-With no environment variables set, Macronaut runs in **solo mode**:
+Want something to look at? Go to **You → Data → Load demo history** to generate about six
+weeks of realistic meals and weigh-ins (development only).
 
-| Missing            | What happens instead                                                  |
-| ------------------ | --------------------------------------------------------------------- |
-| Supabase keys      | One local pilot, no sign-in, data in `.data/macronaut.json`            |
-| `GEMINI_API_KEY`   | Built-in food table estimator + deterministic template coaching        |
+## Configuration
 
-Everything is usable in that state. Add keys to upgrade in place — no code changes.
-
-Want data to look at? **Profile → Data → Load demo history** fabricates 45 realistic
-days (development only).
-
----
-
-## Turning on the real thing
-
-Copy `.env.example` to `.env.local` and fill in what you want.
-
-### Gemini (the interesting half)
-
-Get a free key at <https://aistudio.google.com/apikey>.
+Copy the template and fill in only what you want:
 
 ```bash
-GEMINI_API_KEY=your-key-here
-GEMINI_MODEL=gemini-2.5-flash   # optional
+cp .env.example .env.local
 ```
 
-The key is only ever read server-side. The browser never sees it.
+| Variable | Needed for |
+| --- | --- |
+| `GEMINI_API_KEY` | Real AI food analysis, photos and coaching. [Get a free key](https://aistudio.google.com/apikey). |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Accounts and a real database |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-side error logging and the reminder job (never sent to the browser) |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Push reminders |
+| `CRON_SECRET` | Protects the reminder endpoint |
+| `MACRONAUT_AI_GLOBAL_DAILY_LIMIT` | Optional cap on AI calls per day across all accounts (default 400) |
 
-### Supabase (auth + Postgres)
+Everything else in `.env.example` is optional and documented there.
 
-Already provisioned for this checkout — project **Macronaut** in `ca-central-1`, with the
-URL and anon key in `.env.local`. To recreate it from scratch elsewhere:
+### Supabase
 
 ```bash
 npx supabase login
-npx supabase projects create Macronaut --org-id <org> --db-password <pw> --region ca-central-1
-npx supabase link --project-ref <ref>
-npx supabase db push          # applies supabase/migrations/
+npx supabase link --project-ref <your-project-ref>
+npx supabase db push            # applies supabase/migrations/
 ```
 
-Then put the URL and anon key in `.env.local`:
+The migrations create every table with row-level security scoping each row to its owner.
+Email confirmation is on by default, so the first sign-up needs a click in your inbox.
 
-```bash
-NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-```
-
-The migration in [`supabase/migrations/`](supabase/migrations) creates every table plus
-row-level security policies scoping all rows to `auth.uid()`. It is idempotent, so you can
-also paste it straight into the SQL editor.
-
-Email confirmation is **on** (Supabase's default), so the first sign-up needs a click in
-your inbox. To skip that: Authentication → Sign In / Providers → turn off *Confirm email*.
-
-**Personal install?** Once your own account exists, turn off Authentication → *Allow new
-users to sign up*. Nobody else can then create an account against your project.
+> [!TIP]
+> Running a personal copy? Once your own account exists, turn off **Authentication → Allow
+> new users to sign up** so nobody else can create an account on your project.
 
 ### Google sign-in
 
-**Configured and working** on both `localhost:3000` and the deployed site. A "Continue
-with Google" button sits on the landing page, and
-[`/auth/callback`](src/app/auth/callback/route.ts) exchanges the one-time code for a
-session server-side (that exchange is what writes the auth cookies).
+1. In **Google Cloud Console → APIs & Services → Credentials**, create an OAuth client ID
+   (Web application) with this authorised redirect URI:
 
-To reproduce the setup elsewhere:
+   ```
+   https://<your-project-ref>.supabase.co/auth/v1/callback
+   ```
 
-**1. Google Cloud Console** → APIs & Services → Credentials → *Create OAuth client ID* →
-Web application. Add exactly this authorised redirect URI:
+2. In **Supabase → Authentication → Sign In / Providers → Google**, paste the client ID and
+   secret, then add your site's `/auth/callback` URL (and `http://localhost:3000/auth/callback`)
+   under **URL Configuration**.
 
-```
-https://<your-project-ref>.supabase.co/auth/v1/callback
-```
-
-That URI is Supabase's, not the app's — Google returns to Supabase, which then forwards to
-`/auth/callback` on whichever origin started the flow.
-
-**2. Supabase** → Authentication → *Sign In / Providers* → Google → enable and paste the
-client ID and secret. Then under *URL Configuration* add:
-
-```
-https://macronaut-lemon.vercel.app/auth/callback
-http://localhost:3000/auth/callback
-```
-
-Or let [`supabase/config.toml`](supabase/config.toml) do it — it declares all of the above:
+Alternatively, [`supabase/config.toml`](supabase/config.toml) declares all of this:
 
 ```bash
 GOOGLE_OAUTH_CLIENT_ID=... GOOGLE_OAUTH_SECRET=... npx supabase config push
 ```
 
-> **`config push` is declarative and applies immediately** — it pushes the whole file, and
-> anything you leave out silently reverts to the *CLI's* default, which is not always the
-> hosted default. It caught us once: omitting the MFA and OTP settings turned off TOTP
-> enrolment and shortened email OTPs from 8 digits to 6. Both are now stated explicitly in
-> the file for exactly that reason. Run it once and read the diff; a second run should
-> report "up to date" for every service.
+> [!WARNING]
+> `config push` applies the **whole file** immediately. Any setting it doesn't mention
+> reverts to the CLI's default, which isn't always the hosted default. Read the diff it
+> prints before confirming.
+
+### Push reminders
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Put the pair in the VAPID variables, set `CRON_SECRET`, and schedule an **hourly** request
+to `/api/cron/reminders`. Each run sends only to people whose chosen hour it currently is in
+their own time zone. Vercel Cron attaches `Authorization: Bearer <CRON_SECRET>` automatically;
+any other scheduler must send the same header.
 
 ### Deploying
 
-Already deployed: **https://macronaut-lemon.vercel.app**
-
-```bash
-npx vercel --prod
-```
-
-`GEMINI_API_KEY`, `GEMINI_MODEL`, `NEXT_PUBLIC_SUPABASE_URL` and
-`NEXT_PUBLIC_SUPABASE_ANON_KEY` are set for production, preview and development.
+Macronaut deploys to Vercel as a standard Next.js app — import the repository, add the
+environment variables above, and deploy. The service worker only registers over HTTPS or on
+`localhost`, so a phone on your LAN won't be offered the install prompt.
 
 ---
 
-## What is in it
+## How it's built
 
-| Route       | What it does                                                                       |
-| ----------- | ---------------------------------------------------------------------------------- |
-| `/welcome`  | Landing page; sign-in when Supabase is configured                                   |
-| `/onboarding` | Five-step setup that computes and previews your plan live                         |
-| `/today`    | Fuel Core instrument, natural-language composer, AI debrief, meal timeline          |
-| `/history`  | Colour-coded calendar; any past day reopened in full, with the targets of that day  |
-| `/progress` | Weight journey, trend chart, and the period-vs-period comparison system             |
-| `/insights` | AI period reviews (7 / 14 / 30 days), streaks, achievements                         |
-| `/profile`  | Goals, recalculated plan preview, goal history, system status, danger zone          |
-
----
-
-## Installing it on your phone
-
-Macronaut is a PWA: installable, standalone (no browser chrome), with its own icon,
-launcher shortcuts for *Log food* and *Progress*, and a proper offline screen.
-
-Open **https://macronaut-lemon.vercel.app** on the phone and install from there.
-
-**It must be served over HTTPS.** Browsers only allow installation and service workers on
-`https://` or `localhost`, so reaching your laptop's dev server over the LAN
-(`http://192.168.x.x:3000`) will *not* offer an install prompt.
-
-- **iOS** — open the site in Safari → Share → *Add to Home Screen*. Leave **Open as
-  Web App** on; off makes it a plain bookmark. An installed web app gets its own cookie
-  jar, so you sign in once inside it even if Safari already has you logged in.
-- **Android** — Chrome shows an install prompt, or use ⋮ → *Install app*.
-
-**Swipe between tabs.** On touch devices the pages are a swipeable deck in dock order
-(Today → Journal → Journey → Insights → You), handled by
-[`SwipeNav`](src/components/shell/swipe-nav.tsx). Motion's `dragDirectionLock` commits to
-one axis at the start of a gesture so a vertical scroll never becomes a page change, and
-`touch-action: pan-y` keeps scrolling native. A pill peeks in from the edge naming the
-page you are about to land on, because an invisible gesture may as well not exist. Regions
-that scroll sideways themselves opt out with `data-no-swipe`. The whole thing is disabled
-on fine pointers, so a mouse drag never navigates.
-
-What the service worker does and does not do, deliberately:
-
-| | |
+| Layer | Choice |
 | --- | --- |
-| Cached | `/_next/static/*`, icons, fonts — content-hashed, so always safe |
-| Never cached | HTML, RSC payloads, anything personal, any non-GET request |
-| Offline | A clear "no signal" screen. Logging needs the server |
-
-Every page is dynamic and account-scoped, so caching them would risk showing stale or
-wrong-account data. Fast launches come from the static cache; correctness comes from
-always fetching the real page.
-
----
-
-## The look
-
-The design brief was "cute, cartoony, playful, alive" — a little world you want to open
-rather than a dashboard you have to read. Violet leads; nothing is coloured decoratively.
-
-**Momo** is the whole product's personality: a soft violet dumpling blob with a sprout,
-drawn in SVG in [`components/mascot/momo.tsx`](src/components/mascot/momo.tsx). Poke it and
-it squishes and grins; leave it alone and it blinks, glances about and does something
-small and unprompted every ten seconds or so. It has eight moods
-(`idle`, `curious`, `thinking`, `excited`, `celebrating`, `caring`, `proud`, `sleepy`) and
-each one drives the eyes, the mouth, the body motion and the props floating around it.
-It blinks on an irregular rhythm and glances about, because a fixed interval reads as
-mechanical. The rest of the app just says how Momo feels; Momo does the acting.
-
-**One surface.** Everything is a `.sticker` — white, very round, with a coloured "lip"
-underneath so it reads as a physical cut-out rather than a flat card. Tints
-(`tint-pink`, `tint-mint`, `tint-grape`…) set the lip and a faint wash together.
-
-**One colour per job.** Violet is you and every primary action, peach is energy, mint is
-protein, sky is carbs, sun is fat, leaf is fiber.
-
-**Two themes.** Light is a lavender day; dark is a deep violet night, not grey. Every
-colour is a token, so the whole app flips on one class — including the SVG instruments.
-The switch is in the desktop rail, the Today header on mobile, and Profile. It follows
-your system setting until you pick one.
-
-**One motion vocabulary.** [`lib/motion.ts`](src/lib/motion.ts) holds every variant the
-app uses — `pop`, `fadeUp`, `slideIn`, `squish`, `liftTilt`, `celebrate`, `stagger`. Two
-easing curves do almost all the work: `squish` for anything physical, `glide` for anything
-calm. Sticking to two is what keeps it feeling like one object.
-
-Set pieces worth finding:
-
-| Where | What happens |
-| --- | --- |
-| Today | An energy **jar** with two sloshing wave surfaces and rising bubbles — not a ring |
-| Logging food | Momo thinks, food drifts past, then results **pop in one by one** and the totals count up before Momo reacts |
-| Progress | The journey is a **road**, with Momo standing exactly where you are on it |
-| Insights | The recap plays as **timed slides** — days logged, protein, then a drumroll before the weight |
-| Anywhere | `useCelebration()` fires confetti, a badge and a delighted Momo |
-
-Motion is transform/opacity only, and `prefers-reduced-motion` collapses every loop to a
-resting pose rather than removing the animated keys — dropping a key mid-flight makes
-Motion animate an SVG attribute to `undefined`.
-
----
-
-## Architecture
+| Framework | Next.js 16 (App Router, Server Actions, Turbopack), React 19 |
+| Language | TypeScript, with Zod 4 at every boundary |
+| UI | Tailwind CSS 4, Base UI primitives, Motion — and every chart hand-drawn in SVG |
+| Data | Supabase (Postgres, Auth, row-level security), or a local JSON store |
+| AI | Google Gemini with structured output and a model fallback chain |
+| Scanning | Native `BarcodeDetector`, ZXing fallback, Open Food Facts |
+| Tests | Vitest for units, Playwright across Chrome **and** WebKit end to end |
 
 ```
 src/
   app/
-    (app)/            today · history · progress · insights · profile  (auth-gated shell)
-    welcome/          landing + auth
-    onboarding/       first-run setup
-    api/dev/seed/     demo-data generator (blocked in production)
+    (app)/          today · history · progress · insights · profile — the signed-in shell
+    welcome/        landing and sign-in
+    onboarding/     first-run setup with a live plan preview
+    api/            cron reminders · export · client error reports · connectivity ping · dev seed
   components/
-    mascot/           Momo, and the speech bubble it talks through
-    viz/              energy jar · macro meters · journey road · charts · radar
-    celebrate/        the confetti + badge system, provided at the root
-    today/ history/ weight/ insights/ profile/ onboarding/ shell/
-    ui/               shadcn (Base UI) primitives, restyled chunky
+    mascot/         Momo, and the speech bubble it talks through
+    viz/            energy jar · macro meters · journey road · charts
+    today/  history/  weight/  insights/  profile/  onboarding/  shell/
+    ui/             restyled Base UI primitives
   lib/
-    schemas.ts        every Zod schema, including the AI output contracts
-    nutrition.ts      Mifflin-St Jeor, TDEE, targets, day scoring, journey maths
-    insights.ts       period aggregates, comparisons, streaks, weight trends
-    achievements.ts   the badge catalogue and its rules
-    ai/               gemini client · prompts · food analysis · coaching · offline estimator
-    db/               store interface + supabase driver + local JSON driver
+    schemas.ts      every Zod schema, including the AI output contracts
+    nutrition.ts    BMR and TDEE, targets, day scoring, journey maths
+    insights.ts     period comparisons, streaks, the weekly budget
+    ai/             Gemini client · prompts · food and photo analysis · coaching · offline estimator
+    db/             one store interface, with Supabase and local JSON drivers
+    supabase/       server and admin clients, retrying transient failures
   server/
-    core.ts           day recomputation, goal snapshots, achievement refresh
-    actions.ts        every server action
-  proxy.ts            Supabase session refresh (Next 16 renamed middleware to proxy)
+    actions.ts      every Server Action
+    core.ts         day recomputation, goal snapshots, achievements
+  proxy.ts          session refresh and a per-request nonce CSP
 ```
 
-**One storage interface, two drivers.** `DataStore` in `lib/db/store.ts` is the only
-thing the app talks to. `supabase.ts` implements it over Postgres; `local.ts` implements
-it over a JSON file with an in-process write lock and mtime revalidation. Nothing above
-that layer knows which one is running.
+<details>
+<summary><b>One store, two drivers</b></summary>
 
-**Targets are versioned, not overwritten.** Every goal change writes a `goal_snapshots`
-row effective from that day. History is scored against the plan that was actually in
-force at the time, so changing your target today never rewrites what last month meant.
+`DataStore` in `lib/db/store.ts` is the only thing the app talks to. `supabase.ts` implements
+it over Postgres; `local.ts` implements it over a JSON file with a write lock. Nothing above
+that layer knows which is running, which is what makes solo mode a real mode rather than a
+demo.
+</details>
 
-**Days are rollups.** `food_entries` is the source of truth; `daily_logs` holds the
-recomputed totals, score, status and coach note. Anything that mutates food calls
-`recomputeDay`, so the two can never drift.
+<details>
+<summary><b>History is never rewritten</b></summary>
 
-### The AI layer
+Targets are **versioned, not overwritten**. Every plan change — including the automatic one
+after a weigh-in — writes a goal snapshot effective from that day, and every past day is
+scored against the snapshot in force at the time.
 
-Four separate jobs, four prompts, four Zod contracts — in `lib/ai/`:
+Days are **rollups**. Food entries are the source of truth; daily logs hold the recomputed
+totals, score and coach note. Anything that changes food recomputes its day, so the two
+can't drift apart.
+</details>
 
-| Function            | Job                                                    |
-| ------------------- | ------------------------------------------------------ |
-| `analyseFood`       | free text → itemised foods, portions, macros, assumptions |
-| `writeDailyNote`    | today's numbers + recent days → a debrief               |
-| `writeWeightNote`   | a new reading against 7/14/28-day trends → context      |
-| `writePeriodReport` | a period vs the one before → review, wins, next mission |
+<details>
+<summary><b>The AI layer</b></summary>
 
-Every call goes out with a Gemini `responseSchema` **and** comes back through a Zod
-`safeParse`. `generateJson` never throws: on any failure — no key, rate limit, malformed
-JSON, schema mismatch — the caller silently falls back to the deterministic path. Food
-analysis also reconciles calories against `4/4/9` macro maths and rewrites any item that
-is more than ~30% out.
+Separate prompts and separate Zod contracts for each job: analysing text, analysing photos,
+the daily debrief, weigh-in context, and period reports.
 
-Context sent to the model is deliberately small: aggregates and a day-by-day skeleton,
-never the full history. Reports are cached against a signature of the numbers they were
-written from, so revisiting a page costs nothing.
+- Every call sends a Gemini response schema **and** validates the reply with Zod. Nothing the
+  model returns reaches the database unchecked.
+- On any failure — no key, rate limit, malformed output — it falls back to the next model in
+  the chain, then to the deterministic path. The app keeps working.
+- Food analysis reconciles stated calories against the 4/4/9 macro maths and corrects items
+  that are well out.
+- Context sent to the model is small: aggregates and a day-by-day skeleton, never your full
+  history. Reports are cached against a signature of the numbers they were written from.
+- Per-account daily limits for each kind of call, plus a global ceiling, so an open sign-up
+  page can't spend the whole quota.
+</details>
 
-`lib/ai/prompts.ts` holds a single shared `VOICE` block that every coaching prompt
-inherits — that is what keeps the app from contradicting its own tone.
+<details>
+<summary><b>Scoring</b></summary>
 
-### Scoring
+Out of 100, and deliberately forgiving:
 
-Out of 100, deliberately forgiving (`lib/nutrition.ts`):
+| Weight | For |
+| --- | --- |
+| 45 | Energy — full marks anywhere from 85% to 105% of target, easing off gently either side |
+| 30 | Protein against target |
+| 15 | Logging the day |
+| 10 | Fiber against target |
 
-- **45** energy accuracy — full marks anywhere in 85–105% of target, gentle slopes out,
-  and a floor well above zero. A heavy day dents a score; it never flattens it.
-- **30** protein against target
-- **15** logging (something at all → 9, three or more items → 15)
-- **10** fiber against target
+A day is **Great** at 82+, **Solid** at 64+, and otherwise *above target* or *under-fuelled*
+depending on which side it fell. Nothing in the app tells you that you failed.
+</details>
 
-A day is *Great* at 82+, *Solid* at 64+, otherwise *Above target* or *Under-fuelled*
-depending on which side of the line it fell. Nothing in the app says you failed.
+<details>
+<summary><b>Security and reliability</b></summary>
+
+- A strict Content Security Policy with a fresh nonce per request, issued from `proxy.ts`.
+- Row-level security on every table; the service-role key is used only on the server for the
+  reminder job and error logging.
+- The reminder endpoint fails closed without its secret, and the demo-data route refuses to
+  run in production.
+- Server and client errors land in the app's own database table rather than a third-party
+  service, so health diagnostics stay inside the same trust boundary as health data.
+- Reads retry through transient database failures. Writes deliberately don't: a timed-out
+  insert may already have committed, and replaying it would log the same meal twice.
+</details>
+
+## Testing
+
+```bash
+npm test            # unit tests (Vitest)
+npm run test:e2e    # end-to-end suite (Playwright)
+npm run lint
+```
+
+The end-to-end suite builds its own solo-mode copy of the app, so it runs without keys or
+network, then drives it in **Chrome and WebKit** — WebKit being the engine every iPhone
+browser uses. It launches your installed Google Chrome rather than a bundled Chromium, and
+needs WebKit installed once with `npx playwright install webkit`.
+
+Beyond flows, it guards things that are easy to break without noticing: contrast on every
+filled control in dark mode, that animations are still running, that the navigation pill
+sits on the right tab, that barcodes decode in WebKit, and that nothing on screen is
+narrower than its own label.
 
 ---
 
-## Notes
-
-- **Light and dark**, class-based via `next-themes`, defaulting to your system setting.
-  Anything drawn in SVG uses tokens too, so no instrument is stranded in the wrong theme.
-- **No chart library.** Every visualisation is hand-built SVG so the energy jar, the
-  journey road and the radar can be exactly what the data needs.
-- **Timezones.** The browser writes its IANA zone to a cookie; the server derives "today"
-  from that, never from its own clock.
-- **Determinism in SVG.** Trig results differ in the last float digit between Node and
-  Chrome, which is enough to cause a hydration mismatch, so `lib/geometry.ts` quantises
-  every coordinate it emits.
-- **Estimates, not medical advice.** Calorie and macro figures are approximations. They
-  are useful for spotting trends over weeks, not for clinical decisions.
-
-## Scripts
-
-```bash
-npm run dev     # dev server
-npm run build   # production build
-npm run start   # serve the build
-npm run lint    # eslint
-```
+<sub>Calorie and macro figures are estimates. They're good for spotting trends over weeks, not
+for clinical decisions — talk to a professional before making big changes, especially with a
+health condition.</sub>
