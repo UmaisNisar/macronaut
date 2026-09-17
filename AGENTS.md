@@ -8,17 +8,20 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# Commit as UmaisNisar
+# Commit identity
 
-Author commits with `umais.nisar02@gmail.com` (already set in this repo's
-local git config, so nothing needs passing on the command line).
+Author commits with an email address verified on the **UmaisNisar** GitHub
+account. This repo's local git config already has one set, so nothing needs
+passing on the command line.
 
-GitHub attributes a commit by its **author email**, not by who pushed it, and
-`umais.nisar01@gmail.com` — the obvious-looking personal address — belongs to
-a different GitHub account, `urock12`. Every commit made with it is credited
-to that account even though the push comes from `UmaisNisar`.
+GitHub credits a commit by its **author email**, not by who pushed it, and
+Vercel reads that author to decide whether to build. A commit authored with an
+address that belongs to a different GitHub account is credited to that account,
+and Vercel refuses it with `TEAM_ACCESS_REQUIRED` — which for a while looked
+exactly like a broken webhook rather than the wrong address on the commit.
 
-That is not cosmetic. Vercel reads the commit author, fails to match it to a
-team member, and refuses the build with `TEAM_ACCESS_REQUIRED` — which looked
-for a while like a broken webhook. The first 47 commits here are all
-attributed to the wrong account for this reason.
+Before assuming a push deployed, check the author actually resolved:
+
+    gh api repos/UmaisNisar/macronaut/commits/<sha> --jq .author.login
+
+It should print `UmaisNisar`.

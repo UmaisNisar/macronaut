@@ -57,7 +57,7 @@ enable_confirmations = false
 # Credentials -> OAuth client ID (Web application), with this authorised
 # redirect URI:
 #
-#   https://kseigysuhnueleuupovq.supabase.co/auth/v1/callback
+#   https://<your-project-ref>.supabase.co/auth/v1/callback
 #
 # `env(...)` keeps the secret out of the repo — set both in your shell (or a
 # .env file the CLI can see) before running `supabase config push`.

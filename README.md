@@ -93,7 +93,7 @@ To reproduce the setup elsewhere:
 Web application. Add exactly this authorised redirect URI:
 
 ```
-https://kseigysuhnueleuupovq.supabase.co/auth/v1/callback
+https://<your-project-ref>.supabase.co/auth/v1/callback
 ```
 
 That URI is Supabase's, not the app's — Google returns to Supabase, which then forwards to
