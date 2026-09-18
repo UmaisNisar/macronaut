@@ -5,8 +5,7 @@ import { motion } from "motion/react";
 
 import { STATUS_META } from "@/lib/nutrition";
 import type { DayStatus } from "@/lib/schemas";
-import { inView, liftTilt, pop } from "@/lib/motion";
-import { useIsTouch } from "@/lib/use-media-query";
+import { liftTilt } from "@/lib/motion";
 import { Momo, type Mood } from "@/components/mascot/momo";
 import { cn } from "@/lib/utils";
 
@@ -32,13 +31,20 @@ const TINT_CLASS: Record<Tint, string> = {
 /**
  * The sticker: the only surface in the app. Everything is a cut-out sitting on
  * the candy background, never a flat panel in a grid of flat panels.
+ *
+ * Deliberately not animated on mount. Every card used to scale and rise into
+ * place as it appeared, which meant a tab change replayed that on a dozen
+ * cards at once and the whole page arrived bouncing. A surface that is
+ * already there when you look at it is calmer and, on a phone, faster: this
+ * is the most repeated component in the app, and it no longer ships a motion
+ * component per card. The hover lift is CSS now (see .sticker in globals),
+ * which also keeps it off the main thread.
  */
 export function Sticker({
   children,
   tint = "plain",
   className,
   tilt,
-  animate = true,
   inset = true,
 }: {
   children: ReactNode;
@@ -46,45 +52,19 @@ export function Sticker({
   className?: string;
   /** Degrees of resting rotation — a couple of these keep the page hand-made. */
   tilt?: number;
-  animate?: boolean;
   inset?: boolean;
 }) {
-  // whileHover is JS-driven, so on a touchscreen it latches after a tap.
-  const isTouch = useIsTouch();
+  // `rotate` rather than `transform`, so the CSS hover lift can use
+  // `translate` without the two overwriting each other.
   const style = tilt ? { rotate: `${tilt}deg` } : undefined;
 
-  if (!animate) {
-    return (
-      <section
-        style={style}
-        className={cn(
-          "sticker",
-          TINT_CLASS[tint],
-          inset && "p-5 sm:p-6",
-          className,
-        )}
-      >
-        {children}
-      </section>
-    );
-  }
-
   return (
-    <motion.section
-      variants={pop}
-      {...inView}
-      whileHover={isTouch ? undefined : { y: -3 }}
-      transition={{ type: "spring", stiffness: 300, damping: 26 }}
+    <section
       style={style}
-      className={cn(
-        "sticker",
-        TINT_CLASS[tint],
-        inset && "p-5 sm:p-6",
-        className,
-      )}
+      className={cn("sticker", TINT_CLASS[tint], inset && "p-5 sm:p-6", className)}
     >
       {children}
-    </motion.section>
+    </section>
   );
 }
 

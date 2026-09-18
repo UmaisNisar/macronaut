@@ -24,10 +24,7 @@ export function AchievementGrid({ unlocked }: { unlocked: Map<string, Iso> }) {
         return (
           <motion.li
             key={achievement.key}
-            initial={{ opacity: 0, scale: 0.8 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ ...SPRING.pop, delay: Math.min(i * 0.035, 0.4) }}
+            transition={SPRING.pop}
             whileHover={on ? { y: -4, rotate: i % 2 ? -2 : 2 } : { y: -2 }}
             className={cn(
               "relative flex flex-col items-center rounded-3xl px-3 py-4 text-center",

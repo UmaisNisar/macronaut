@@ -73,7 +73,7 @@ export function CalendarGrid({
       </div>
 
       <div className="grid grid-cols-7 gap-1.5">
-        {cells.map((iso, index) => {
+        {cells.map((iso) => {
           const day = byDate.get(iso);
           const outside = !isSameMonth(iso, monthIso);
           const future = iso > todayIso;
@@ -123,13 +123,14 @@ export function CalendarGrid({
           }
 
           return (
+            /* The grid is drawn, not dealt out: a month of cells springing
+               in one after another replayed on every visit to the Journal.
+               Hover and press still respond. */
             <motion.div
               key={iso}
-              initial={{ opacity: 0, scale: 0.7 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ ...SPRING.pop, delay: Math.min(index * 0.008, 0.3) }}
               whileHover={{ y: -3, scale: 1.06 }}
               whileTap={{ scale: 0.92 }}
+              transition={SPRING.pop}
             >
               <Link
                 href={`/history?d=${iso}&m=${monthIso}`}

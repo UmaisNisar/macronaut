@@ -7,14 +7,24 @@ import { NavDock, NavRail } from "@/components/shell/nav";
 import { PageShell } from "@/components/shell/page-shell";
 import { SwipeNav } from "@/components/shell/swipe-nav";
 import { TimezoneSync } from "@/components/shell/timezone-sync";
-import { getCurrentProfile, getSession } from "@/lib/session";
+import { getSession } from "@/lib/session";
 
+/**
+ * The shell around every tab: background, navigation, and the page itself.
+ *
+ * It waits for the session — a signature check on a token already in hand,
+ * with no database in it — and nothing else. It used to load the profile here
+ * too, to send anyone unonboarded to /onboarding, and because a layout
+ * renders before its page that put a round trip to the database in front of
+ * the *entire* screen: a cold start showed nothing at all, not even the
+ * navigation, until the query came back. Every page under here already calls
+ * requireProfile or onboardedProfile, which redirects exactly the same way,
+ * so the check was duplicated as well as expensive. Now the shell paints
+ * immediately and the page streams into it behind its own skeleton.
+ */
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await getSession();
   if (!session) redirect("/welcome");
-
-  const profile = await getCurrentProfile();
-  if (!profile?.onboardedAt) redirect("/onboarding");
 
   // svh, not dvh. `dvh` is defined to track the viewport as Safari's toolbar
   // collapses and expands, so a full-height container using it reflows the

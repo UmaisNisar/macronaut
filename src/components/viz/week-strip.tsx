@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useReducedMotion } from "motion/react";
 
 import type { DaySeriesPoint } from "@/lib/insights";
 import { STATUS_META } from "@/lib/nutrition";
 import { relativeDayLabel, weekdayInitial } from "@/lib/date";
-import { EASE } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 /**
@@ -24,8 +22,6 @@ export function WeekStrip({
   linkDays?: boolean;
   height?: number;
 }) {
-  const reduce = useReducedMotion();
-
   const ceiling =
     Math.max(...series.map((d) => Math.max(d.calories, d.target)), 1) * 1.15;
   const pctOf = (v: number) => (v / ceiling) * 100;
@@ -46,7 +42,7 @@ export function WeekStrip({
         </div>
 
         <div className="absolute inset-0 flex items-end gap-1.5 sm:gap-2">
-          {series.map((day, i) => {
+          {series.map((day) => {
             const meta = STATUS_META[day.status];
             const h = day.logged ? Math.max(6, pctOf(day.calories)) : 6;
             const title = `${relativeDayLabel(day.iso)} — ${
@@ -56,20 +52,16 @@ export function WeekStrip({
             }`;
 
             const bar = (
-              <motion.span
+              /* Drawn at full height. These used to grow out of the floor
+                 one after another, which is charming once and restless every
+                 time you open the tab afterwards. */
+              <span
                 className="relative block w-full rounded-[14px]"
                 style={{
+                  height: `${h}%`,
                   background: day.logged
                     ? `linear-gradient(180deg, color-mix(in oklab, ${meta.token} 78%, var(--card)), ${meta.token})`
                     : "var(--muted)",
-                }}
-                initial={reduce ? false : { height: 0 }}
-                whileInView={{ height: `${h}%` }}
-                viewport={{ once: true }}
-                transition={{
-                  duration: 0.6,
-                  delay: reduce ? 0 : i * 0.045,
-                  ease: EASE.squish,
                 }}
               >
                 {day.logged && day.status === "great" ? (
@@ -80,7 +72,7 @@ export function WeekStrip({
                     🔥
                   </span>
                 ) : null}
-              </motion.span>
+              </span>
             );
 
             return linkDays ? (

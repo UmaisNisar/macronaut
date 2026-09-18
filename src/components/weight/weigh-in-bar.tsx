@@ -73,7 +73,7 @@ export function WeighInBar({
     : "Your first number starts the journey";
 
   return (
-    <Sticker tint="peach" inset={false} animate={false} className="px-4 py-3.5">
+    <Sticker tint="peach" inset={false} className="px-4 py-3.5">
       <LogWeightDialog
         today={today}
         units={units}
