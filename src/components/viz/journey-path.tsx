@@ -14,14 +14,20 @@ import { cn } from "@/lib/utils";
 /**
  * The journey drawn as a road, with Momo standing exactly where you are on it.
  * Travelled road is solid and pink; the rest is a dotted trail waiting for you.
+ *
+ * The road runs *downhill*. The number on Momo's chip falls as you walk, so a
+ * road that climbed towards the goal read backwards — the picture said "up"
+ * while every figure under it said "down". The curve is the old one mirrored
+ * (y' = 318 - y), which keeps its gentle S, in a box taller than the old 230
+ * so Momo still has room above the high end of the road.
  */
 
 const W = 720;
-const H = 230;
-const P0 = { x: 62, y: 168 };
-const P1 = { x: 250, y: 196 };
-const P2 = { x: 470, y: 74 };
-const P3 = { x: 656, y: 104 };
+const H = 300;
+const P0 = { x: 62, y: 150 };
+const P1 = { x: 250, y: 122 };
+const P2 = { x: 470, y: 244 };
+const P3 = { x: 656, y: 214 };
 
 function cubic(t: number) {
   const u = 1 - t;
@@ -87,7 +93,7 @@ export function JourneyPath({
           aria-label={`${percentLabel}% of the way from ${journey.startKg} to ${journey.targetKg} kilograms.`}
         >
           <defs>
-            <linearGradient id={`${uid}-road`} x1="0" y1="1" x2="1" y2="0">
+            <linearGradient id={`${uid}-road`} x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stopColor="var(--violet)" />
               <stop offset="60%" stopColor="var(--sky)" />
               <stop offset="100%" stopColor="var(--mint)" />
