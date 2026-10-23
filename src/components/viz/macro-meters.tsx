@@ -117,7 +117,7 @@ export function MacroMeters({
 
               {/* tank */}
               <div
-                className="relative h-3.5 overflow-hidden rounded-full"
+                className="meter-tank relative h-3.5 overflow-hidden rounded-full"
                 style={{ background: style.soft }}
               >
                 {/*
@@ -136,6 +136,8 @@ export function MacroMeters({
                       background: over
                         ? `linear-gradient(90deg, ${style.color}, var(--peach))`
                         : `linear-gradient(90deg, color-mix(in oklab, ${style.color} 62%, var(--card)), ${style.color})`,
+                      // The fill glows at night; see .dark .meter-fill.
+                      "--meter-glow": style.color,
                       "--fill": Math.max(pct, row.value > 0 ? 0.07 : 0),
                       "--fill-delay": `${150 + index * 90}ms`,
                     } as React.CSSProperties

@@ -110,12 +110,33 @@ export function EnergyBubble({
             <stop offset="0%" stopColor={tint.a} />
             <stop offset="100%" stopColor={tint.b} />
           </linearGradient>
+          {/* Light falling on the glass from above and to the left. */}
+          <radialGradient id={`${uid}-sheen`} cx="32%" cy="22%" r="72%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.5" />
+            <stop offset="55%" stopColor="#ffffff" stopOpacity="0.08" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+          </radialGradient>
         </defs>
 
-        {/* jar body */}
-        <circle cx={CX} cy={CY} r={R} fill="var(--track)" />
+        {/*
+          The glass.
 
-        <g clipPath={`url(#${uid}-jar)`}>
+          It used to be a flat fill of --track, which after dark is three L*
+          off the page: an empty jar read as a hole cut in the card rather
+          than a vessel with nothing in it. A sheen across the top and a rim
+          around the edge give it a surface to catch the light, and both are
+          tokens, so daylight keeps the flatter look that suits it.
+        */}
+        <circle cx={CX} cy={CY} r={R} fill="var(--jar-glass, var(--track))" />
+        <circle
+          cx={CX}
+          cy={CY}
+          r={R}
+          fill={`url(#${uid}-sheen)`}
+          opacity="var(--jar-sheen-opacity, 0)"
+        />
+
+        <g className="jar-liquid" clipPath={`url(#${uid}-jar)`}>
           {/*
             Back wave. The drift is a CSS animation, not a Motion one: the
             Motion version had quietly stopped, leaving every wave parked on
@@ -201,13 +222,14 @@ export function EnergyBubble({
         */}
         <circle cx={CX} cy={CY} r={72} fill={`url(#${uid}-plate)`} />
 
-        {/* rim */}
+        {/* rim — its own token, because after dark the groove colour that
+            draws it in daylight is three L* off the page and disappears */}
         <circle
           cx={CX}
           cy={CY}
           r={R}
           fill="none"
-          stroke="var(--track)"
+          stroke="var(--jar-rim, var(--track))"
           strokeWidth="7"
         />
         <circle
@@ -215,7 +237,7 @@ export function EnergyBubble({
           cy={CY}
           r={R + 8}
           fill="none"
-          stroke="var(--track)"
+          stroke="var(--jar-rim, var(--track))"
           strokeWidth="3"
           strokeDasharray="2 9"
           strokeLinecap="round"

@@ -1,10 +1,10 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 
 import { diffDays, shortDayLabel, type Iso } from "@/lib/date";
-import { formatWeight, linearFit } from "@/lib/nutrition";
+import { formatWeight, formatWeightDelta, linearFit } from "@/lib/nutrition";
 import { smoothPath, type Point } from "@/lib/geometry";
 import type { UnitSystem } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
@@ -28,6 +28,16 @@ export function WeightChart({
 }) {
   const uid = useId().replace(/:/g, "");
   const reduce = useReducedMotion();
+  /*
+    The reading under the pointer.
+
+    The dots carried a `<title>`, which is the browser's own tooltip: it
+    only appears over a 4px circle, after a pause, in the system font, and
+    never on a phone. The line is the thing people point at, so anywhere
+    along it now picks the nearest reading and says what it was.
+  */
+  const wrap = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState<number | null>(null);
 
   if (points.length === 0) {
     return (
@@ -81,12 +91,54 @@ export function WeightChart({
   const targetY = yOf(targetKg);
   const gridValues = [yMax, (yMax + yMin) / 2, yMin];
 
+  // The chart is drawn in viewBox units and displayed at whatever width the
+  // card gives it, so a pointer position has to come back through that scale.
+  const pick = (clientX: number) => {
+    const box = wrap.current?.getBoundingClientRect();
+    if (!box || box.width === 0) return;
+    const x = ((clientX - box.left) / box.width) * W;
+    let nearest = 0;
+    for (let i = 1; i < coords.length; i++) {
+      if (Math.abs(coords[i].x - x) < Math.abs(coords[nearest].x - x)) nearest = i;
+    }
+    setActive(nearest);
+  };
+
+  const step = (by: number) =>
+    setActive((i) => {
+      const from = i ?? coords.length - 1;
+      return Math.min(coords.length - 1, Math.max(0, from + by));
+    });
+
+  const shown = active === null ? null : points[active];
+  const shownAt = active === null ? null : coords[active];
+  const change =
+    active !== null && active > 0 ? points[active].kg - points[active - 1].kg : null;
+
   return (
-    <div className={cn("w-full", className)}>
+    <div
+      ref={wrap}
+      className={cn("relative w-full", className)}
+      /* A drag across the chart is reading it, not a swipe to the next tab. */
+      data-no-swipe
+      onPointerMove={(e) => pick(e.clientX)}
+      onPointerDown={(e) => pick(e.clientX)}
+      onPointerLeave={() => setActive(null)}
+    >
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full"
+        className="w-full touch-pan-y focus-visible:outline-none"
         role="img"
+        /* Arrow keys walk the readings, for anyone not using a pointer. */
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowRight") step(1);
+          else if (e.key === "ArrowLeft") step(-1);
+          else if (e.key === "Escape") setActive(null);
+          else return;
+          e.preventDefault();
+        }}
+        onBlur={() => setActive(null)}
         aria-label={`Weight from ${formatWeight(first.kg, units)} to ${formatWeight(last.kg, units)} across ${span} days, against a ${formatWeight(targetKg, units)} target.`}
       >
         <defs>
@@ -175,16 +227,30 @@ export function WeightChart({
           transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
         />
 
+        {shownAt ? (
+          <line
+            x1={shownAt.x}
+            x2={shownAt.x}
+            y1={PAD.top}
+            y2={PAD.top + plotH}
+            stroke="var(--violet)"
+            strokeWidth={1.5}
+            strokeDasharray="4 5"
+            opacity={0.5}
+          />
+        ) : null}
+
         {coords.map((c, i) => (
           <circle
             key={points[i].iso}
             cx={c.x}
             cy={c.y}
-            r={i === coords.length - 1 ? 7 : 4}
-            fill={i === coords.length - 1 ? "var(--violet)" : "var(--card)"}
+            r={i === active ? 8 : i === coords.length - 1 ? 7 : 4}
+            fill={i === active || i === coords.length - 1 ? "var(--violet)" : "var(--card)"}
             stroke="var(--violet)"
             strokeWidth={3}
           >
+            {/* Kept for anything that reads the markup rather than hovers. */}
             <title>{`${shortDayLabel(points[i].iso)} — ${formatWeight(points[i].kg, units)}`}</title>
           </circle>
         ))}
@@ -202,9 +268,20 @@ export function WeightChart({
           </text>
         )}
 
-        {/* X labels */}
+        {/*
+          X labels. The middle one is dropped when it lands near an end:
+          weigh-ins are not evenly spaced, so the middle *reading* can sit
+          days from the last one and the two labels printed on top of each
+          other — "Oct 21Oct 23".
+        */}
         {[first, points[Math.floor(points.length / 2)], last]
           .filter((p, i, arr) => arr.findIndex((q) => q.iso === p.iso) === i)
+          .filter(
+            (p) =>
+              p === first ||
+              p === last ||
+              (xOf(p.iso) - xOf(first.iso) > 90 && xOf(last.iso) - xOf(p.iso) > 90),
+          )
           .map((p, i, arr) => (
             <text
               key={p.iso}
@@ -221,6 +298,41 @@ export function WeightChart({
             </text>
           ))}
       </svg>
+
+      {/*
+        The readout is HTML, not SVG text: real fonts, a real pill, and it
+        reads the same at any chart width. `left` is a percentage of the
+        viewBox so it tracks the point as the card resizes, clamped near the
+        edges so the pill never hangs off the card.
+      */}
+      {shown && shownAt ? (
+        <div
+          role="status"
+          data-chart-readout
+          className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-2xl bg-[var(--inset)] px-3 py-1.5 text-center whitespace-nowrap shadow-[0_3px_0_0_var(--lip)]"
+          style={{
+            left: `${Math.min(88, Math.max(12, (shownAt.x / W) * 100))}%`,
+            top: `${Math.max(0, (shownAt.y / H) * 100 - 3)}%`,
+          }}
+        >
+          <p className="numeral text-sm leading-none">
+            {formatWeight(shown.kg, units)}
+          </p>
+          <p className="label-cute mt-1 text-[0.5rem]">
+            {shortDayLabel(shown.iso)}
+            {change !== null && Math.abs(change) >= 0.05 ? (
+              <span
+                className="ml-1"
+                style={{
+                  color: change < 0 ? "var(--mint)" : "var(--peach)",
+                }}
+              >
+                {formatWeightDelta(change, units)}
+              </span>
+            ) : null}
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

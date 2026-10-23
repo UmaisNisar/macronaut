@@ -1,3 +1,5 @@
+import type React from "react";
+
 import Link from "next/link";
 
 import type { WeekBudget } from "@/lib/insights";
@@ -133,7 +135,7 @@ export function WeekBudgetCard({ week }: { week: WeekBudget }) {
               >
                 <div
                   className={cn(
-                    "w-full rounded-[10px]",
+                    "day-bar w-full rounded-[10px]",
                     d.isFuture
                       ? "bg-[var(--track)]"
                       : !d.logged
@@ -144,7 +146,17 @@ export function WeekBudgetCard({ week }: { week: WeekBudget }) {
                     d.isToday &&
                       "ring-2 ring-[var(--violet)] ring-offset-1 ring-offset-[var(--card)]",
                   )}
-                  style={{ height: h }}
+                  style={
+                    {
+                      height: h,
+                      // Lit from inside after dark; see .dark .day-bar.
+                      "--bar-glow": !d.logged
+                        ? "transparent"
+                        : hot
+                          ? "var(--peach)"
+                          : "var(--violet)",
+                    } as React.CSSProperties
+                  }
                   title={`${shortDayLabel(d.iso)} — ${
                     d.isFuture
                       ? "still to come"

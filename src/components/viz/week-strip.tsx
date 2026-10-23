@@ -1,5 +1,7 @@
 "use client";
 
+import type React from "react";
+
 import Link from "next/link";
 
 import type { DaySeriesPoint } from "@/lib/insights";
@@ -56,13 +58,17 @@ export function WeekStrip({
                  one after another, which is charming once and restless every
                  time you open the tab afterwards. */
               <span
-                className="relative block w-full rounded-[14px]"
-                style={{
-                  height: `${h}%`,
-                  background: day.logged
-                    ? `linear-gradient(180deg, color-mix(in oklab, ${meta.token} 78%, var(--card)), ${meta.token})`
-                    : "var(--muted)",
-                }}
+                className="day-bar relative block w-full rounded-[14px]"
+                style={
+                  {
+                    height: `${h}%`,
+                    background: day.logged
+                      ? `linear-gradient(180deg, color-mix(in oklab, ${meta.token} 78%, var(--card)), ${meta.token})`
+                      : "var(--muted)",
+                    // Lit from inside after dark; see .dark .day-bar.
+                    "--bar-glow": day.logged ? meta.token : "transparent",
+                  } as React.CSSProperties
+                }
               >
                 {day.logged && day.status === "great" ? (
                   <span

@@ -199,6 +199,13 @@
   --jar-shine: 0.4;
   --jar-plate: var(--card);
   --jar-plate-opacity: 0.92;
+  /* Daylight keeps the flat glass: the card is bright enough that a sheen
+     on it would only add haze. */
+  --jar-glass: var(--track);
+  --jar-rim: var(--track);
+  --jar-sheen-opacity: 0;
+  /* The journey road: the groove colour reads fine on a white card. */
+  --road: var(--track);
   /* The readout sits over glass or over liquid depending on the hour. */
   --jar-label: var(--ink-soft);
   --jar-text-shadow: none;
@@ -264,17 +271,26 @@
 .dark {
   color-scheme: dark;
 
-  /* L* 6 — the ground. Near-neutral, so it has no chroma to steal. */
-  --background: #131022;
+  /*
+   * L* 4.5 — the ground, a step deeper than it was.
+   *
+   * The ladder was right in kind and too tight in degree: a card sat nine
+   * L* above the page, which is a difference you can measure and barely
+   * see, so a screen of cards read as one sheet with seams. Dropping the
+   * ground and lifting the card puts thirteen between them. Every text
+   * pairing was re-measured on the new surfaces; the worst is violet on a
+   * nested panel at 5.2:1, against a 4.5 floor.
+   */
+  --background: #100d20;
   --foreground: #f2effc;
   --ink: #f2effc;
   --ink-soft: #b1aad0;
 
-  /* L* 15 and 17. The card keeps a whisper of violet so the neutrals feel
+  /* L* 17.4 and 20. The card keeps a whisper of violet so the neutrals feel
      chosen rather than greyscale. */
-  --card: #262042;
+  --card: #2c2451;
   --card-foreground: #f2effc;
-  --popover: #2b2449;
+  --popover: #31295a;
   --popover-foreground: #f2effc;
 
   /*
@@ -315,10 +331,10 @@
    * than the card: 4 L* above the page, 5 below the card. One token, both
    * jobs, no special cases.
    */
-  --lip: #1c1830;
-  --inset: #312a50; /* L* 20 — panels nested inside a sticker */
-  --track: #181432; /* L* 8 — empty meters groove below the card */
-  --muted: #2c2648;
+  --lip: #1b1634;
+  --inset: #383060; /* L* 23 — panels nested inside a sticker */
+  --track: #16122d; /* L* 7 — empty meters groove below the card */
+  --muted: #312a56;
   --muted-foreground: var(--ink-soft);
 
   --primary: var(--violet);
@@ -366,6 +382,19 @@
   --jar-shine: 0;
   --jar-plate: #171226;
   --jar-plate-opacity: 0.85;
+  /*
+   * Glass, at night. An empty jar drawn in --track sits three L* off the
+   * page and reads as a hole in the card; this is the glass itself, with
+   * the light from above picked up by the sheen and a rim bright enough to
+   * draw the vessel's edge.
+   */
+  --jar-glass: #221b45;
+  --jar-rim: #342b60;
+  --jar-sheen-opacity: 0.55;
+  /* The road, which is a groove in daylight and has to be a surface at
+     night: --track against a tinted card is a dark worm with invisible
+     dots on it. */
+  --road: #352d63;
 
   /*
    * The jar was the brightest thing on the whole dark page, and not because
@@ -380,8 +409,8 @@
    * to 63, which still glows against an L* 15 card but stops being a lamp.
    * Chroma is doing the work that lightness was doing badly.
    */
-  --jar-liquid-a: #d8853a;
-  --jar-liquid-b: #8a3e19;
+  --jar-liquid-a: #e89647;
+  --jar-liquid-b: #96451b;
   --jar-liquid-a-over: #f26b3c;
   --jar-liquid-b-over: #a32e15;
   /* Warm, because a white meniscus on amber is a fluorescent tube. The old
@@ -412,6 +441,24 @@
   --blob-opacity: 0.16;
   /* Emoji carry their own colour and glow against a dark page. */
   --doodle-opacity: 0.12;
+
+  /*
+   * Sky and vignette. The sky is a wash down from the top of the window at
+   * two L* over the ground — the same budget the blobs get — and the
+   * vignette only darkens the corners, so nothing on the page loses
+   * contrast where anything is read.
+   */
+  --page-sky: radial-gradient(
+    120% 70% at 50% -10%,
+    rgb(124 104 255 / 0.1) 0%,
+    rgb(124 104 255 / 0.04) 45%,
+    transparent 75%
+  );
+  --page-vignette: radial-gradient(
+    110% 85% at 50% 45%,
+    transparent 55%,
+    rgb(0 0 0 / 0.35) 100%
+  );
 
   /* Atmosphere at ~2 L* over the ground — tint, not lamplight. */
   --page-glow-1: #1b1538;
@@ -856,57 +903,185 @@
    * lip. Mixed in oklab, where 12% of peach is still peach. Every glaze
    * keeps --ink-soft above 5:1, checked before these numbers were chosen.
    *
-   * The lip mixes over a literal #1c1830 (the .dark lip) rather than
+   * The lip mixes over a literal #1b1634 (the .dark lip) rather than
    * var(--lip), because a custom property may not reference itself.
    */
   .dark .tint-violet,
   .dark .tint-grape {
-    --lip: color-mix(in oklab, var(--violet) 16%, #1c1830);
+    --lip: color-mix(in oklab, var(--violet) 16%, #1b1634);
     background: linear-gradient(
       180deg,
-      color-mix(in oklab, var(--violet) 12%, var(--card)) 0%,
-      color-mix(in oklab, var(--violet) 4%, var(--card)) 100%
+      color-mix(in oklab, var(--violet) 18%, var(--card)) 0%,
+      color-mix(in oklab, var(--violet) 7%, var(--card)) 100%
     );
   }
   .dark .tint-peach {
-    --lip: color-mix(in oklab, var(--peach) 16%, #1c1830);
+    --lip: color-mix(in oklab, var(--peach) 16%, #1b1634);
     background: linear-gradient(
       180deg,
-      color-mix(in oklab, var(--peach) 12%, var(--card)) 0%,
-      color-mix(in oklab, var(--peach) 4%, var(--card)) 100%
+      color-mix(in oklab, var(--peach) 18%, var(--card)) 0%,
+      color-mix(in oklab, var(--peach) 7%, var(--card)) 100%
     );
   }
   .dark .tint-mint {
-    --lip: color-mix(in oklab, var(--mint) 16%, #1c1830);
+    --lip: color-mix(in oklab, var(--mint) 16%, #1b1634);
     background: linear-gradient(
       180deg,
-      color-mix(in oklab, var(--mint) 12%, var(--card)) 0%,
-      color-mix(in oklab, var(--mint) 4%, var(--card)) 100%
+      color-mix(in oklab, var(--mint) 18%, var(--card)) 0%,
+      color-mix(in oklab, var(--mint) 7%, var(--card)) 100%
     );
   }
   .dark .tint-sky {
-    --lip: color-mix(in oklab, var(--sky) 16%, #1c1830);
+    --lip: color-mix(in oklab, var(--sky) 16%, #1b1634);
     background: linear-gradient(
       180deg,
-      color-mix(in oklab, var(--sky) 12%, var(--card)) 0%,
-      color-mix(in oklab, var(--sky) 4%, var(--card)) 100%
+      color-mix(in oklab, var(--sky) 18%, var(--card)) 0%,
+      color-mix(in oklab, var(--sky) 7%, var(--card)) 100%
     );
   }
   .dark .tint-berry {
-    --lip: color-mix(in oklab, var(--berry) 16%, #1c1830);
+    --lip: color-mix(in oklab, var(--berry) 16%, #1b1634);
     background: linear-gradient(
       180deg,
-      color-mix(in oklab, var(--berry) 12%, var(--card)) 0%,
-      color-mix(in oklab, var(--berry) 4%, var(--card)) 100%
+      color-mix(in oklab, var(--berry) 18%, var(--card)) 0%,
+      color-mix(in oklab, var(--berry) 7%, var(--card)) 100%
     );
   }
   .dark .tint-sun {
-    --lip: color-mix(in oklab, var(--sun) 16%, #1c1830);
+    --lip: color-mix(in oklab, var(--sun) 16%, #1b1634);
     background: linear-gradient(
       180deg,
-      color-mix(in oklab, var(--sun) 12%, var(--card)) 0%,
-      color-mix(in oklab, var(--sun) 4%, var(--card)) 100%
+      color-mix(in oklab, var(--sun) 18%, var(--card)) 0%,
+      color-mix(in oklab, var(--sun) 7%, var(--card)) 100%
     );
+  }
+
+  /* =====================================================================
+     NIGHT MATERIALS
+
+     The dark tokens were already right — the ladder is measured in CIE L*
+     and the E2E holds it — and the screens still read flat, because nine
+     L* of lift is all a dark card had to say that it was a card.
+
+     In daylight a sticker is a physical thing: a white face, a coloured
+     edge under it, a shadow under that. At night the shadow lands on
+     near-black and vanishes, and the edge is four L* from the page. What
+     is left is a slightly paler rectangle, and eight of them in a column
+     melt into one slab.
+
+     So depth after dark is rebuilt out of light rather than shadow, the
+     way a real object reads in a dark room: a rim along the top edge
+     where the light catches it, a hairline so the card has a boundary at
+     all, and a wide ambient shadow underneath to seat it on the page.
+     ===================================================================== */
+  .dark .sticker {
+    box-shadow:
+      0 4px 0 0 var(--lip),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.07),
+      0 0 0 1px rgb(255 255 255 / 0.04),
+      0 26px 50px -32px rgb(0 0 0 / 0.95);
+  }
+
+  .dark .sticker-flat {
+    box-shadow:
+      0 3px 0 0 var(--lip),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.06),
+      0 0 0 1px rgb(255 255 255 / 0.035);
+  }
+
+  /*
+   * Nested panels — meal rows, repeat chips, stat tiles, the fields on the
+   * plan editor. A bevel (light along the top, dark along the bottom) reads
+   * as "inside something" at any lightness, where five L* of lift does not.
+   *
+   * Matched on the background utility rather than a class added to a
+   * hundred elements: that utility *is* the app's nested-panel surface
+   * wherever it appears. Tailwind's utilities layer after this one, so
+   * anything that sets its own shadow keeps it.
+   */
+  .dark :is([class*="bg-[var(--inset)]"], [class*="bg-[var(--muted)]"]) {
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.055),
+      inset 0 -1px 0 0 rgb(0 0 0 / 0.3);
+  }
+
+  /*
+   * Meters. The tank is tinted with its macro's -soft colour, which after
+   * dark is a muted slab sitting at about the card's own lightness — the
+   * bar and its track read as one shape until the fill is well past half.
+   * Darkening the tank with a flat overlay keeps the hue and turns it back
+   * into a groove, and the fill gets the glow a lit thing has at night.
+   */
+  .dark .meter-tank {
+    background-image: linear-gradient(rgb(0 0 0 / 0.45), rgb(0 0 0 / 0.45));
+    box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.55);
+  }
+
+  .dark .meter-fill {
+    box-shadow: 0 0 14px -3px var(--meter-glow, transparent);
+  }
+
+  /*
+   * The week's bars. Flat blocks of colour on a dark page look printed on;
+   * a short glow at the top of each one makes them read as lit, which is
+   * also how you pick out the tall ones at a glance.
+   */
+  .dark .day-bar {
+    box-shadow:
+      0 0 16px -6px var(--bar-glow, transparent),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.18);
+  }
+
+  /* The jar is the one lamp on the page: let it light the glass. */
+  .dark .jar-liquid {
+    filter: drop-shadow(
+      0 0 22px color-mix(in oklab, var(--jar-liquid-a) 45%, transparent)
+    );
+  }
+
+  /*
+   * The composer's edge. 14% of violet over a white card is a visible
+   * hairline; over a dark one it is nothing, and the field — the single
+   * most important control in the app — had no edge at night.
+   */
+  .dark .field {
+    border-color: color-mix(in oklab, var(--violet) 30%, transparent);
+    background-color: color-mix(in oklab, #000 18%, transparent);
+  }
+  @media (hover: hover) {
+    .dark .field:hover {
+      border-color: color-mix(in oklab, var(--violet) 45%, transparent);
+    }
+  }
+
+  /* Keyboard focus has to beat a glowing page, not a white one. */
+  .dark .tappable:focus-visible,
+  .dark .field:focus-within {
+    outline-color: color-mix(in oklab, var(--violet) 85%, white);
+  }
+
+  /*
+   * Row actions — repeat, edit, remove on every logged meal.
+   *
+   * Three icon buttons on every row is thirty controls on a busy day, all
+   * drawn at the same weight as the food they belong to, and the thing you
+   * actually read down the list — the calories — had to compete with them.
+   * Where there is a real pointer they wait until you reach for the row.
+   *
+   * Only there: a touch screen has no hover, so on a phone they stay put.
+   * Focus brings them back for the keyboard, and Playwright hovers before
+   * it clicks, so nothing in the suite loses its target.
+   */
+  @media (hover: hover) and (pointer: fine) {
+    .row-actions {
+      opacity: 0;
+      transition: opacity 130ms ease;
+    }
+    .group:hover .row-actions,
+    .group:focus-within .row-actions,
+    .row-actions:focus-within {
+      opacity: 1;
+    }
   }
 
   /* Small uppercase label — the app's "handwriting" */

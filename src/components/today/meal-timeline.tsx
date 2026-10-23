@@ -334,11 +334,16 @@ function FoodSticker({
         </div>
 
         <div className="flex shrink-0 items-center gap-0.5">
-          <span className="numeral mr-1 text-base text-[var(--peach)]">
+          {/*
+            The calorie figure is the column you read down a day, so it gets
+            a fixed width and sits right: ragged numbers in a list of meals
+            are harder to compare than they look.
+          */}
+          <span className="numeral mr-1 min-w-[3.1rem] text-right text-base text-[var(--peach)]">
             {Math.round(entry.calories)}
           </span>
           {editable ? (
-            <>
+            <div className="row-actions flex items-center gap-0.5">
               <button
                 type="button"
                 onClick={logAgain}
@@ -376,7 +381,7 @@ function FoodSticker({
                   <Trash2 className="size-3.5" />
                 )}
               </button>
-            </>
+            </div>
           ) : null}
         </div>
       </div>

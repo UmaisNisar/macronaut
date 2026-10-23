@@ -26,6 +26,16 @@ const DOODLES = [
 export function CandyBackground() {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+      {/*
+        Sky and floor. A dark page of one flat colour has no up or down in
+        it, and the cards float on nothing; this lifts the top of the
+        window a little and sinks the corners, which is enough to tell the
+        eye where the light is. Both are tokens that resolve to nothing in
+        daylight, where the page is already a lit room.
+      */}
+      <div className="absolute inset-0" style={{ background: "var(--page-sky, transparent)" }} />
+      <div className="absolute inset-0" style={{ background: "var(--page-vignette, transparent)" }} />
+
       {BLOBS.map((blob, i) => (
         <span
           key={i}

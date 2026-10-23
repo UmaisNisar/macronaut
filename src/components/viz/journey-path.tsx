@@ -108,7 +108,7 @@ export function JourneyPath({
           <path
             d={PATH}
             fill="none"
-            stroke="var(--track)"
+            stroke="var(--road, var(--track))"
             strokeWidth="14"
             strokeLinecap="round"
           />
@@ -148,7 +148,7 @@ export function JourneyPath({
                   cy={p.y}
                   r={done ? 13 : 10}
                   fill={done ? "var(--sun)" : "var(--inset)"}
-                  stroke={done ? "var(--sun)" : "var(--track)"}
+                  stroke={done ? "var(--sun)" : "var(--road, var(--track))"}
                   strokeWidth="3"
                   initial={reduce ? false : { scale: 0 }}
                   whileInView={{ scale: 1 }}
@@ -187,7 +187,7 @@ export function JourneyPath({
               cy={P0.y}
               r="16"
               fill="var(--inset)"
-              stroke="var(--track)"
+              stroke="var(--road, var(--track))"
               strokeWidth="4"
             />
             <text x={P0.x} y={P0.y + 6} textAnchor="middle" fontSize="16">
