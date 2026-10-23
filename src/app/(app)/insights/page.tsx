@@ -93,153 +93,171 @@ export default async function InsightsPage(props: PageProps<"/insights">) {
 
   return (
     <div className="space-y-4 sm:space-y-5">
-      <header>
-        <p className="label-cute">The bigger picture</p>
-        <h1 className="mt-0.5 text-2xl font-bold sm:text-3xl">
-          Your recap <span aria-hidden>✨</span>
-        </h1>
-      </header>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="label-cute">The bigger picture</p>
+          <h1 className="mt-0.5 text-2xl font-bold sm:text-3xl">
+            Your recap <span aria-hidden>✨</span>
+          </h1>
+        </div>
 
-      <div className="flex flex-wrap gap-2">
-        {REPORT_PERIODS.map((p) => (
-          <Link
-            key={p}
-            href={`/insights?p=${p}`}
-            className={cn(
-              "rounded-full px-4 py-2.5 text-sm font-bold transition-transform hover:-translate-y-0.5 active:scale-95",
-              p === period
-                ? "bg-[var(--violet-solid)] text-white shadow-[0_4px_0_0_var(--primary-lip)]"
-                : "bg-[var(--inset)] text-[var(--ink-soft)] shadow-[0_4px_0_0_var(--violet-soft)]",
-            )}
-          >
-            {PERIOD_META[p].label}
-          </Link>
-        ))}
-      </div>
+        {/* The window picker belongs beside the title it changes, not on a
+            row of its own above the page. */}
+        <div className="flex flex-wrap gap-2">
+          {/* `scroll={false}`: these change what the page shows, they do not
+              go anywhere. Next scrolls every navigation to the top, which
+              threw you back up the page each time you pressed one. */}
+          {REPORT_PERIODS.map((p) => (
+            <Link
+              key={p}
+              href={`/insights?p=${p}`}
+              scroll={false}
+              className={cn(
+                "rounded-full px-4 py-2.5 text-sm font-bold transition-transform hover:-translate-y-0.5 active:scale-95",
+                p === period
+                  ? "bg-[var(--violet-solid)] text-white shadow-[0_4px_0_0_var(--primary-lip)]"
+                  : "bg-[var(--inset)] text-[var(--ink-soft)] shadow-[0_4px_0_0_var(--violet-soft)]",
+              )}
+            >
+              {PERIOD_META[p].label}
+            </Link>
+          ))}
+        </div>
+      </header>
 
       {/* key={period} so switching periods replays the reveal from the top */}
       <WeeklyRecap key={period} period={period} stats={recapStats} />
 
-      <Sticker tint="peach">
-        <StickerHeading emoji="🔢" title="The numbers behind it" />
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
-          <Magnet
-            label="Avg energy"
-            emoji="🔥"
-            value={current.avgCalories.toLocaleString()}
-            hint={`goal ${(current.avgTarget || targets.calories).toLocaleString()}`}
-            color="var(--peach)"
-          />
-          <Magnet
-            label="Avg protein"
-            emoji="💪"
-            value={`${current.avgProtein}g`}
-            hint={
-              previous.daysLogged
-                ? `${recapStats.proteinDelta >= 0 ? "▲" : "▼"} ${Math.abs(recapStats.proteinDelta)}g`
-                : "no prior period"
-            }
-            color="var(--mint)"
-          />
-          <Magnet
-            label="Logged"
-            emoji="📖"
-            value={`${current.daysLogged}/${current.totalDays}`}
-            hint={`${Math.round((current.daysLogged / current.totalDays) * 100)}% covered`}
-            color="var(--sky)"
-          />
-          <Magnet
-            label="In the band"
-            emoji="🎯"
-            value={`${Math.round(current.consistency * 100)}%`}
-            hint={`${current.onTargetDays} days`}
-            color="var(--violet)"
-          />
-          <Magnet
-            label="Weight"
-            emoji="⚖️"
-            value={
-              weightDelta === null
-                ? "—"
-                : `${weightDelta > 0 ? "+" : "−"}${Math.abs(weightDelta)} kg`
-            }
-            hint={
-              wStats.latest
-                ? `now ${formatWeight(wStats.latest.weightKg, profile.units)}`
-                : "no readings"
-            }
-            color={
-              weightDelta === null
-                ? undefined
-                : weightDelta < 0
-                  ? "var(--mint)"
-                  : "var(--peach)"
-            }
-          />
-        </div>
-
-        <div className="mt-5">
-          <p className="label-cute mb-3">Every day in this window</p>
-          <WeekStrip series={series} />
-        </div>
-      </Sticker>
-
-      <SugarSources
-        sources={sugarSources}
-        avgSugar={current.avgSugar}
-        ceiling={current.avgSugarTarget || targets.sugar}
-        daysOver={current.daysOverSugar}
-        daysLogged={current.daysLogged}
-        days={length}
-      />
-
-      <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:items-start">
-        <Sticker tint="sun" tilt={-0.6}>
-          <StickerHeading emoji="🔥" title="Streaks" />
-          <div className="grid grid-cols-2 gap-2.5">
-            {[
-              { emoji: "🔥", value: streaks.logging, label: "day streak" },
-              { emoji: "🎯", value: streaks.consistency, label: "days in band" },
-              { emoji: "🏆", value: streaks.longestLogging, label: "best ever" },
-              { emoji: "📖", value: streaks.totalDaysLogged, label: "days total" },
-            ].map((s) => (
-              <div
-                key={s.label}
-                className="rounded-3xl bg-[var(--inset)] px-3.5 py-3 text-center"
-              >
-                <span className="text-xl" aria-hidden>
-                  {s.emoji}
-                </span>
-                <p className="numeral mt-1 text-2xl leading-none">{s.value}</p>
-                <p className="label-cute mt-1 text-[0.5rem]">{s.label}</p>
-              </div>
-            ))}
+      {/*
+        Two columns from `wide`. The breakdown is what you came to read and the
+        streaks and stickers are what you came to enjoy; stacked they were a
+        second and third screen of scrolling, with the sticker book — the
+        reward — furthest from the eye.
+      */}
+      <div className="grid gap-4 sm:gap-5 wide:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] wide:items-start">
+        <div className="min-w-0 space-y-4 sm:space-y-5">
+        <Sticker tint="peach">
+          <StickerHeading emoji="🔢" title="The numbers behind it" />
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+            <Magnet
+              label="Avg energy"
+              emoji="🔥"
+              value={current.avgCalories.toLocaleString()}
+              hint={`goal ${(current.avgTarget || targets.calories).toLocaleString()}`}
+              color="var(--peach)"
+            />
+            <Magnet
+              label="Avg protein"
+              emoji="💪"
+              value={`${current.avgProtein}g`}
+              hint={
+                previous.daysLogged
+                  ? `${recapStats.proteinDelta >= 0 ? "▲" : "▼"} ${Math.abs(recapStats.proteinDelta)}g`
+                  : "no prior period"
+              }
+              color="var(--mint)"
+            />
+            <Magnet
+              label="Logged"
+              emoji="📖"
+              value={`${current.daysLogged}/${current.totalDays}`}
+              hint={`${Math.round((current.daysLogged / current.totalDays) * 100)}% covered`}
+              color="var(--sky)"
+            />
+            <Magnet
+              label="In the band"
+              emoji="🎯"
+              value={`${Math.round(current.consistency * 100)}%`}
+              hint={`${current.onTargetDays} days`}
+              color="var(--violet)"
+            />
+            <Magnet
+              label="Weight"
+              emoji="⚖️"
+              value={
+                weightDelta === null
+                  ? "—"
+                  : `${weightDelta > 0 ? "+" : "−"}${Math.abs(weightDelta)} kg`
+              }
+              hint={
+                wStats.latest
+                  ? `now ${formatWeight(wStats.latest.weightKg, profile.units)}`
+                  : "no readings"
+              }
+              color={
+                weightDelta === null
+                  ? undefined
+                  : weightDelta < 0
+                    ? "var(--mint)"
+                    : "var(--peach)"
+              }
+            />
           </div>
 
-          {!hasAi ? (
-            <p className="mt-4 rounded-2xl bg-[var(--inset)] px-3.5 py-3 text-xs leading-relaxed font-medium text-[var(--ink-soft)]">
-              No Gemini key yet, so Momo writes recaps from built-in templates.
-              They use your real numbers, but the AI version reads much
-              better —{" "}
-              <Link
-                href="/profile#ai"
-                className="font-bold text-[var(--violet)] underline underline-offset-4"
-              >
-                add your free key
-              </Link>{" "}
-              to switch it on.
-            </p>
-          ) : null}
+          <div className="mt-5">
+            <p className="label-cute mb-3">Every day in this window</p>
+            <WeekStrip series={series} />
+          </div>
         </Sticker>
 
-        <Sticker tilt={0.4}>
-          <StickerHeading
-            emoji="🏅"
-            title="Sticker book"
-            hint={`${unlocked.size} of ${ACHIEVEMENTS.length} collected`}
+          <SugarSources
+            sources={sugarSources}
+            avgSugar={current.avgSugar}
+            ceiling={current.avgSugarTarget || targets.sugar}
+            daysOver={current.daysOverSugar}
+            daysLogged={current.daysLogged}
+            days={length}
           />
-          <AchievementGrid unlocked={unlocked} />
-        </Sticker>
+        </div>
+
+        <div className="min-w-0 space-y-4 sm:space-y-5">
+          <Sticker tint="sun" tilt={-0.6}>
+            <StickerHeading emoji="🔥" title="Streaks" />
+            <div className="grid grid-cols-2 gap-2.5">
+              {[
+                { emoji: "🔥", value: streaks.logging, label: "day streak" },
+                { emoji: "🎯", value: streaks.consistency, label: "days in band" },
+                { emoji: "🏆", value: streaks.longestLogging, label: "best ever" },
+                { emoji: "📖", value: streaks.totalDaysLogged, label: "days total" },
+              ].map((s) => (
+                <div
+                  key={s.label}
+                  className="rounded-3xl bg-[var(--inset)] px-3.5 py-3 text-center"
+                >
+                  <span className="text-xl" aria-hidden>
+                    {s.emoji}
+                  </span>
+                  <p className="numeral mt-1 text-2xl leading-none">{s.value}</p>
+                  <p className="label-cute mt-1 text-[0.5rem]">{s.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {!hasAi ? (
+              <p className="mt-4 rounded-2xl bg-[var(--inset)] px-3.5 py-3 text-xs leading-relaxed font-medium text-[var(--ink-soft)]">
+                No Gemini key yet, so Momo writes recaps from built-in templates.
+                They use your real numbers, but the AI version reads much
+                better —{" "}
+                <Link
+                  href="/profile#ai"
+                  className="font-bold text-[var(--violet)] underline underline-offset-4"
+                >
+                  add your free key
+                </Link>{" "}
+                to switch it on.
+              </p>
+            ) : null}
+          </Sticker>
+
+          <Sticker tilt={0.4}>
+            <StickerHeading
+              emoji="🏅"
+              title="Sticker book"
+              hint={`${unlocked.size} of ${ACHIEVEMENTS.length} collected`}
+            />
+            <AchievementGrid unlocked={unlocked} />
+          </Sticker>
+        </div>
       </div>
     </div>
   );

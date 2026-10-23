@@ -5,6 +5,14 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
+  /*
+    The width at which a page can hold two columns of cards and still give
+    the composer a row of its own. Picked by measuring: at 1280 the left
+    column is ~600px and the composer's hint and its three buttons stop
+    fitting on one line, so the split waits until there is genuinely room.
+  */
+  --breakpoint-wide: 87.5rem;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);

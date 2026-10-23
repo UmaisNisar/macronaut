@@ -140,146 +140,169 @@ export default async function TodayPage() {
         previous={wStats.previous}
       />
 
-      {/* Hero: the jar */}
-      <TargetReached
-        date={today}
-        calories={day.totals.calories}
-        target={targets.calories}
-        protein={day.totals.protein}
-        proteinTarget={targets.protein}
-      />
-
-      <Sticker tint="violet" className="overflow-hidden">
-        <div className="grid gap-5 md:grid-cols-[minmax(0,260px)_minmax(0,1fr)] md:items-center md:gap-7">
-          <div>
-            <EnergyBubble
-              calories={day.totals.calories}
-              target={targets.calories}
-            />
-            <div className="mt-3 flex justify-center">
-              <StatusBadge status={day.status} />
-            </div>
-          </div>
-
-          <div>
-            <div className="mb-4 flex items-center gap-3">
-              <ScoreDial score={day.score} status={day.status} size={92} />
-              <p className="text-sm leading-relaxed font-medium text-pretty text-[var(--ink-soft)]">
-                {day.entryCount === 0
-                  ? "The jar fills up as you log. Nothing in it yet!"
-                  : deltaVsYesterday === null
-                    ? `${day.entryCount} thing${day.entryCount > 1 ? "s" : ""} logged so far today.`
-                    : deltaVsYesterday === 0
-                      ? "Exactly level with yesterday. Spooky."
-                      : `${Math.abs(deltaVsYesterday).toLocaleString()} kcal ${
-                          deltaVsYesterday < 0 ? "under" : "over"
-                        } where you were yesterday.`}
-              </p>
-            </div>
-
-            <MacroMeters
-              rows={[
-                {
-                  kind: "protein",
-                  value: day.totals.protein,
-                  target: targets.protein,
-                },
-                { kind: "carbs", value: day.totals.carbs, target: targets.carbs },
-                { kind: "fat", value: day.totals.fat, target: targets.fat },
-                { kind: "fiber", value: day.totals.fiber, target: targets.fiber },
-                { kind: "sugar", value: day.totals.sugar, target: targets.sugar },
-              ]}
-            />
-          </div>
-        </div>
-      </Sticker>
-
-      <div>
-        <OfflineBanner />
-        <EstimateNotice entries={entries} hasAi={ai.source !== "none"} />
-        <OfflineOutbox />
-        <QuickRepeat foods={frequent} date={today} />
-        <FoodComposer
-          date={today}
-          isToday
-          isFirstEver={streaks.totalDaysLogged === 0}
-        />
-      </div>
-
-      <CoachPanel
-        date={today}
-        initialCoach={day.coach}
-        stale={coachIsStale}
-        hasEntries={day.entryCount > 0}
-      />
-
-      {/* Journal */}
-      <Sticker>
-        <StickerHeading
-          emoji="🍱"
-          title={
-            day.entryCount === 0
-              ? "Today's plate"
-              : `${day.entryCount} thing${day.entryCount > 1 ? "s" : ""} today`
-          }
-          action={
-            <span className="numeral rounded-full bg-[var(--peach-soft)] px-3 py-1.5 text-sm text-[var(--peach)]">
-              {Math.round(day.totals.calories).toLocaleString()} kcal
-            </span>
-          }
-        />
-        <MealTimeline entries={entries} date={today} today={today} />
-      </Sticker>
-
       {/*
-        One progress card, not four.
-        
-        This was a two-week bar strip, a journey card, a three-stat footer and
-        the week budget, stacked -- two of them bar charts of recent days
-        sitting a few hundred pixels apart. On the screen whose job is logging
-        a meal, that is four dashboards below the meal.
-
-        What stays is the week, because it is the only one that changes what
-        you eat today, plus a single line of journey with a way through to the
-        rest. Streaks live on Insights, weight history on Journey, and past
-        days are a tap on the bars above or the Journal calendar.
+        Two columns from `wide`: what you do on the left, what you ate and where
+        the week stands on the right. Stacked, these cards were two and a half
+        screens on a laptop, and the composer — the one thing this page exists
+        for — sat below the fold underneath a dashboard. Narrower than that it
+        stays a single column, which is still the right shape for a phone, and
+        the order down the page is unchanged.
       */}
-      <Sticker tint="berry">
-        <WeekBudgetCard week={week} />
+      <div className="grid gap-4 sm:gap-5 wide:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] wide:items-start">
+        {/*
+          `order` rather than a different arrangement of the markup: on a
+          laptop the composer goes first, because typing what you ate is what
+          this page is for and a dashboard above it pushed the field to the
+          fold. On a phone the jar still comes first, as it always has. Only
+          the jar moves, and nothing in it can take focus, so the tab order
+          still matches what is on the screen.
+        */}
+        <div className="flex min-w-0 flex-col gap-4 sm:gap-5">
+          {/* Hero: the jar */}
+          <TargetReached
+            date={today}
+            calories={day.totals.calories}
+            target={targets.calories}
+            protein={day.totals.protein}
+            proteinTarget={targets.protein}
+          />
 
-        <Squiggle />
+          <Sticker tint="violet" className="overflow-hidden wide:order-2">
+            <div className="grid gap-5 md:grid-cols-[minmax(0,260px)_minmax(0,1fr)] md:items-center md:gap-7">
+              <div>
+                <EnergyBubble
+                  calories={day.totals.calories}
+                  target={targets.calories}
+                />
+                <div className="mt-3 flex justify-center">
+                  <StatusBadge status={day.status} />
+                </div>
+              </div>
 
-        {/* No Momo here. She is already the greeter at the top of this page
-            and again beside the coach note; a third copy was decoration
-            squeezing the line it sat next to into two wrapped fragments. */}
-        <div className="flex items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="label-cute">Journey</p>
-            <p className="mt-0.5 text-sm font-semibold">
-              <span className="numeral text-[var(--mint)]">
-                {Math.round(journey.percent * 100)}%
-              </span>{" "}
-              <span className="text-[var(--ink-soft)]">
-                there · {formatWeight(journey.remainingKg, profile.units)} to go
-              </span>
-            </p>
-            <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-[var(--inset)]">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-[var(--sky)] to-[var(--mint)]"
-                style={{ width: `${Math.max(4, journey.percent * 100)}%` }}
-              />
+              <div>
+                <div className="mb-4 flex items-center gap-3">
+                  <ScoreDial score={day.score} status={day.status} size={92} />
+                  <p className="text-sm leading-relaxed font-medium text-pretty text-[var(--ink-soft)]">
+                    {day.entryCount === 0
+                      ? "The jar fills up as you log. Nothing in it yet!"
+                      : deltaVsYesterday === null
+                        ? `${day.entryCount} thing${day.entryCount > 1 ? "s" : ""} logged so far today.`
+                        : deltaVsYesterday === 0
+                          ? "Exactly level with yesterday. Spooky."
+                          : `${Math.abs(deltaVsYesterday).toLocaleString()} kcal ${
+                              deltaVsYesterday < 0 ? "under" : "over"
+                            } where you were yesterday.`}
+                  </p>
+                </div>
+
+                <MacroMeters
+                  rows={[
+                    {
+                      kind: "protein",
+                      value: day.totals.protein,
+                      target: targets.protein,
+                    },
+                    { kind: "carbs", value: day.totals.carbs, target: targets.carbs },
+                    { kind: "fat", value: day.totals.fat, target: targets.fat },
+                    { kind: "fiber", value: day.totals.fiber, target: targets.fiber },
+                    { kind: "sugar", value: day.totals.sugar, target: targets.sugar },
+                  ]}
+                />
+              </div>
             </div>
+          </Sticker>
+
+          <div className="wide:order-1">
+            <OfflineBanner />
+            <EstimateNotice entries={entries} hasAi={ai.source !== "none"} />
+            <OfflineOutbox />
+            <QuickRepeat foods={frequent} date={today} />
+            <FoodComposer
+              date={today}
+              isToday
+              isFirstEver={streaks.totalDaysLogged === 0}
+            />
           </div>
-          <Button
-            variant="ghost"
-            nativeButton={false}
-            className="shrink-0"
-            render={<Link href="/progress" />}
-          >
-            Map →
-          </Button>
+
+          <CoachPanel
+            className="wide:order-3"
+            date={today}
+            initialCoach={day.coach}
+            stale={coachIsStale}
+            hasEntries={day.entryCount > 0}
+          />
         </div>
-      </Sticker>
+
+        <div className="min-w-0 space-y-4 sm:space-y-5">
+          {/* Journal */}
+          <Sticker>
+            <StickerHeading
+              emoji="🍱"
+              title={
+                day.entryCount === 0
+                  ? "Today's plate"
+                  : `${day.entryCount} thing${day.entryCount > 1 ? "s" : ""} today`
+              }
+              action={
+                <span className="numeral rounded-full bg-[var(--peach-soft)] px-3 py-1.5 text-sm text-[var(--peach)]">
+                  {Math.round(day.totals.calories).toLocaleString()} kcal
+                </span>
+              }
+            />
+            <MealTimeline entries={entries} date={today} today={today} />
+          </Sticker>
+
+          {/*
+            One progress card, not four.
+        
+            This was a two-week bar strip, a journey card, a three-stat footer and
+            the week budget, stacked -- two of them bar charts of recent days
+            sitting a few hundred pixels apart. On the screen whose job is logging
+            a meal, that is four dashboards below the meal.
+
+            What stays is the week, because it is the only one that changes what
+            you eat today, plus a single line of journey with a way through to the
+            rest. Streaks live on Insights, weight history on Journey, and past
+            days are a tap on the bars above or the Journal calendar.
+          */}
+          <Sticker tint="berry">
+            <WeekBudgetCard week={week} />
+
+            <Squiggle />
+
+            {/* No Momo here. She is already the greeter at the top of this page
+                and again beside the coach note; a third copy was decoration
+                squeezing the line it sat next to into two wrapped fragments. */}
+            <div className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="label-cute">Journey</p>
+                <p className="mt-0.5 text-sm font-semibold">
+                  <span className="numeral text-[var(--mint)]">
+                    {Math.round(journey.percent * 100)}%
+                  </span>{" "}
+                  <span className="text-[var(--ink-soft)]">
+                    there · {formatWeight(journey.remainingKg, profile.units)} to go
+                  </span>
+                </p>
+                <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-[var(--inset)]">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[var(--sky)] to-[var(--mint)]"
+                    style={{ width: `${Math.max(4, journey.percent * 100)}%` }}
+                  />
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                nativeButton={false}
+                className="shrink-0"
+                render={<Link href="/progress" />}
+              >
+                Map →
+              </Button>
+            </div>
+          </Sticker>
+        </div>
+      </div>
     </div>
   );
 }

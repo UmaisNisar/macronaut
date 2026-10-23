@@ -140,230 +140,253 @@ export default async function ProgressPage(props: PageProps<"/progress">) {
         />
       </header>
 
-      {/* The map */}
-      <Sticker tint="mint" className="overflow-hidden">
-        <JourneyPath journey={journey} units={profile.units} />
+      {/*
+        Two columns from `wide`. The map, the line and the comparison are the
+        reading; the list of weigh-ins beside them is the record, and it grows
+        by one row a week forever. Under the rest it was an endless tail that
+        pushed the page past three screens — a reader who wanted the trend
+        scrolled past everything twice. In its own column it stays beside the
+        charts, scrolls inside itself, and stops setting the height of the page.
+      */}
+      <div className="grid gap-4 sm:gap-5 wide:grid-cols-[minmax(0,1fr)_minmax(0,360px)] wide:items-start">
+        <div className="min-w-0 space-y-4 sm:space-y-5">
+          {/* The map */}
+          <Sticker tint="mint" className="overflow-hidden">
+            <JourneyPath journey={journey} units={profile.units} />
 
-        <Squiggle />
+            <Squiggle />
 
-        {/*
-          Three, not six.
+            {/*
+              Three, not six.
 
-          Start, Goal and Lost were all restatements: the path graphic above
-          already draws start to goal with the percentage on it, and Lost is
-          just Start minus Now. Six tiles put the same weight on screen eight
-          times before you scrolled. What is left is the three things you
-          cannot read off the picture.
-        */}
-        <div className="grid grid-cols-3 gap-2.5">
-          <Magnet
-            label="Now"
-            emoji="🧍"
-            value={formatWeight(journey.currentKg, profile.units)}
-            color="var(--violet)"
-          />
-          <Magnet
-            label="To go"
-            emoji="🛣️"
-            value={formatWeight(journey.remainingKg, profile.units)}
-            className="bg-[var(--inset)]"
-          />
-          <Magnet
-            label="Pace"
-            emoji="⏱️"
-            value={
-              wStats.ratePerWeek === null
-                ? "—"
-                : formatWeightDelta(wStats.ratePerWeek, profile.units)
-            }
-            hint="per week"
-            className="bg-[var(--inset)]"
-          />
-        </div>
-
-        {journey.weeksLeft && !journey.reachedGoal ? (
-          <p className="mt-4 text-sm font-medium text-pretty text-[var(--ink-soft)]">
-            At the pace your readings actually show, you&rsquo;d get there in about{" "}
-            <span className="font-bold text-[var(--ink)]">
-              {Math.ceil(journey.weeksLeft)} weeks
-            </span>
-            . That number moves every time you log, which is the whole point.
-          </p>
-        ) : null}
-      </Sticker>
-
-      {/* Trend line */}
-      <Sticker>
-        <StickerHeading
-          emoji="📈"
-          title="The line"
-          hint="Wobbles are normal. Watch the direction."
-          action={
-            <div className="flex gap-1">
-              {RANGES.map((r) => (
-                <Link
-                  key={r.key}
-                  href={`/progress?p=${period.key}&r=${r.key}`}
-                  className={cn(
-                    "flex min-h-11 items-center rounded-full px-3.5 text-xs font-bold transition-transform hover:-translate-y-0.5",
-                    r.key === range.key
-                      ? "bg-[var(--violet-solid)] text-white"
-                      : "bg-[var(--muted)] text-[var(--ink-soft)]",
-                  )}
-                >
-                  {r.label}
-                </Link>
-              ))}
+              Start, Goal and Lost were all restatements: the path graphic above
+              already draws start to goal with the percentage on it, and Lost is
+              just Start minus Now. Six tiles put the same weight on screen eight
+              times before you scrolled. What is left is the three things you
+              cannot read off the picture.
+            */}
+            <div className="grid grid-cols-3 gap-2.5">
+              <Magnet
+                label="Now"
+                emoji="🧍"
+                value={formatWeight(journey.currentKg, profile.units)}
+                color="var(--violet)"
+              />
+              <Magnet
+                label="To go"
+                emoji="🛣️"
+                value={formatWeight(journey.remainingKg, profile.units)}
+                className="bg-[var(--inset)]"
+              />
+              <Magnet
+                label="Pace"
+                emoji="⏱️"
+                value={
+                  wStats.ratePerWeek === null
+                    ? "—"
+                    : formatWeightDelta(wStats.ratePerWeek, profile.units)
+                }
+                hint="per week"
+                className="bg-[var(--inset)]"
+              />
             </div>
-          }
-        />
-        <WeightChart
-          points={chartPoints}
-          targetKg={profile.targetWeightKg}
-          units={profile.units}
-        />
-      </Sticker>
 
-      {/* Am I improving */}
-      <Sticker tint="violet">
-        <StickerHeading
-          emoji="🤔"
-          title="Am I actually improving?"
-          hint={`Last ${period.days} days vs the ${period.days} before`}
-          action={
-            <div className="flex gap-1">
-              {PERIODS.map((p) => (
-                <Link
-                  key={p.key}
-                  href={`/progress?p=${p.key}&r=${range.key}`}
-                  className={cn(
-                    "flex min-h-11 items-center rounded-full px-3.5 text-xs font-bold transition-transform hover:-translate-y-0.5",
-                    p.key === period.key
-                      ? "bg-[var(--violet-solid)] text-white"
-                      : "bg-[var(--inset)] text-[var(--ink-soft)]",
-                  )}
+            {journey.weeksLeft && !journey.reachedGoal ? (
+              <p className="mt-4 text-sm font-medium text-pretty text-[var(--ink-soft)]">
+                At the pace your readings actually show, you&rsquo;d get there in about{" "}
+                <span className="font-bold text-[var(--ink)]">
+                  {Math.ceil(journey.weeksLeft)} weeks
+                </span>
+                . That number moves every time you log, which is the whole point.
+              </p>
+            ) : null}
+          </Sticker>
+
+          {/* Trend line */}
+          <Sticker>
+            <StickerHeading
+              emoji="📈"
+              title="The line"
+              hint="Wobbles are normal. Watch the direction."
+              action={
+                <div className="flex gap-1">
+                  {RANGES.map((r) => (
+                    <Link
+                      key={r.key}
+                      href={`/progress?p=${period.key}&r=${r.key}`}
+                      scroll={false}
+                      className={cn(
+                        "flex min-h-11 items-center rounded-full px-3.5 text-xs font-bold transition-transform hover:-translate-y-0.5",
+                        r.key === range.key
+                          ? "bg-[var(--violet-solid)] text-white"
+                          : "bg-[var(--muted)] text-[var(--ink-soft)]",
+                      )}
+                    >
+                      {r.label}
+                    </Link>
+                  ))}
+                </div>
+              }
+            />
+            <WeightChart
+              points={chartPoints}
+              targetKg={profile.targetWeightKg}
+              units={profile.units}
+            />
+          </Sticker>
+
+          {/* Am I improving */}
+          <Sticker tint="violet">
+            <StickerHeading
+              emoji="🤔"
+              title="Am I actually improving?"
+              hint={`Last ${period.days} days vs the ${period.days} before`}
+              action={
+                <div className="flex gap-1">
+                  {PERIODS.map((p) => (
+                    <Link
+                      key={p.key}
+                      href={`/progress?p=${p.key}&r=${range.key}`}
+                      scroll={false}
+                      className={cn(
+                        "flex min-h-11 items-center rounded-full px-3.5 text-xs font-bold transition-transform hover:-translate-y-0.5",
+                        p.key === period.key
+                          ? "bg-[var(--violet-solid)] text-white"
+                          : "bg-[var(--inset)] text-[var(--ink-soft)]",
+                      )}
+                    >
+                      {p.label}
+                    </Link>
+                  ))}
+                </div>
+              }
+            />
+
+            <div className="grid gap-4 wide:grid-cols-2 wide:items-start wide:gap-6">
+            <ul className="grid gap-2.5 sm:grid-cols-2 wide:grid-cols-1">
+              {insights.map((insight) => (
+                <li
+                  key={insight.id}
+                  className="flex items-start gap-3 rounded-3xl bg-[var(--inset)] px-4 py-3.5"
+                  style={{
+                    boxShadow: `0 3px 0 0 ${
+                      insight.direction === "good"
+                        ? "var(--mint-soft)"
+                        : insight.direction === "bad"
+                          ? "var(--peach-soft)"
+                          : "var(--violet-soft)"
+                    }`,
+                  }}
                 >
-                  {p.label}
-                </Link>
-              ))}
-            </div>
-          }
-        />
-
-        <ul className="grid gap-2.5 sm:grid-cols-2">
-          {insights.map((insight) => (
-            <li
-              key={insight.id}
-              className="flex items-start gap-3 rounded-3xl bg-[var(--inset)] px-4 py-3.5"
-              style={{
-                boxShadow: `0 3px 0 0 ${
-                  insight.direction === "good"
-                    ? "var(--mint-soft)"
-                    : insight.direction === "bad"
-                      ? "var(--peach-soft)"
-                      : "var(--violet-soft)"
-                }`,
-              }}
-            >
-              <span className="text-xl leading-none" aria-hidden>
-                {insight.icon}
-              </span>
-              <div className="min-w-0">
-                {insight.metric ? (
-                  <p
-                    className="numeral text-lg leading-none"
-                    style={{
-                      color:
-                        insight.direction === "good"
-                          ? "var(--mint)"
-                          : insight.direction === "bad"
-                            ? "var(--peach)"
-                            : "var(--violet)",
-                    }}
-                  >
-                    {insight.metric}
-                  </p>
-                ) : null}
-                <p className="mt-1 text-sm font-medium text-pretty text-[var(--ink-soft)]">
-                  {insight.text}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
-
-        <Squiggle />
-
-        {/*
-          The radar is gone. Five unlabelled axes with no scale, sitting
-          directly under a table that gave the same five numbers exactly --
-          it looked like analysis and answered nothing the row above had not.
-        */}
-        <div>
-          <div className="overflow-x-auto" data-no-swipe>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="label-cute text-left text-[0.55rem]">
-                  <th className="pb-2 font-semibold">What</th>
-                  {/* Dropped on a phone: Now and Change together say the
-                      same thing, and keeping it clipped the Change column
-                      clean off the edge of the card. */}
-                  <th className="hidden pb-2 text-right font-semibold sm:table-cell">
-                    Before
-                  </th>
-                  <th className="pb-2 text-right font-semibold">Now</th>
-                  <th className="pb-2 text-right font-semibold">Change</th>
-                </tr>
-              </thead>
-              <tbody>
-                {comparisons.map((row) => {
-                  const improved = row.invert ? row.delta < 0 : row.delta > 0;
-                  const worse = row.invert ? row.delta > 0 : row.delta < 0;
-                  return (
-                    <tr key={row.label} className="border-t border-[var(--border)]">
-                      <td className="py-2.5 font-semibold text-[var(--ink-soft)]">
-                        {row.label}
-                      </td>
-                      <td className="numeral hidden py-2.5 text-right text-[var(--ink-soft)] sm:table-cell">
-                        {row.before}
-                      </td>
-                      <td className="numeral py-2.5 text-right">{row.now}</td>
-                      <td
-                        className="numeral py-2.5 text-right"
+                  <span className="text-xl leading-none" aria-hidden>
+                    {insight.icon}
+                  </span>
+                  <div className="min-w-0">
+                    {insight.metric ? (
+                      <p
+                        className="numeral text-lg leading-none"
                         style={{
-                          color: improved
-                            ? "var(--mint)"
-                            : worse
-                              ? "var(--peach)"
-                              : "var(--ink-soft)",
+                          color:
+                            insight.direction === "good"
+                              ? "var(--mint)"
+                              : insight.direction === "bad"
+                                ? "var(--peach)"
+                                : "var(--violet)",
                         }}
                       >
-                        {row.delta === 0
-                          ? "—"
-                          : `${row.delta > 0 ? "+" : "−"}${Math.abs(round(row.delta, 1))}`}
-                      </td>
+                        {insight.metric}
+                      </p>
+                    ) : null}
+                    <p className="mt-1 text-sm font-medium text-pretty text-[var(--ink-soft)]">
+                      {insight.text}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {/*
+              The radar is gone. Five unlabelled axes with no scale, sitting
+              directly under a table that gave the same five numbers exactly --
+              it looked like analysis and answered nothing the row above had not.
+            */}
+            <div>
+              <div className="overflow-x-auto" data-no-swipe>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="label-cute text-left text-[0.55rem]">
+                      <th className="pb-2 font-semibold">What</th>
+                      {/* Dropped on a phone: Now and Change together say the
+                          same thing, and keeping it clipped the Change column
+                          clean off the edge of the card. */}
+                      <th className="hidden pb-2 text-right font-semibold sm:table-cell">
+                        Before
+                      </th>
+                      <th className="pb-2 text-right font-semibold">Now</th>
+                      <th className="pb-2 text-right font-semibold">Change</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {comparisons.map((row) => {
+                      const improved = row.invert ? row.delta < 0 : row.delta > 0;
+                      const worse = row.invert ? row.delta > 0 : row.delta < 0;
+                      return (
+                        <tr key={row.label} className="border-t border-[var(--border)]">
+                          <td className="py-2.5 font-semibold text-[var(--ink-soft)]">
+                            {row.label}
+                          </td>
+                          <td className="numeral hidden py-2.5 text-right text-[var(--ink-soft)] sm:table-cell">
+                            {row.before}
+                          </td>
+                          <td className="numeral py-2.5 text-right">{row.now}</td>
+                          <td
+                            className="numeral py-2.5 text-right"
+                            style={{
+                              color: improved
+                                ? "var(--mint)"
+                                : worse
+                                  ? "var(--peach)"
+                                  : "var(--ink-soft)",
+                            }}
+                          >
+                            {row.delta === 0
+                              ? "—"
+                              : `${row.delta > 0 ? "+" : "−"}${Math.abs(round(row.delta, 1))}`}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            </div>
+
+            <Squiggle />
+
+            <p className="label-cute mb-3">Every day in this window</p>
+            <WeekStrip series={series} />
+          </Sticker>
         </div>
 
-        <Squiggle />
-
-        <p className="label-cute mb-3">Every day in this window</p>
-        <WeekStrip series={series} />
-      </Sticker>
-
-      <Sticker tint="sky">
-        <StickerHeading
-          emoji="⚖️"
-          title="Weigh-ins"
-          hint={`${weights.length} reading${weights.length === 1 ? "" : "s"} so far`}
-        />
-        <WeightLogList logs={weights} units={profile.units} today={today} />
-      </Sticker>
+        <div className="min-w-0 wide:sticky wide:top-10">
+          <Sticker tint="sky">
+            <StickerHeading
+              emoji="⚖️"
+              title="Weigh-ins"
+              hint={`${weights.length} reading${weights.length === 1 ? "" : "s"} so far`}
+            />
+            {/* Scrolls inside its own card rather than lengthening the page. */}
+            <div
+              className="wide:max-h-[calc(100svh-17rem)] wide:overflow-y-auto wide:pr-1"
+              data-no-swipe
+            >
+              <WeightLogList logs={weights} units={profile.units} today={today} />
+            </div>
+          </Sticker>
+        </div>
+      </div>
     </div>
   );
 }

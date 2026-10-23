@@ -106,10 +106,14 @@ export default async function HistoryPage(props: PageProps<"/history">) {
           <Sticker tint="violet" tilt={-0.6}>
             <p className="label-cute mb-2.5">Jump to</p>
             <div className="flex flex-wrap gap-1.5">
+              {/* `scroll={false}`: these change what the page shows, they do not
+                  go anywhere. Next scrolls every navigation to the top, which
+                  threw you back up the page each time you pressed one. */}
               {jumps.map((jump) => (
                 <Link
                   key={jump.label}
                   href={`/history?d=${jump.iso}&m=${jump.iso}`}
+                  scroll={false}
                   className={cn(
                     "flex min-h-11 items-center rounded-full px-3.5 text-xs font-bold transition-transform hover:-translate-y-0.5 active:scale-95",
                     jump.iso === selected

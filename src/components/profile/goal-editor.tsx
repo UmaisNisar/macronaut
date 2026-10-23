@@ -151,7 +151,15 @@ export function GoalEditor({ profile }: { profile: Profile }) {
   const unitLabel = units === "metric" ? "kg" : "lb";
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
+    /*
+      A container query, not a viewport one. The split is about how wide this
+      editor is, and on a wide screen the card can sit in a column half the
+      page: `lg:` fired on a 630px card and squeezed the weight fields until
+      they ran out of the side. The container is the wrapper, because an
+      element cannot answer a query about itself.
+    */
+    <div className="@container/plan">
+      <div className="mx-auto grid max-w-5xl gap-6 @3xl/plan:grid-cols-[minmax(0,1fr)_300px] @3xl/plan:items-start">
       <div className="space-y-5">
         {/*
           Folded away by default.
@@ -362,7 +370,7 @@ export function GoalEditor({ profile }: { profile: Profile }) {
       </div>
 
       {/* Live preview */}
-      <div className="sticker tint-violet space-y-2.5 p-4 lg:sticky lg:top-6">
+      <div className="sticker tint-violet space-y-2.5 p-4 @3xl/plan:sticky @3xl/plan:top-6">
         <p className="label-cute">Recalculated plan</p>
 
         {plan ? (
@@ -418,6 +426,7 @@ export function GoalEditor({ profile }: { profile: Profile }) {
           </p>
         )}
       </div>
+    </div>
     </div>
   );
 }

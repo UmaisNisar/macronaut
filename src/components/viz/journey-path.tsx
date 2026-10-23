@@ -18,16 +18,20 @@ import { cn } from "@/lib/utils";
  * The road runs *downhill*. The number on Momo's chip falls as you walk, so a
  * road that climbed towards the goal read backwards — the picture said "up"
  * while every figure under it said "down". The curve is the old one mirrored
- * (y' = 318 - y), which keeps its gentle S, in a box taller than the old 230
- * so Momo still has room above the high end of the road.
+ * (y' = 278 - y), which keeps its gentle S.
+ *
+ * Mirroring moves the high end of the road to the top of the box, and Momo
+ * stands above the road at a fixed 62px whatever the card is wide. The box
+ * therefore carries a little headroom, and the pin is scaled down on narrow
+ * screens, where that headroom is worth the fewest pixels.
  */
 
 const W = 720;
-const H = 300;
-const P0 = { x: 62, y: 150 };
-const P1 = { x: 250, y: 122 };
-const P2 = { x: 470, y: 244 };
-const P3 = { x: 656, y: 214 };
+const H = 260;
+const P0 = { x: 62, y: 110 };
+const P1 = { x: 250, y: 82 };
+const P2 = { x: 470, y: 204 };
+const P3 = { x: 656, y: 174 };
 
 function cubic(t: number) {
   const u = 1 - t;
@@ -238,7 +242,7 @@ export function JourneyPath({
             Sitting on the point put it straight through the start marker at 0%,
             and its ground shadow read as a smudge on the tarmac.
           */}
-          <div className="relative flex -translate-x-1/2 -translate-y-full flex-col items-center pb-1">
+          <div className="relative flex origin-bottom -translate-x-1/2 -translate-y-full scale-[0.78] flex-col items-center pb-1 sm:scale-90 lg:scale-100">
             <div className="rounded-full bg-[var(--inset)] px-2.5 py-1 text-xs font-bold whitespace-nowrap shadow-[0_3px_0_0_var(--lip)]">
               {formatWeight(journey.currentKg, units)}
             </div>

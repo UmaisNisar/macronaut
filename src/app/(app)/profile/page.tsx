@@ -71,36 +71,16 @@ export default async function ProfilePage() {
         <GoalEditor profile={profile} />
       </Sticker>
 
-      <div id="ai" className="scroll-mt-24">
-        <Sticker tint="mint">
-          <StickerHeading
-            emoji="🧠"
-            title="Momo's AI"
-            hint={
-              ai.source === "none"
-                ? "Off — food is guessed from a built-in table"
-                : `On — ${geminiModel}`
-            }
-          />
-          {ai.source === "none" && ai.hint ? (
-            <p className="mb-3 rounded-2xl bg-[var(--sun-soft)] px-3.5 py-3 text-xs font-semibold text-[var(--sun-text)]">
-              The key ending in {ai.hint} can no longer be read on this server.
-              Paste it again to switch the AI back on.
-            </p>
-          ) : null}
-          <AiKeyForm
-            compact={ai.source !== "none"}
-            initial={{
-              source: ai.source,
-              hint: ai.source === "own" ? ai.hint : null,
-            }}
-          />
-        </Sticker>
-      </div>
-
-      <div className="grid gap-4 sm:gap-5 lg:grid-cols-2 lg:items-start">
-        <Sticker tint="violet" tilt={-0.5}>
-          <StickerHeading emoji="📜" title="Plan history" />
+      {/*
+        Two columns from `wide` for everything under the editor. Settings are
+        read by scanning for the one thing you came to change, and a single
+        column of five cards made that two screens of hunting. The markup
+        keeps the order a phone shows.
+      */}
+      <div className="grid gap-4 sm:gap-5 wide:grid-cols-2 wide:items-start">
+        <div className="min-w-0 space-y-4 sm:space-y-5">
+          <Sticker tint="violet" tilt={-0.5}>
+            <StickerHeading emoji="📜" title="Plan history" />
           {history.length <= 1 ? (
             <p className="text-sm font-medium text-[var(--ink-soft)]">
               Just the one plan so far. When you change a goal, the old one gets
@@ -133,62 +113,92 @@ export default async function ProfilePage() {
               ))}
             </ul>
           )}
-        </Sticker>
+          </Sticker>
 
-        <Sticker tilt={0.5}>
-          <StickerHeading emoji="🔌" title="What's switched on" />
-          <div className="mb-3 flex items-center justify-between gap-3 rounded-3xl bg-[var(--muted)] px-4 py-3">
-            <div>
-              <p className="text-sm font-bold">Appearance</p>
-              <p className="mt-0.5 text-xs font-medium text-[var(--ink-soft)]">
-                Follows your system unless you pick one
-              </p>
-            </div>
-            <ThemeToggle />
+          <div id="ai" className="scroll-mt-24">
+            <Sticker tint="mint">
+              <StickerHeading
+                emoji="🧠"
+                title="Momo's AI"
+                hint={
+                  ai.source === "none"
+                    ? "Off — food is guessed from a built-in table"
+                    : `On — ${geminiModel}`
+                }
+              />
+              {ai.source === "none" && ai.hint ? (
+                <p className="mb-3 rounded-2xl bg-[var(--sun-soft)] px-3.5 py-3 text-xs font-semibold text-[var(--sun-text)]">
+                  The key ending in {ai.hint} can no longer be read on this server.
+                  Paste it again to switch the AI back on.
+                </p>
+              ) : null}
+              <AiKeyForm
+                compact={ai.source !== "none"}
+                initial={{
+                  source: ai.source,
+                  hint: ai.source === "own" ? ai.hint : null,
+                }}
+              />
+            </Sticker>
           </div>
+        </div>
 
-          <ul className="space-y-2">
-            <StatusRow
-              on={isSupabaseConfigured}
-              label="Supabase"
-              onText="Connected — your data syncs across devices"
-              offText="Solo mode — stored on this machine only"
+        <div className="min-w-0 space-y-4 sm:space-y-5">
+          <Sticker tilt={0.5}>
+            <StickerHeading emoji="🔌" title="What's switched on" />
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-3xl bg-[var(--muted)] px-4 py-3">
+              <div>
+                <p className="text-sm font-bold">Appearance</p>
+                <p className="mt-0.5 text-xs font-medium text-[var(--ink-soft)]">
+                  Follows your system unless you pick one
+                </p>
+              </div>
+              <ThemeToggle />
+            </div>
+
+            <ul className="space-y-2">
+              <StatusRow
+                on={isSupabaseConfigured}
+                label="Supabase"
+                onText="Connected — your data syncs across devices"
+                offText="Solo mode — stored on this machine only"
+              />
+            </ul>
+
+            {isPushConfigured && isSupabaseConfigured ? (
+              <ReminderSettings
+                publicKey={vapid.publicKey}
+                initialHour={profile.reminderHour}
+              />
+            ) : null}
+
+            <ErrorLog errors={errors} today={today} />
+
+            <ExportData />
+
+            <Squiggle />
+
+            <p className="text-xs leading-relaxed font-medium text-[var(--ink-soft)]">
+              Momo gives estimates using population formulas and a language model.
+              They&rsquo;re great for spotting trends over weeks, but they are not
+              medical advice — chat to a professional before making big changes,
+              especially with a health condition.
+            </p>
+
+            {isSupabaseConfigured ? (
+              <SignOutButton />
+            ) : null}
+          </Sticker>
+
+          <Sticker tint="sun">
+            <StickerHeading emoji="🧹" title="Data" />
+            <DangerZone
+              showSeed={process.env.NODE_ENV !== "production"}
+              canDeleteAccount={isSupabaseConfigured}
             />
-          </ul>
-
-          {isPushConfigured && isSupabaseConfigured ? (
-            <ReminderSettings
-              publicKey={vapid.publicKey}
-              initialHour={profile.reminderHour}
-            />
-          ) : null}
-
-          <ErrorLog errors={errors} today={today} />
-
-          <ExportData />
-
-          <Squiggle />
-
-          <p className="text-xs leading-relaxed font-medium text-[var(--ink-soft)]">
-            Momo gives estimates using population formulas and a language model.
-            They&rsquo;re great for spotting trends over weeks, but they are not
-            medical advice — chat to a professional before making big changes,
-            especially with a health condition.
-          </p>
-
-          {isSupabaseConfigured ? (
-            <SignOutButton />
-          ) : null}
-        </Sticker>
+          </Sticker>
+        </div>
       </div>
-
-      <Sticker tint="sun">
-        <StickerHeading emoji="🧹" title="Data" />
-        <DangerZone
-          showSeed={process.env.NODE_ENV !== "production"}
-          canDeleteAccount={isSupabaseConfigured}
-        />
-      </Sticker>
     </div>
   );
 }

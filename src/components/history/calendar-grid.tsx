@@ -43,6 +43,7 @@ export function CalendarGrid({
       <div className="mb-4 flex items-center justify-between">
         <Link
           href={`/history?d=${selectedIso}&m=${prev}`}
+          scroll={false}
           className="grid size-11 place-items-center rounded-full bg-[var(--muted)] text-[var(--ink-soft)] transition-transform hover:-translate-y-0.5 hover:text-[var(--violet)] active:scale-90 sm:size-9"
           aria-label="Previous month"
         >
@@ -56,6 +57,7 @@ export function CalendarGrid({
         ) : (
           <Link
             href={`/history?d=${selectedIso}&m=${next}`}
+            scroll={false}
             className="grid size-11 place-items-center rounded-full bg-[var(--muted)] text-[var(--ink-soft)] transition-transform hover:-translate-y-0.5 hover:text-[var(--violet)] active:scale-90 sm:size-9"
             aria-label="Next month"
           >
@@ -73,6 +75,9 @@ export function CalendarGrid({
       </div>
 
       <div className="grid grid-cols-7 gap-1.5">
+        {/* `scroll={false}` below: picking a day redraws this page in
+                  place. Without it Next scrolled to the top on every tap and
+                  the calendar left the screen under your finger. */}
         {cells.map((iso) => {
           const day = byDate.get(iso);
           const outside = !isSameMonth(iso, monthIso);
@@ -134,6 +139,7 @@ export function CalendarGrid({
             >
               <Link
                 href={`/history?d=${iso}&m=${monthIso}`}
+                scroll={false}
                 className={cn(base, "block w-full")}
                 style={style}
                 aria-current={selected ? "date" : undefined}

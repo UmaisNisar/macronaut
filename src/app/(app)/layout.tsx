@@ -57,7 +57,15 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           room, and 64px of it was enough to push a page that otherwise
           fitted into a two-pixel scroll. Matched to the top instead.
         */
-        className="mx-auto w-full max-w-5xl px-4 pt-5 pb-32 sm:px-6 lg:pt-10 lg:pb-10 lg:pl-[132px]"
+        /*
+          The canvas widens past `wide` (1400px). Every page below is a single column of
+          cards, and on a wide screen that column sat in the middle of the
+          window with a third of the glass empty on each side while the page
+          itself ran two and a half screens deep. The pages now lay their cards out
+          side by side at `wide`, which only pays off if the shell gives them
+          the width to do it in.
+        */
+        className="mx-auto w-full max-w-5xl px-4 pt-5 pb-32 sm:px-6 lg:pt-10 lg:pb-10 lg:pl-[132px] wide:max-w-[1440px] wide:pr-8"
       >
         <SwipeNav>
           <PageShell>{children}</PageShell>
